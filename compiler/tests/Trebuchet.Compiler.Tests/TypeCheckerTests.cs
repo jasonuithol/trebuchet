@@ -293,7 +293,7 @@ public class TypeCheckerTests
     [Fact]
     public void PropagateNeedsResultOnBothSides()
     {
-        AssertError("fn f(x: Int) -> Result[Int, String]\n  y = x?\n  ok(y)\n", "'?' needs a Result but found Int");
+        AssertError("fn f(x: Int) -> Result[Int, String]\n  y = x?\n  ok(y)\n", "'?' needs a Result or an Option but found Int");
         AssertError("fn g() -> Result[Int, String]\n  ok(1)\nfn f() -> Int\n  g()?\n", "returns Int rather than a Result");
         AssertError("record E1(m: String)\nrecord E2(m: String)\nfn g() -> Result[Int, E1]\n  ok(1)\nfn f() -> Result[Int, E2]\n  v = g()?\n  ok(v)\n", "would propagate an error of type E1");
         AssertClean("fn g() -> Result[Int, String]\n  ok(1)\nfn f() -> Result[Int, String]\n  v = g()?\n  ok(v + 1)\n");
