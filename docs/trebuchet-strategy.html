@@ -675,6 +675,14 @@ a{color:var(--accent-ink)}
 <p>The nameless form was already there: <code>\x -&gt; ...</code> captures, is bound to names, and is passed along. The named form exists for the three things a lambda cannot do: recurse, state a signature, and announce itself before its body. The two coexist on the same split C# draws between lambdas and local functions. Lowering follows that split too: a C# local function, with an <code>Async</code> twin when it is effect-polymorphic; on C++ a <code>std::function</code> assigned from a lambda that captures by value and itself by reference, or a template lambda when the local is generic, in which case it cannot recurse. The interpreter needed only a closure whose environment is the block that defines its name.</p>
 <p>The classes, properties, and patterns samples moved their helpers inside the functions that use them, which is where they were always meant to be.</p>
 
+<h3>7.25 Parallelism: decided, and mostly declined</h3>
+<p>Discussing parallelism produced two findings and one decision.</p>
+<ul>
+<li><strong><code>Cell</code> had a race on .NET.</strong> ASP.NET runs handlers on parallel threads, and <code>Cell.update</code> was a read, a call, and a write with nothing between them, so two simultaneous bookings could lose an event. The runtime's <code>Cell</code> is now atomic: every operation runs under a lock, and the function an update applies runs under it exactly once. The interpreter's cell got the same treatment, because the dev server serves requests on parallel threads too. A test drives sixty-four threads through one cell. The C++ <code>Cell</code> stays plain, since everything on that target runs on one loop thread by design.</li>
+<li><strong>Parallelism is inferable, and rarely pays.</strong> The effect system already proves which computations may run in parallel: anything <code>! Pure</code> has no observable behaviour but its result and its time. What it cannot know is whether forking is worth it, which is a question of granularity that only a runtime cost model can answer, and it is the question the pure-functional world has mostly failed to answer well. Explicit combinators such as <code>parMap</code> would move that decision into source code, so a tuning change would be a code change; that was rejected.</li>
+<li><strong>Decision.</strong> No parallelism primitives enter the language. If a workload ever needs cores, the path is: the emitter lowers <code>map</code>, <code>filter</code>, and a <code>Monoid</code>-constrained fold over a <code>! Pure</code> function to a maybe-parallel runtime routine with an adaptive threshold, nothing else changes in the source, and <code>race</code> is the one explicit combinator because its meaning differs. <span class="flag">Nondet</span> bodies stay sequential. Panics in a parallel run report the earliest element, so failure looks like the sequential run. None of it is built, because no sample needs it, and the design is recorded here so that it is not designed twice. The C++ atomic-refcount question stays open and is only worth answering when that day comes.</li>
+</ul>
+
 <h2 id="milestones"><span class="n">8</span>Revised milestones</h2>
 <p>Milestones from the brief, with the decisions above folded in.</p>
 <ol class="milestones">
@@ -693,8 +701,7 @@ a{color:var(--accent-ink)}
 <div class="open-note"><span class="label">Not yet decided</span>
 <ul style="margin-bottom:0">
 <li><strong>Concrete syntax.</strong> Sketched separately; open choices listed there.</li>
-<li><strong>Multi-threaded refcounting.</strong> Atomic everywhere versus thread-confined with handoff. Decide when the single-threaded loop becomes a limit.</li>
-<li><strong>Parallelism primitives.</strong> <code>parMap</code> and <code>race</code> exist conceptually; their runtime is undesigned.</li>
+<li><strong>Multi-threaded refcounting on C++.</strong> Atomic behind a compile-time switch is the likely answer; decide only if a workload needs cores (section 7.25). Parallelism itself is decided: inferred from purity if ever built, no primitives in the language.</li>
 <li><strong>Whether <code>mut</code> locals ever return.</strong> Revisit only with evidence from real code after milestone 4.</li>
 </ul>
 </div>

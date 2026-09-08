@@ -6,6 +6,17 @@ namespace Trebuchet.Compiler.Tests;
 public class RuntimeTests
 {
     [Fact]
+    public void CellUpdatesAreAtomicUnderParallelThreads()
+    {
+        var cell = new Cell<long>(0);
+        Parallel.For(0, 64, _ => { for (var i = 0; i < 1000; i++) cell.Update(n => n + 1); });
+        Assert.Equal(64_000, cell.Get());
+        var log = new Cell<Vector<int>>(Vector<int>.Empty);
+        Parallel.For(0, 500, i => log.Update(v => v.Append(i)));
+        Assert.Equal(500, log.Get().Count);
+    }
+
+    [Fact]
     public void SetAlgebra()
     {
         var a = Set<string>.From(new[] { "red", "green", "blue" });

@@ -182,8 +182,12 @@ public sealed class SetValue : Value
 /// <summary>The one mutable primitive. Reference identity.</summary>
 public sealed class CellValue : Value
 {
-    public Value Current { get; set; }
-    public CellValue(Value initial) => Current = initial;
+    private readonly object _gate = new();
+    private Value _current;
+    public CellValue(Value initial) => _current = initial;
+    public Value Current { get { lock (_gate) return _current; } set { lock (_gate) _current = value; } }
+    /// <summary>Applies f under the lock, so concurrent updates from the dev server's request threads never lose one.</summary>
+    public Value Modify(Func<Value, Value> f) { lock (_gate) { var old = _current; _current = f(old); return old; } }
     public override string Show() => $"Cell({Current.Show()})";
 }
 

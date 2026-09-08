@@ -218,6 +218,13 @@ unions cannot hold resources. In C# a resource implements `IDisposable` (or
 the destructor calls `release`. A singleton depending on a `scoped` service is a compile
 error. `examples/resources/` is the sample.
 
+## Cell and threads
+
+`Cell` is atomic on .NET and in the interpreter: every operation runs under a lock and an
+update's function runs under it once, because ASP.NET and the dev server run requests on
+parallel threads. Immutable values need nothing. The C++ `Cell` is plain: that target runs
+on one event-loop thread. There are no parallelism primitives; see strategy §7.25.
+
 ## Local functions
 
 A `fn` (or, inside a handler or service method, a `handler`) may be declared inside a body. It

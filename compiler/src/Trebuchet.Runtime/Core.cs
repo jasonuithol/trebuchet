@@ -84,15 +84,21 @@ public readonly record struct ErrorValue<E>(E error);
 // ---------------------------------------------------------------- Cell
 
 /// <summary>The one mutable primitive. Reference identity; reads are Nondet, writes are Write.</summary>
+/// <summary>
+/// The one mutable primitive. Every operation is atomic: a .NET host runs handlers on parallel
+/// threads, so an update must be a single read-modify-write, and the function it applies runs
+/// under the lock exactly once. Uncontended, the lock costs a few nanoseconds.
+/// </summary>
 public sealed class Cell<T>
 {
+    private readonly object _gate = new();
     private T _value;
     public Cell(T initial) => _value = initial;
-    public T Get() => _value;
-    public Unit Set(T value) { _value = value; return Unit.Value; }
-    public Unit Update(Func<T, T> f) { _value = f(_value); return Unit.Value; }
-    public T GetAndUpdate(Func<T, T> f) { var old = _value; _value = f(old); return old; }
-    public override string ToString() => $"Cell({_value})";
+    public T Get() { lock (_gate) return _value; }
+    public Unit Set(T value) { lock (_gate) _value = value; return Unit.Value; }
+    public Unit Update(Func<T, T> f) { lock (_gate) _value = f(_value); return Unit.Value; }
+    public T GetAndUpdate(Func<T, T> f) { lock (_gate) { var old = _value; _value = f(old); return old; } }
+    public override string ToString() => $"Cell({Get()})";
 }
 
 // ---------------------------------------------------------------- builtin namespaces

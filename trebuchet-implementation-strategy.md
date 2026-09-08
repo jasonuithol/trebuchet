@@ -457,6 +457,14 @@ The nameless form was already there: `\x -> ...` captures, is bound to names, an
 
 The classes, properties, and patterns samples moved their helpers inside the functions that use them, which is where they were always meant to be.
 
+### 7.25 Parallelism: decided, and mostly declined
+
+Discussing parallelism produced two findings and one decision.
+
+- **`Cell` had a race on .NET.** ASP.NET runs handlers on parallel threads, and `Cell.update` was a read, a call, and a write with nothing between them, so two simultaneous bookings could lose an event. The runtime's `Cell` is now atomic: every operation runs under a lock, and the function an update applies runs under it exactly once. The interpreter's cell got the same treatment, because the dev server serves requests on parallel threads too. A test drives sixty-four threads through one cell. The C++ `Cell` stays plain, since everything on that target runs on one loop thread by design.
+- **Parallelism is inferable, and rarely pays.** The effect system already proves which computations may run in parallel: anything `! Pure` has no observable behaviour but its result and its time. What it cannot know is whether forking is worth it, which is a question of granularity that only a runtime cost model can answer, and it is the question the pure-functional world has mostly failed to answer well. Explicit combinators such as `parMap` would move that decision into source code, so a tuning change would be a code change; that was rejected.
+- **Decision.** No parallelism primitives enter the language. If a workload ever needs cores, the path is: the emitter lowers `map`, `filter`, and a `Monoid`-constrained fold over a `! Pure` function to a maybe-parallel runtime routine with an adaptive threshold, nothing else changes in the source, and `race` is the one explicit combinator because its meaning differs. `Nondet` bodies stay sequential. Panics in a parallel run report the earliest element, so failure looks like the sequential run. None of it is built, because no sample needs it, and the design is recorded here so that it is not designed twice. The C++ atomic-refcount question stays open and is only worth answering when that day comes.
+
 ---
 
 ## 8. Revised milestones
@@ -480,8 +488,7 @@ Milestones from the brief, with the decisions above folded in.
 ## 9. Deliberately open
 
 - **Concrete syntax.** Sketched in `trebuchet-syntax-sketch.md`; open choices listed there.
-- **Multi-threaded refcounting.** Atomic everywhere versus thread-confined with handoff. Decide when the single-threaded loop becomes a limit.
-- **Parallelism primitives.** `parMap` and `race` exist conceptually; their runtime is undesigned.
+- **Multi-threaded refcounting on C++.** Atomic behind a compile-time switch is the likely answer; decide only if a workload needs cores (§7.25). Parallelism itself is decided: inferred from purity if ever built, no primitives in the language.
 - **Whether `mut` locals ever return.** Revisit only with evidence from real code after milestone 4.
 
 ---

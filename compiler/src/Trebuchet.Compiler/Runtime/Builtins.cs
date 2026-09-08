@@ -238,15 +238,13 @@ public static class Builtins
         Def("update", (it, a) =>
         {
             var c = Cell(a, 0, "update");
-            c.Current = it.Call(Arg(a, 1, "update"), new[] { c.Current });
+            c.Modify(old => it.Call(Arg(a, 1, "update"), new[] { old }));
             return UnitValue.Instance;
         });
         Def("getAndUpdate", (it, a) =>
         {
             var c = Cell(a, 0, "getAndUpdate");
-            var old = c.Current;
-            c.Current = it.Call(Arg(a, 1, "getAndUpdate"), new[] { old });
-            return old;
+            return c.Modify(old => it.Call(Arg(a, 1, "getAndUpdate"), new[] { old }));
         });
         var seq = new Env(null, "Seq");
         seq.Define("from", new Builtin("Seq.from", (_, a) => { var items = List(a, 0, "Seq.from").Items; return new SeqValue(() => items); }));
