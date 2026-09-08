@@ -156,6 +156,9 @@ public abstract record Stmt(Position Pos) : Node(Pos);
 
 public sealed record BindingStmt(Position Pos, string Name, Expr Value) : Stmt(Pos);
 
+/// <summary>A function declared inside a body: visible from its own line to the end of the block, and to itself.</summary>
+public sealed record LocalFnStmt(Position Pos, FnDecl Fn) : Stmt(Pos);
+
 /// <summary>A binding through an irrefutable pattern: <c>(a, b) = pair</c>, <c>[...xs] = v</c>, <c>whole @ (a, _) = pair</c>.</summary>
 public sealed record DestructureStmt(Position Pos, Pattern Pattern, Expr Value) : Stmt(Pos);
 

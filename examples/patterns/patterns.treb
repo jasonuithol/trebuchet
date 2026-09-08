@@ -69,4 +69,8 @@ fn demo() -> String ! Pure
   points = classify((0, 0)) + " " + classify((3, 0)) + " " + classify((0, 4)) + " " + classify((2, 2)) + " " + classify((1, 2))
   options = toString(getOr(secondOfFirst([[1, 2], [3]]), -1)) + " " + toString(getOr(secondOfFirst([]), -1))
   named = quadrant(Point(0, 0)) + " " + quadrant(Point(-1, 5)) + " " + quadrant(Point(3, -2)) + " " + quadrant(Point(3, 4))
-  described + lists + " " + tuples + " " + points + " " + options + " " + named
+  base = 10
+  // a local function may recurse and may use the locals above it
+  fn digits(n: Int, acc: Int) -> Int
+    if n == 0 then acc else digits(n / base, acc + 1)
+  described + lists + " " + tuples + " " + points + " " + options + " " + named + " " + toString(digits(12345, 0))

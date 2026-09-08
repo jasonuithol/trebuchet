@@ -218,6 +218,13 @@ unions cannot hold resources. In C# a resource implements `IDisposable` (or
 the destructor calls `release`. A singleton depending on a `scoped` service is a compile
 error. `examples/resources/` is the sample.
 
+## Local functions
+
+A `fn` (or, inside a handler or service method, a `handler`) may be declared inside a body. It
+sees the enclosing parameters and earlier locals, may recurse, and inherits the enclosing
+constraints. C# emits a local function; C++ a `std::function` bound to a lambda (a template
+lambda when the local is generic, which then cannot recurse).
+
 ## Lazy sequences and property tests
 
 `Seq[T]` is lazy and may be infinite: `Seq.iterate(seed, f)`, `Seq.range(from, to)`,

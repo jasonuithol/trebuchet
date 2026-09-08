@@ -449,6 +449,14 @@ Positional patterns stopped scaling the moment variants grew past two fields: ad
 
 Punning, `Room(capacity)` binding a variable named after the field, was considered and dropped: `Room(capacity)` already means a positional bind of the first field, and no spelling for the pun read well next to the `name: value` shape construction and `with` use. `...` covers the common case in fewer keystrokes anyway. C# property patterns are named by nature, so the lowering got simpler rather than harder; C++ indexes struct members either way. The samples that padded with underscores now name their fields.
 
+### 7.24 Local named functions
+
+A function may now be declared inside a body with the same syntax as at the top level. It sees the enclosing parameters and the locals bound above it, it is in scope in its own body so it may recurse, it carries a full signature with type parameters, constraints, and an optional `!` clause, and it inherits the enclosing function's constraints, so a local `keep` inside `largest[T: Ord]` may compare two `T`s. A `handler` may be local only inside a handler or a service method, since a local `fn` is still a fn and may not write. A block may not end with a declaration.
+
+The nameless form was already there: `\x -> ...` captures, is bound to names, and is passed along. The named form exists for the three things a lambda cannot do: recurse, state a signature, and announce itself before its body. The two coexist on the same split C# draws between lambdas and local functions. Lowering follows that split too: a C# local function, with an `Async` twin when it is effect-polymorphic; on C++ a `std::function` assigned from a lambda that captures by value and itself by reference, or a template lambda when the local is generic, in which case it cannot recurse. The interpreter needed only a closure whose environment is the block that defines its name.
+
+The classes, properties, and patterns samples moved their helpers inside the functions that use them, which is where they were always meant to be.
+
 ---
 
 ## 8. Revised milestones

@@ -41,6 +41,36 @@ public class TypeCheckerTests
     }
 
     [Fact]
+    public void LocalFunctionsRecurseCaptureAndInheritConstraints()
+    {
+        var modules = ModuleSet.Load(new[] { ("t.treb", """
+            fn biggest[T: Ord](xs: Vector[T]) -> Option[T] ! Pure
+              fn keep(acc: Option[T], x: T) -> Option[T]
+                match acc
+                  None => Some(x)
+                  Some(m) => if x > m then Some(x) else acc
+              fold(xs, None, \acc, x -> keep(acc, x))
+            fn count(n: Int) -> Int ! Pure
+              step = 1
+              fn go(k: Int, acc: Int) -> Int
+                if k == 0 then acc else go(k - step, acc + 1)
+              go(n, 0)
+            fn bad(n: Int) -> Int ! Pure
+              handler h(x: Int) -> Int
+                x
+              h(n)
+            fn tail(n: Int) -> Int ! Pure
+              fn unused(x: Int) -> Int
+                x
+            """) });
+        var checker = TypeChecker.CheckWithEffects(modules);
+        var messages = checker.Diagnostics.Select(d => d.Message).ToList();
+        Assert.Contains(messages, m => m.Contains("a local handler needs a handler or a service method around it"));
+        Assert.Contains(messages, m => m.Contains("a block cannot end with a function declaration"));
+        Assert.Equal(2, messages.Count(m => !m.Contains("declared to return")));
+    }
+
+    [Fact]
     public void NamedFieldPatternsAreCheckedByName()
     {
         var modules = ModuleSet.Load(new[] { ("t.treb", """

@@ -222,6 +222,7 @@ public sealed class Printer
             {
                 case BindingStmt bind: ValueLine($"{bind.Name} = ", bind.Value); break;
                 case DestructureStmt ds: ValueLine($"{Pattern(ds.Pattern)} = ", ds.Value); break;
+                case LocalFnStmt lf: FnDecl(lf.Fn, ""); break;
                 case UseStmt use: ValueLine($"use {use.Name} = ", use.Value); break;
                 case ExprStmt e: ExprLine("", e.Value); break;
                 default: throw new InvalidOperationException($"unknown statement {s.GetType().Name}");

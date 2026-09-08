@@ -31,13 +31,14 @@ instance Ord[Money]
 fn concatAll[T: Monoid](xs: Vector[T]) -> T ! Pure
   fold(xs, Monoid.empty[T](), \a, b -> Monoid.combine(a, b))
 
-fn keepLarger[T: Ord](acc: Option[T], x: T) -> Option[T] ! Pure
-  match acc
-    None => Some(x)
-    Some(m) => if x > m then Some(x) else acc
-
+// A local function sees the enclosing parameters and constraints: keep may compare x > m
+// because largest declared T: Ord.
 fn largest[T: Ord](xs: Vector[T]) -> Option[T] ! Pure
-  fold(xs, None, \acc, x -> keepLarger(acc, x))
+  fn keep(acc: Option[T], x: T) -> Option[T]
+    match acc
+      None => Some(x)
+      Some(m) => if x > m then Some(x) else acc
+  fold(xs, None, \acc, x -> keep(acc, x))
 
 fn describe(m: Money) -> String ! Pure
   toString(m.cents) + "c"

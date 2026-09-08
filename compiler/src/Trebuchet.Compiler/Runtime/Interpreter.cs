@@ -269,6 +269,11 @@ public sealed class Interpreter
             {
                 switch (s)
                 {
+                    case LocalFnStmt lf:
+                        // the closure's environment is this block, where its own name is defined, so it can recurse
+                        local.Define(lf.Fn.Signature.Name, new Closure(lf.Fn.Signature.Name, ParamNames(lf.Fn.Signature), lf.Fn.Body, local));
+                        last = UnitValue.Instance;
+                        break;
                     case BindingStmt bind:
                         local.Define(bind.Name, Eval(bind.Value, local));
                         last = UnitValue.Instance;

@@ -377,7 +377,7 @@ public sealed class CSharpEmitter
     }
 
     /// <summary>Hidden parameters a constrained function takes: one dictionary per (parameter, shape), after the declared parameters.</summary>
-    private string DictParams(FnT type, string declared)
+    internal string DictParams(FnT type, string declared)
     {
         var parts = new List<string>();
         foreach (var param in type.TypeParams)
@@ -417,7 +417,7 @@ public sealed class CSharpEmitter
         sb.AppendLine();
     }
 
-    private string Params(IReadOnlyList<Param> ps, FnT t) =>
+    internal string Params(IReadOnlyList<Param> ps, FnT t) =>
         string.Join(", ", ps.Select((p, i) => $"{CsType(t.Params[i])} {Id(p.Name)}"));
 
     private void EmitService(StringBuilder sb, ServiceDecl s, Module m)
@@ -646,6 +646,14 @@ public sealed class CSharpEmitter
                         if (last) EmitTarget(target, "Unit.Value", PrimT.Unit);
                         break;
                     }
+                    case LocalFnStmt lf:
+                    {
+                        var type = _e._checker.LocalFnTypes[lf];
+                        EmitLocalFunction(lf.Fn, type, lf.Fn.Signature.Name, polyAsync: false);
+                        if (_e._checker.PolyParamsOf(type).Count > 0) EmitLocalFunction(lf.Fn, type, lf.Fn.Signature.Name + "Async", polyAsync: true);
+                        if (last) EmitTarget(target, "Unit.Value", PrimT.Unit);
+                        break;
+                    }
                     case DestructureStmt ds:
                     {
                         var t = TypeOf(ds.Value);
@@ -672,6 +680,21 @@ public sealed class CSharpEmitter
             }
             if (block.Stmts.Count == 0) EmitTarget(target, "Unit.Value", PrimT.Unit);
             else if (_e._lineDirectives) _sb.AppendLine("#line default");
+        }
+
+        private void EmitLocalFunction(FnDecl fn, FnT type, string name, bool polyAsync)
+        {
+            var saved = _e._polyAsync;
+            _e._polyAsync = polyAsync;
+            var isAsync = _e.Suspends(type) || polyAsync;
+            var ret = isAsync ? $"ValueTask<{_e.CsType(type.Return)}>" : _e.CsType(type.Return);
+            Line($"{(isAsync ? "async " : "")}{ret} {Id(name)}{Generic(fn.Signature.TypeParams)}({_e.DictParams(type, _e.Params(fn.Signature.Params, type))})");
+            Line("{");
+            var inner = new FnEmitter(_e, _m, type.Return, _indent + 1);
+            inner.EmitBlockInto(fn.Body, Target.Return, type.Return);
+            _sb.Append(inner.Text);
+            Line("}");
+            _e._polyAsync = saved;
         }
 
         private void EmitTarget(Target target, string value, TType? type)

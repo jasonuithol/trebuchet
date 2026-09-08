@@ -147,7 +147,7 @@ public sealed class CppEmitter
         };
     }
 
-    private string Params(IReadOnlyList<Param> ps, FnT t) =>
+    internal string Params(IReadOnlyList<Param> ps, FnT t) =>
         string.Join(", ", ps.Select((p, i) => $"{CppType(t.Params[i])} {Id(p.Name)}"));
 
     // ------------------------------------------------------------ modules
@@ -243,6 +243,8 @@ public sealed class CppEmitter
                 foreach (var shape in shapes) ps.Add($"class {shape}_{param}");
         return ps.Count == 0 ? "" : $"template <{string.Join(", ", ps)}> ";
     }
+
+    internal static string DictParamsFor(FnT type, string declared) => DictParams(type, declared);
 
     private static string DictParams(FnT type, string declared)
     {
@@ -585,6 +587,35 @@ public sealed class CppEmitter
                         {
                             var v = EmitExpr(b.Value, t);
                             Line($"{DeclType(t)} {Id(b.Name)} = {v};");
+                        }
+                        if (last) EmitTarget(target, "unit");
+                        break;
+                    }
+                    case LocalFnStmt lf:
+                    {
+                        var fn = lf.Fn;
+                        var type = _e._checker.LocalFnTypes[lf];
+                        var name = Id(fn.Signature.Name);
+                        var isAsync = _e.Suspends(type);
+                        var ret = isAsync ? $"Task<{_e.CppType(type.Return)}>" : _e.CppType(type.Return);
+                        var inner = new FnEmitter(_e, _m, type.Return, _indent + 1, _inMethod, coroutine: isAsync);
+                        inner.EmitBlockInto(fn.Body, Target.Return, type.Return);
+                        var capture = _inMethod ? "[=, this" : "[=";
+                        if (fn.Signature.TypeParams.Count > 0)
+                        {
+                            // a generic local cannot be a std::function; a template lambda cannot name itself
+                            var tps = string.Join(", ", fn.Signature.TypeParams.Select(p => "class " + p));
+                            Line($"auto {name} = {capture}]<{tps}>({CppEmitter.DictParamsFor(type, _e.Params(fn.Signature.Params, type))}) -> {ret} {{");
+                            _sb.Append(inner.Text);
+                            Line("};");
+                        }
+                        else
+                        {
+                            var sig = $"std::function<{ret}({string.Join(", ", type.Params.Select(_e.CppType))})>";
+                            Line($"{sig} {name};");
+                            Line($"{name} = {capture}, &{name}]({_e.Params(fn.Signature.Params, type)}) -> {ret} {{");
+                            _sb.Append(inner.Text);
+                            Line("};");
                         }
                         if (last) EmitTarget(target, "unit");
                         break;

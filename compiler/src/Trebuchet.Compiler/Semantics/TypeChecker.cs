@@ -70,6 +70,8 @@ public sealed class TypeChecker
     public Dictionary<(InstanceDecl Decl, string Member), FnT> InstanceMemberTypes { get; } = new();
     /// <summary>The resolved type each instance is for.</summary>
     public Dictionary<InstanceDecl, TType> InstanceTargets { get; } = new();
+    /// <summary>The type of each local function, for the emitters.</summary>
+    public Dictionary<LocalFnStmt, FnT> LocalFnTypes { get; } = new();
     private readonly Dictionary<ShapeT, Scope> _classScopes = new(ReferenceEqualityComparer.Instance);
     private readonly List<Action> _deferred = new();
 
@@ -641,12 +643,20 @@ public sealed class TypeChecker
         }
     }
 
-    private void CheckFunction(FnDecl fn, FnT type, Scope scope, Module m, ServiceT? service = null)
+    private void CheckFunction(FnDecl fn, FnT type, Scope scope, Module m, ServiceT? service = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? inherited = null)
     {
         for (var i = 0; i < fn.Signature.Params.Count; i++)
             scope.DefineValue(fn.Signature.Params[i].Name, new ValueSym(type.Params[i]));
         var paramIndex = fn.Signature.Params.Select((p, i) => (p.Name, i)).ToDictionary(x => x.Name, x => x.i);
-        var ctx = new Ctx { Scope = scope, Module = m, Frame = _frameOf[type], ReturnType = type.Return, Where = fn.Signature.Name, ParamIndex = paramIndex, Service = service, Constraints = type.Constraints };
+        // a local function sees the enclosing function's constraints as well as its own
+        var constraints = type.Constraints;
+        if (inherited is { Count: > 0 })
+        {
+            var merged = new Dictionary<string, IReadOnlyList<string>>(inherited);
+            foreach (var (k, v) in type.Constraints) merged[k] = v;
+            constraints = merged;
+        }
+        var ctx = new Ctx { Scope = scope, Module = m, Frame = _frameOf[type], ReturnType = type.Return, Where = fn.Signature.Name, ParamIndex = paramIndex, Service = service, Constraints = constraints };
         var bodyType = Block(fn.Body, ctx, type.Return);
         if (!Unify(bodyType, type.Return))
             Error(ctx, fn.Body.Pos, $"{fn.Signature.Name} is declared to return {Show(type.Return)} but its body has type {Show(bodyType)}");
@@ -681,6 +691,24 @@ public sealed class TypeChecker
                         Error(ctx, ds.Pos, "this pattern can fail to match, so it cannot be a binding; use match, or a pattern that matches every value");
                     last = PrimT.Unit;
                     if (isLast) Error(ctx, ds.Pos, "a block cannot end with a binding");
+                    break;
+                }
+                case LocalFnStmt lf:
+                {
+                    var fn = lf.Fn;
+                    var isHandler = fn.Kind == FnKind.Handler;
+                    if (isHandler && ctx.Frame.Kind is not (FrameKind.Handler or FrameKind.Method))
+                        Error(ctx, lf.Pos, $"a local handler needs a handler or a service method around it; '{fn.Signature.Name}' is inside a {ctx.Frame.Kind.ToString().ToLowerInvariant()}");
+                    var ft = ResolveSignature(fn.Signature, ctx.Scope, ctx.Module, isHandler);
+                    if (!isHandler && ft.Effects is not null && ft.Effects.Contains("Write"))
+                        Error(ctx, lf.Pos, $"a fn cannot declare the Write effect; make '{fn.Signature.Name}' a handler");
+                    LocalFnTypes[lf] = ft;
+                    // the name is in scope for the rest of the block and inside its own body, so it may recurse
+                    ctx.Scope.DefineValue(fn.Signature.Name, new ValueSym(ft, isHandler));
+                    NewFrame(ft, $"{ctx.Frame.Name}.{fn.Signature.Name}", fn.Pos, isHandler ? FrameKind.Handler : FrameKind.Fn, ctx.Module);
+                    CheckFunction(fn, ft, new Scope(WithTypeParams(ctx.Scope, fn.Signature.TypeParams), fn.Signature.Name), ctx.Module, ctx.Service, ctx.Constraints);
+                    last = PrimT.Unit;
+                    if (isLast) Error(ctx, lf.Pos, $"a block cannot end with a function declaration; '{fn.Signature.Name}' is never used");
                     break;
                 }
                 case UseStmt u:

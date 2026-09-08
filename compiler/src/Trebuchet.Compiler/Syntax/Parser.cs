@@ -472,6 +472,8 @@ public sealed class Parser
             Next();
             return new BindingStmt(pos, name, Value());
         }
+        if (At(TokenKind.KwFn) || At(TokenKind.KwHandler))
+            return new LocalFnStmt(pos, FnDecl(pos, false));
         if (At(TokenKind.LParen) || At(TokenKind.LBracket) || (At(TokenKind.Identifier) && KindAt(1) == TokenKind.At))
         {
             // a destructuring binding if a pattern followed by '=' parses; otherwise an expression line

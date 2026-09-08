@@ -311,6 +311,17 @@ fn swap[A, B](p: (A, B)) -> (B, A) ! Pure
   (b, a)
 ```
 
+A function may be declared inside a body, with the same syntax as at the top level. It sees the parameters and the locals above it, may call itself, and inherits the enclosing constraints; a local `handler` is allowed only inside a handler or a service method. Lambdas remain for the nameless case.
+
+```
+fn largest[T: Ord](xs: Vector[T]) -> Option[T] ! Pure
+  fn keep(acc: Option[T], x: T) -> Option[T]
+    match acc
+      None => Some(x)
+      Some(m) => if x > m then Some(x) else acc
+  fold(xs, None, \acc, x -> keep(acc, x))
+```
+
 A constructor pattern may name its fields, `Held(guest: g, ...)`, and may end with `...` to ignore the rest; positional entries come first and, without `...`, cover every field. Records match the same way: `Point(x: 0, y: 0)`. There is no punning: `Room(capacity)` is a positional bind, not a field.
 
 A guarded arm never counts towards exhaustiveness. A match on a vector is exhaustive when some `[..., ...rest]` arm takes every length from k up and each shorter length has an exact arm. A binding line may be any pattern that cannot fail; one that can is an error that points at `match`.

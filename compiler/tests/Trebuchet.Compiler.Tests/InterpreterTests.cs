@@ -296,7 +296,7 @@ public class InterpreterTests
         Assert.Equal(OrdersExpected, $"placed={placed} again={again} empty={empty} {((StringValue)described).V}");
     }
 
-    public const string PatternsExpected = "point; circle 2; square 3 area 9; rect 2x5; 10 7,8 5 none 1..9 1a origin x-axis 3 y-axis 4 diagonal plane 2 -1 origin left lower upper";
+    public const string PatternsExpected = "point; circle 2; square 3 area 9; rect 2x5; 10 7,8 5 none 1..9 1a origin x-axis 3 y-axis 4 diagonal plane 2 -1 origin left lower upper 5";
 
     [Fact]
     public void GuardsListsTuplesAndAsPatternsRun()

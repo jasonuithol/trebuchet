@@ -283,4 +283,6 @@ The open questions in §10 were worked through in a follow-up session. Full reas
 
 **Added 2026-09-08, named-field patterns:** `Held(guest: g, ...)` picks fields by name and `...` ignores the rest; records are matchable. No punning. See `trebuchet-implementation-strategy.md` §7.23.
 
+**Added 2026-09-08, local named functions:** `fn` and `handler` may be declared inside a body; they recurse, capture, and inherit the enclosing constraints. See `trebuchet-implementation-strategy.md` §7.24.
+
 **Still open:** concrete syntax details (sketched in `trebuchet-syntax-sketch.md`), multi-threaded refcounting, parallelism primitives, and whether `mut` locals ever return.
