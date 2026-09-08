@@ -1,0 +1,27 @@
+module supervision
+
+// supervise expr is a supervisor point: a panic raised while evaluating expr becomes
+// Error(Panic(message)) instead of unwinding further. Only a handler or a service method
+// may contain one; a fn cannot observe a panic, so a pure computation stays pure.
+
+union Outcome
+  Fine(value: Int)
+  Crashed(message: String)
+
+fn risky(n: Int) -> Int ! Pure
+  if n < 0 then fail(ArgumentError("negative: " + toString(n))) else n * 2
+
+handler guarded(n: Int) -> Outcome
+  match supervise risky(n)
+    Ok(v) => Fine(v)
+    Error(p) => Crashed(p.message)
+
+fn describe(o: Outcome) -> String ! Pure
+  match o
+    Fine(v) => "fine " + toString(v)
+    Crashed(m) => "crashed " + m
+
+handler demo() -> String
+  a = guarded(2)
+  b = guarded(-1)
+  describe(a) + "; " + describe(b)

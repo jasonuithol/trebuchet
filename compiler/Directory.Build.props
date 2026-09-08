@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Authors>Trebuchet</Authors>
+    <Description>Trebuchet, an immutable-first language that compiles to C# and C++.</Description>
+    <IsPackable>false</IsPackable>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)nupkg</PackageOutputPath>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,27 @@
+module factories
+
+// A function-typed dependency that returns a service is synthesised by the root when no
+// entry provides it: the function's parameters fill the target's constructor by type, in
+// order, and the remaining constructor parameters resolve from the root like any other
+// dependency. Client never names Conn's config or log; the root wires them.
+
+record Config
+  prefix: String
+
+resource service Conn(name: String, config: Config, log: Cell[Vector[String]])
+  fn describe() -> String ! Pure
+    config.prefix + ":" + name
+  fn release() -> Unit
+    log.update(\entries -> append(entries, "closed " + name))
+
+service Client(open: fn(String) -> Conn ! Pure, log: Cell[Vector[String]])
+  fn ping(name: String) -> String
+    use c = open(name)
+    c.describe()
+  fn history() -> Vector[String] ! Nondet
+    log.get()
+
+root main
+  config: Config("db")
+  log: Cell.new([])
+  client: Client

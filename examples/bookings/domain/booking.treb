@@ -1,0 +1,24 @@
+module bookings.domain.booking
+
+use bookings.domain.ids
+use bookings.domain.slot
+
+union BookingStatus
+  Held
+  Confirmed
+  Cancelled
+  Waitlisted
+
+record Booking
+  id: BookingId
+  room: RoomId
+  guest: GuestId
+  slot: Slot
+  status: BookingStatus
+  attendees: Set[GuestId]
+
+record Room
+  id: RoomId
+  name: String
+  capacity: Int
+  bookings: Vector[Booking]

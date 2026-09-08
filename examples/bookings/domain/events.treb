@@ -1,0 +1,19 @@
+module bookings.domain.events
+
+use bookings.domain.ids
+use bookings.domain.slot
+
+union RoomEvent
+  BookingHeld(id: BookingId, guest: GuestId, slot: Slot, attendees: Set[GuestId])
+  BookingWaitlisted(id: BookingId, guest: GuestId, slot: Slot, attendees: Set[GuestId])
+  BookingConfirmed(id: BookingId)
+  BookingCancelled(id: BookingId, reason: String)
+  BookingPromoted(id: BookingId)
+
+union BookingError
+  RoomNotFound(room: RoomId)
+  SlotTaken(room: RoomId, slot: Slot)
+  SlotInPast(slot: Slot)
+  OverCapacity(room: RoomId, requested: Int, capacity: Int)
+  BookingNotFound(id: BookingId)
+  AlreadyCancelled(id: BookingId)

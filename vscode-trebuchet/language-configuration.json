@@ -1,0 +1,16 @@
+{
+  "comments": { "lineComment": "//" },
+  "brackets": [["[", "]"], ["(", ")"], ["{", "}"]],
+  "autoClosingPairs": [
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "{", "close": "}" },
+    { "open": "\"", "close": "\"", "notIn": ["string"] }
+  ],
+  "surroundingPairs": [["[", "]"], ["(", ")"], ["{", "}"], ["\"", "\""]],
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(record|entity|union|fn|handler|service|scoped\\s+service|shape|root|match|if|else|with|ok|error)\\b.*$|.*(=>|->|\\bwith|\\bthen|\\belse)\\s*$",
+    "decreaseIndentPattern": "^\\s*else\\b"
+  },
+  "folding": { "offSide": true }
+}

@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#151b21"/><stop offset="1" stop-color="#11161b"/></linearGradient><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.7" markerHeight="6.7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d6a8c"/></marker><pattern id="grid" width="46.1" height="46.1" patternUnits="userSpaceOnUse"><path d="M 46.1 0 L 0 0 0 46.1" fill="none" stroke="#1c242c" stroke-width="1"/></pattern></defs>
+<rect width="1920" height="1080" fill="url(#g)"/><rect width="1920" height="1080" fill="url(#grid)" opacity="0.5"/>
+<text x="92.2" y="92.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="32.6" font-weight="600" fill="#dfe4e9">Targets</text>
+<text x="236.6" y="92.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="19.2" fill="#66727e">the .NET and C++ backends, and the boundary with their hosts</text>
+<text x="1827.8" y="92.2" text-anchor="end" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.4" fill="#66727e">targets · right screen</text>
+<rect x="69.1" y="169.0" width="877.4" height="156.5" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="69.1" y="169.0" width="4.8" height="156.5" rx="1.9" fill="#7fb3d9"/>
+<text x="90.2" y="199.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="17.3" font-weight="600" fill="#dfe4e9">C# emitter  ·  treb emit --host</text>
+<text x="90.2" y="219.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">record → C# record (validating ctor for init); union → abstract record + sealed variants</text>
+<text x="90.2" y="240.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">shape → interface; a service implements every shape it satisfies</text>
+<text x="90.2" y="260.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">Suspend → async ValueTask&lt;T&gt;;  ? → early return;  supervise → catch (TrebPanic)</text>
+<text x="90.2" y="280.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">resource → IDisposable / IAsyncDisposable, use → using / await using</text>
+<text x="90.2" y="300.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">#line directives: panics and diagnostics name the .treb file and line</text>
+<path d="M507.8,325.4 L507.8,348.5" fill="none" stroke="#3d6a8c" stroke-width="1.9" marker-end="url(#arrow)"/>
+<rect x="69.1" y="350.4" width="877.4" height="136.3" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="69.1" y="350.4" width="4.8" height="136.3" rx="1.9" fill="#7fb3d9"/>
+<text x="90.2" y="381.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="17.3" font-weight="600" fill="#dfe4e9">Trebuchet.Runtime  (nupkg)</text>
+<text x="90.2" y="401.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">Vector : IReadOnlyList,  Map : IReadOnlyDictionary,  Set,  Cell,  Option / Result</text>
+<text x="90.2" y="421.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">Prelude with Async twins; sleep = Task.Delay</text>
+<text x="90.2" y="441.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">TrebuchetJson: one converter factory for the boundary shape</text>
+<text x="90.2" y="461.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">Boundary.To&lt;T&gt;: converts every extern result at the edge</text>
+<path d="M507.8,486.7 L507.8,509.8" fill="none" stroke="#3d6a8c" stroke-width="1.9" marker-end="url(#arrow)"/>
+<rect x="69.1" y="511.7" width="877.4" height="176.6" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="69.1" y="511.7" width="4.8" height="176.6" rx="1.9" fill="#7fb3d9"/>
+<text x="90.2" y="542.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="17.3" font-weight="600" fill="#dfe4e9">ASP.NET host  ·  AddTrebuchet_&lt;root&gt;()</text>
+<text x="90.2" y="562.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">each root entry: keyed factory + TryAdd under its type and shapes</text>
+<text x="90.2" y="582.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">dependencies resolve from the container by declared type first,</text>
+<text x="90.2" y="602.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">  so anything the host registered before the call wins</text>
+<text x="90.2" y="623.0" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">builder.Services.AddSingleton&lt;Clock&gt;(new HostClock());</text>
+<text x="90.2" y="643.2" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">builder.Services.AddTrebuchet_dev();</text>
+<text x="90.2" y="663.4" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">builder.Services.ConfigureHttpJsonOptions(o =&gt; TrebuchetJson.Configure(o.SerializerOptions));</text>
+<rect x="973.4" y="169.0" width="877.4" height="156.5" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="973.4" y="169.0" width="4.8" height="156.5" rx="1.9" fill="#e29ab8"/>
+<text x="994.6" y="199.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="17.3" font-weight="600" fill="#dfe4e9">C++ emitter  ·  treb emit --target cpp</text>
+<text x="994.6" y="219.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">record → struct with defaulted == and a generated std::hash</text>
+<text x="994.6" y="240.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">union → forward-declared variants + std::variant alias; recursive field → Box&lt;T&gt;</text>
+<text x="994.6" y="260.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">shape → abstract class; service → Rc&lt;Service&gt;; generics → templates</text>
+<text x="994.6" y="280.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">Suspend → Task&lt;T&gt; coroutine, co_await / co_return;  supervise → catch (treb::Panic)</text>
+<text x="994.6" y="300.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">resource → destructor calls release when the last Rc drops</text>
+<path d="M1412.2,325.4 L1412.2,348.5" fill="none" stroke="#3d6a8c" stroke-width="1.9" marker-end="url(#arrow)"/>
+<rect x="973.4" y="350.4" width="877.4" height="136.3" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="973.4" y="350.4" width="4.8" height="136.3" rx="1.9" fill="#e29ab8"/>
+<text x="994.6" y="381.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="17.3" font-weight="600" fill="#dfe4e9">trebuchet.hpp  (header-only, standard library, g++ -std=c++20)</text>
+<text x="994.6" y="401.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">Rc&lt;T&gt; non-atomic refcount;  Vector trie;  Map and Set HAMT;  Box&lt;T&gt;</text>
+<text x="994.6" y="421.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">Task&lt;T&gt;: lazy coroutine, symmetric transfer; get() drives the loop</text>
+<text x="994.6" y="441.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">EventLoop per thread: ready queue, timer heap, thread-safe post()</text>
+<text x="994.6" y="461.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">sleepFor, yield, spawn(task) → joinable, Completion&lt;T&gt; / Pending&lt;T&gt;</text>
+<path d="M1412.2,486.7 L1412.2,509.8" fill="none" stroke="#3d6a8c" stroke-width="1.9" marker-end="url(#arrow)"/>
+<rect x="973.4" y="511.7" width="877.4" height="176.6" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="973.4" y="511.7" width="4.8" height="176.6" rx="1.9" fill="#e29ab8"/>
+<text x="994.6" y="542.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="17.3" font-weight="600" fill="#dfe4e9">Native host  ·  driver.cpp</text>
+<text x="994.6" y="562.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">declares host:: functions, then includes generated.hpp</text>
+<text x="994.6" y="582.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">a callback API becomes a Task: move the Completion into the callback,</text>
+<text x="994.6" y="602.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">  co_await pending(); a resolver dropped unresolved fails the waiter</text>
+<text x="994.6" y="623.0" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">auto root = Bookings_Host_Test::test();</text>
+<text x="994.6" y="643.2" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">auto r = root.api-&gt;postBooking(req).get();</text>
+<text x="994.6" y="663.4" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">auto a = spawn(tick(log, "a", 30)); a.get();   // timer order</text>
+<rect x="59.5" y="144.0" width="896.6" height="557.8" rx="9.6" fill="none" stroke="#7fb3d9" stroke-opacity="0.45" stroke-width="1.4" stroke-dasharray="5.8,5.8"/>
+<text x="76.8" y="134.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="12.5" fill="#7fb3d9" letter-spacing="1.4">.NET PATH</text>
+<rect x="963.8" y="144.0" width="896.6" height="557.8" rx="9.6" fill="none" stroke="#e29ab8" stroke-opacity="0.45" stroke-width="1.4" stroke-dasharray="5.8,5.8"/>
+<text x="981.1" y="134.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="12.5" fill="#e29ab8" letter-spacing="1.4">C++ PATH</text>
+<text x="69.1" y="738.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="12.5" fill="#d5a44f" letter-spacing="1.4">THE INTEROP BOUNDARY, SAME RULES BOTH WAYS</text>
+<rect x="69.1" y="749.8" width="576.0" height="170.9" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="69.1" y="749.8" width="4.8" height="170.9" rx="1.9" fill="#d5a44f"/>
+<text x="90.2" y="780.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="16.3" font-weight="600" fill="#dfe4e9">Outbound: extern fn</text>
+<text x="90.2" y="799.7" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">extern fn readLines(path: String)</text>
+<text x="90.2" y="818.9" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">  -&gt; Result[Vector[String], FileError] ! Nondet Suspend</text>
+<text x="90.2" y="838.1" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">  csharp "System.IO.File.ReadAllLinesAsync"</text>
+<text x="90.2" y="857.3" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">  cpp "host::readLines"</text>
+<text x="90.2" y="876.5" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="13.4" fill="#66727e" xml:space="preserve">  catch csharp "System.IO.IOException" -&gt; Unreadable</text>
+<text x="90.2" y="895.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">effects are mandatory; an unmapped exception panics</text>
+<rect x="672.0" y="749.8" width="576.0" height="170.9" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="672.0" y="749.8" width="4.8" height="170.9" rx="1.9" fill="#d5a44f"/>
+<text x="693.1" y="780.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="16.3" font-weight="600" fill="#dfe4e9">Values crossing</text>
+<text x="693.1" y="799.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">arrays and IEnumerable → Vector;  IDictionary → Map</text>
+<text x="693.1" y="818.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">null → None when declared Option, otherwise a panic</text>
+<text x="693.1" y="838.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">ints and dates widen; Trebuchet values pass out as they are</text>
+<text x="693.1" y="857.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">JSON: a nested single-field record flattens to its value,</text>
+<text x="693.1" y="876.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">  a nullary variant is its name, fields carry "type",</text>
+<text x="693.1" y="895.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">  Option is null or value, Map is an object for scalar keys</text>
+<rect x="1274.9" y="749.8" width="576.0" height="170.9" rx="7.7" fill="#1a222a" stroke="#33404c" stroke-width="1.4"/>
+<rect x="1274.9" y="749.8" width="4.8" height="170.9" rx="1.9" fill="#d5a44f"/>
+<text x="1296.0" y="780.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="16.3" font-weight="600" fill="#dfe4e9">Inbound: hosts call in</text>
+<text x="1296.0" y="799.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">roots are the entry points; the host composes one</text>
+<text x="1296.0" y="818.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">.NET: the DI container supplies leaves and overrides defaults</text>
+<text x="1296.0" y="838.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">C++: a root struct of Rc&lt;Service&gt;, Task::get() at the edge</text>
+<text x="1296.0" y="857.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">panics: supervise inside, the host's catch-all outside</text>
+<text x="1296.0" y="876.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">packaging: Trebuchet.Cli tool (treb) carries the C++ header;</text>
+<text x="1296.0" y="895.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="14.9" fill="#aeb7c0">  generated projects reference the Trebuchet.Runtime package</text>
+<text x="92.2" y="1041.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="12.5" fill="#66727e">Same scenario on three targets: the interpreter is the oracle; bookings, ffi, async, resources, factories, trees, and supervision each print one identical line on .NET and on C++.</text>
+</svg>

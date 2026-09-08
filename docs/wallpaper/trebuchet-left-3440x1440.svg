@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3440" height="1440" viewBox="0 0 3440 1440">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#151b21"/><stop offset="1" stop-color="#11161b"/></linearGradient><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8.5" markerHeight="8.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d6a8c"/></marker><pattern id="grid" width="58.6" height="58.6" patternUnits="userSpaceOnUse"><path d="M 58.6 0 L 0 0 0 58.6" fill="none" stroke="#1c242c" stroke-width="1"/></pattern></defs>
+<rect width="3440" height="1440" fill="url(#g)"/><rect width="3440" height="1440" fill="url(#grid)" opacity="0.5"/>
+<text x="117.1" y="117.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="41.5" font-weight="600" fill="#dfe4e9">Trebuchet</text>
+<text x="348.3" y="117.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="24.4" fill="#66727e">the core: one front end, one checker, three targets</text>
+<text x="3322.9" y="117.1" text-anchor="end" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="19.5" fill="#66727e">core · left screen</text>
+<rect x="117.1" y="205.0" width="537.7" height="151.3" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="117.1" y="205.0" width="6.1" height="151.3" rx="2.4" fill="#66727e"/>
+<text x="144.0" y="244.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">.treb sources</text>
+<text x="144.0" y="270.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">tree-structured: a line's indented</text>
+<text x="144.0" y="297.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">children are its last call's arguments</text>
+<text x="144.0" y="324.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">module · use · one type namespace</text>
+<rect x="686.5" y="205.0" width="537.7" height="151.3" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="686.5" y="205.0" width="6.1" height="151.3" rx="2.4" fill="#7fb3d9"/>
+<text x="713.4" y="244.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Front end</text>
+<text x="713.4" y="270.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Lexer: INDENT / DEDENT, no tabs</text>
+<text x="713.4" y="297.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Parser → AST, Printer round-trips</text>
+<text x="713.4" y="324.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">fmt keeps comments; #line origin</text>
+<path d="M657.3,253.8 L684.1,253.8" fill="none" stroke="#3d6a8c" stroke-width="2.4" marker-end="url(#arrow)"/>
+<rect x="1256.0" y="205.0" width="537.7" height="151.3" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="1256.0" y="205.0" width="6.1" height="151.3" rx="2.4" fill="#6cc8b5"/>
+<text x="1282.8" y="244.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Type checker</text>
+<text x="1282.8" y="270.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Unifier, generics [T], lazy instantiation</text>
+<text x="1282.8" y="297.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">structural shapes, sealed unions</text>
+<text x="1282.8" y="324.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">exhaustive match, Result and ?</text>
+<path d="M1226.7,253.8 L1253.5,253.8" fill="none" stroke="#3d6a8c" stroke-width="2.4" marker-end="url(#arrow)"/>
+<rect x="1825.4" y="205.0" width="537.7" height="151.3" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="1825.4" y="205.0" width="6.1" height="151.3" rx="2.4" fill="#d5a44f"/>
+<text x="1852.2" y="244.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Effect checker</text>
+<text x="1852.2" y="270.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Nondet · Write · Suspend, inferred</text>
+<text x="1852.2" y="297.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">fixpoint over call sites</text>
+<text x="1852.2" y="324.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">! clause = upper bound, ! Pure = none</text>
+<path d="M1796.1,253.8 L1822.9,253.8" fill="none" stroke="#3d6a8c" stroke-width="2.4" marker-end="url(#arrow)"/>
+<rect x="2394.8" y="205.0" width="537.7" height="151.3" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="2394.8" y="205.0" width="6.1" height="151.3" rx="2.4" fill="#b39ddb"/>
+<text x="2421.6" y="244.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Roots</text>
+<text x="2421.6" y="270.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">compile-time composition</text>
+<text x="2421.6" y="297.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">singleton · scoped · resource</text>
+<text x="2421.6" y="324.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">captive check, factory synthesis</text>
+<path d="M2365.5,253.8 L2392.3,253.8" fill="none" stroke="#3d6a8c" stroke-width="2.4" marker-end="url(#arrow)"/>
+<rect x="2988.6" y="205.0" width="334.3" height="151.3" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="2988.6" y="205.0" width="6.1" height="151.3" rx="2.4" fill="#9ccf7a"/>
+<text x="3015.4" y="244.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Targets → right screen</text>
+<text x="3015.4" y="270.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Interpreter: the executable spec</text>
+<text x="3015.4" y="297.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">C# emitter: .NET, async, DI, JSON</text>
+<text x="3015.4" y="324.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">C++ emitter: header-only, coroutines</text>
+<path d="M2937.4,253.8 L2984.9,253.8" fill="none" stroke="#3d6a8c" stroke-width="2.4" marker-end="url(#arrow)"/>
+<text x="117.1" y="417.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" fill="#66727e" letter-spacing="1.8">WHAT THE CHECKER ENFORCES</text>
+<rect x="117.1" y="434.3" width="615.8" height="375.8" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="117.1" y="434.3" width="6.1" height="375.8" rx="2.4" fill="#6cc8b5"/>
+<text x="144.0" y="473.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Values</text>
+<text x="144.0" y="500.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">record: deeply immutable, structural ==</text>
+<text x="144.0" y="527.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">entity: identity, the only reference equality</text>
+<text x="144.0" y="553.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">union: sealed variants, nullary or with fields</text>
+<text x="144.0" y="580.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">shape: structural interface, satisfied by a</text>
+<text x="144.0" y="607.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">  service, a shape, or a record of functions</text>
+<text x="144.0" y="634.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">generics [T] on records, unions, and fns</text>
+<text x="144.0" y="661.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">recursive types allowed; boxed on C++</text>
+<text x="144.0" y="697.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" font-weight="600" fill="#6cc8b5" letter-spacing="1.5">WITH</text>
+<text x="144.0" y="724.7" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">q = p with</text>
+<text x="144.0" y="751.5" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">  addr.city: "y"</text>
+<text x="144.0" y="778.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">copy on write, flat then deep</text>
+<rect x="764.6" y="434.3" width="615.8" height="348.9" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="764.6" y="434.3" width="6.1" height="348.9" rx="2.4" fill="#d5a44f"/>
+<text x="791.5" y="473.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Effects</text>
+<text x="791.5" y="500.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">three orthogonal flags, no IO alias</text>
+<text x="791.5" y="527.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Nondet reads the world: clock, random, a store</text>
+<text x="791.5" y="553.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Write changes it: handlers and service methods</text>
+<text x="791.5" y="580.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Suspend may block: async on .NET, coroutine on C++</text>
+<text x="791.5" y="607.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">inferred from the body; a fn never Writes</text>
+<text x="791.5" y="634.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">shape members, fn types, and externs declare</text>
+<text x="791.5" y="671.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" font-weight="600" fill="#d5a44f" letter-spacing="1.5">POLYMORPHISM</text>
+<text x="791.5" y="697.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">an unannotated fn parameter contributes the</text>
+<text x="791.5" y="724.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">  effects of its argument, per call site</text>
+<text x="791.5" y="751.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">emitters generate sync and Async twins</text>
+<rect x="1412.1" y="434.3" width="615.8" height="322.1" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="1412.1" y="434.3" width="6.1" height="322.1" rx="2.4" fill="#e29ab8"/>
+<text x="1439.0" y="473.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Errors</text>
+<text x="1439.0" y="500.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Result[T, E] for what the caller can handle</text>
+<text x="1439.0" y="527.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">postfix ? propagates Error out of the function</text>
+<text x="1439.0" y="553.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">fail(x) panics: unrecoverable, no catch in a fn</text>
+<text x="1439.0" y="590.5" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" font-weight="600" fill="#e29ab8" letter-spacing="1.5">SUPERVISOR POINTS</text>
+<text x="1439.0" y="617.3" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">outcome = supervise orders.place(cmd)</text>
+<text x="1439.0" y="644.2" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">outcome.mapError(crashed)?</text>
+<text x="1439.0" y="671.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">yields Result[T, Panic]; allowed in handlers</text>
+<text x="1439.0" y="697.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">  and service methods only</text>
+<text x="1439.0" y="724.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">use resources release during the unwind</text>
+<rect x="2059.6" y="434.3" width="615.8" height="312.3" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="2059.6" y="434.3" width="6.1" height="312.3" rx="2.4" fill="#b39ddb"/>
+<text x="2086.4" y="473.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Services and roots</text>
+<text x="2086.4" y="500.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">service S(deps): immutable, construction is pure</text>
+<text x="2086.4" y="527.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">root: compile-time graph, by name then by type</text>
+<text x="2086.4" y="553.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">singleton inferred; scoped = one handler call</text>
+<text x="2086.4" y="580.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">resource service must define release()</text>
+<text x="2086.4" y="607.6" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">use conn = Conn(cfg)</text>
+<text x="2086.4" y="634.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">released at block end, in reverse order</text>
+<text x="2086.4" y="661.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">captive check: singleton → scoped is an error</text>
+<text x="2086.4" y="688.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">fn-typed dep returning a service is synthesised</text>
+<text x="2086.4" y="714.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">a .NET host container may override any leaf</text>
+<rect x="2707.1" y="434.3" width="615.8" height="322.1" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="2707.1" y="434.3" width="6.1" height="322.1" rx="2.4" fill="#9ccf7a"/>
+<text x="2733.9" y="473.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Runtime model</text>
+<text x="2733.9" y="500.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Vector: 32-way trie, O(log32 n), tail append</text>
+<text x="2733.9" y="527.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Map and Set: hash array mapped tries</text>
+<text x="2733.9" y="553.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Option, Result, Instant, Unit, Never</text>
+<text x="2733.9" y="580.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">Cell[T]: the one mutable primitive</text>
+<text x="2733.9" y="607.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">  get is Nondet, set and update are Write</text>
+<text x="2733.9" y="634.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">sleep(ms): the reference Suspend builtin</text>
+<text x="2733.9" y="661.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">== is structural everywhere</text>
+<text x="2733.9" y="697.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" font-weight="600" fill="#9ccf7a" letter-spacing="1.5">NO MUTATION, NO FOR LOOP</text>
+<text x="2733.9" y="724.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">map · filter · fold · any · all · find · forEach</text>
+<text x="117.1" y="871.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" fill="#66727e" letter-spacing="1.8">THE LANGUAGE AT A GLANCE, AND WHAT EXISTS</text>
+<rect x="1720.0" y="888.2" width="785.6" height="366.0" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="1720.0" y="888.2" width="6.1" height="366.0" rx="2.4" fill="#66727e"/>
+<text x="1746.8" y="927.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Samples</text>
+<text x="1746.8" y="954.0" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">bookings: onion layers, roots dev / test / main</text>
+<text x="1746.8" y="980.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">  domain · application · infrastructure · api · host</text>
+<text x="1746.8" y="1007.7" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">orders: the milestone-6 acceptance domain</text>
+<text x="1746.8" y="1034.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">ffi: extern fn with csharp and cpp bindings</text>
+<text x="1746.8" y="1061.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">async: sleep, the event loop, host-side spawn</text>
+<text x="1746.8" y="1088.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">resources: use x = ..., reverse-order release</text>
+<text x="1746.8" y="1115.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">factories: synthesised fn-typed dependencies</text>
+<text x="1746.8" y="1141.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">trees: recursive unions and records</text>
+<text x="1746.8" y="1168.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">supervision: supervise → Result[T, Panic]</text>
+<text x="1746.8" y="1195.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">collections: Set builtins, structural ==</text>
+<text x="1746.8" y="1222.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">generics: [T] on records, unions, functions</text>
+<rect x="2537.3" y="888.2" width="785.6" height="344.4" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="2537.3" y="888.2" width="6.1" height="344.4" rx="2.4" fill="#66727e"/>
+<text x="2564.1" y="927.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Tooling</text>
+<text x="2564.1" y="954.0" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">treb check · effects · fmt --write</text>
+<text x="2564.1" y="980.9" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">treb emit dir --out gen --host</text>
+<text x="2564.1" y="1007.7" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">treb emit dir --out gen --target cpp</text>
+<text x="2564.1" y="1034.6" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="17.1" fill="#66727e" xml:space="preserve">treb serve dir --root dev --port 5080</text>
+<text x="2564.1" y="1061.4" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">dotnet pack → Trebuchet.Cli (treb), Trebuchet.Runtime</text>
+<text x="2564.1" y="1088.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">VS Code grammar in vscode-trebuchet/</text>
+<text x="2564.1" y="1115.1" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">170 tests: lexer, parser, round-trip, checker,</text>
+<text x="2564.1" y="1141.9" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">  interpreter, both emitters, both runtimes</text>
+<text x="2564.1" y="1168.8" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">documents: brief, strategy (published), syntax sketch</text>
+<text x="2564.1" y="1195.6" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="18.9" fill="#aeb7c0">the interpreter is the oracle for every sample</text>
+<rect x="117.1" y="888.2" width="1571.2" height="366.0" rx="9.8" fill="#1a222a" stroke="#33404c" stroke-width="1.8"/>
+<rect x="117.1" y="888.2" width="6.1" height="366.0" rx="2.4" fill="#66727e"/>
+<text x="144.0" y="927.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="23.2" font-weight="600" fill="#dfe4e9">Syntax at a glance</text>
+<text x="144.0" y="968.0" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#7fb3d9">service</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">BookingService</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">store</tspan><tspan fill="#aeb7c0">:</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">RoomStore</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">clock</tspan><tspan fill="#aeb7c0">:</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">Clock</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">ids</tspan><tspan fill="#aeb7c0">:</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#7fb3d9">fn</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#e29ab8">-&gt;</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">BookingId</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#d5a44f">!</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#d5a44f">Nondet</tspan><tspan fill="#aeb7c0">)</tspan></text>
+<text x="144.0" y="989.2" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#7fb3d9">fn</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">request</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">:</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">RequestBooking</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#e29ab8">-&gt;</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">Result</tspan><tspan fill="#aeb7c0">[</tspan><tspan fill="#6cc8b5">Booking</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">BookingError</tspan><tspan fill="#aeb7c0">]</tspan></text>
+<text x="144.0" y="1010.5" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">history</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0">=</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">store</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">load</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">room</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#e29ab8">?</tspan></text>
+<text x="144.0" y="1031.8" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">room</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0">=</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">fold</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">history</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">Room</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">empty</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">room</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">apply</tspan><tspan fill="#aeb7c0">)</tspan></text>
+<text x="144.0" y="1053.0" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#7fb3d9">if</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">overlaps</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">room</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">slot</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#7fb3d9">then</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">error</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#6cc8b5">SlotTaken</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">room</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">slot</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#aeb7c0">)</tspan></text>
+<text x="144.0" y="1074.3" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#7fb3d9">else</tspan></text>
+<text x="144.0" y="1095.6" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">booking</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0">=</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">Booking</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">ids</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">room</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">guest</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">slot</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">BookingStatus</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#6cc8b5">Held</tspan><tspan fill="#aeb7c0">)</tspan></text>
+<text x="144.0" y="1116.8" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">store</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">append</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">cmd</tspan><tspan fill="#aeb7c0">.</tspan><tspan fill="#dfe4e9">room</tspan><tspan fill="#aeb7c0">,</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0">[</tspan><tspan fill="#6cc8b5">BookingRequested</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">booking</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#aeb7c0">]</tspan><tspan fill="#aeb7c0">)</tspan><tspan fill="#e29ab8">?</tspan></text>
+<text x="144.0" y="1138.1" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">ok</tspan><tspan fill="#aeb7c0">(</tspan><tspan fill="#dfe4e9">booking</tspan><tspan fill="#aeb7c0">)</tspan></text>
+<text x="144.0" y="1159.3" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"></text>
+<text x="144.0" y="1180.6" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#7fb3d9">root</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">main</tspan></text>
+<text x="144.0" y="1201.9" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">clock</tspan><tspan fill="#aeb7c0">:</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">SystemClock</tspan></text>
+<text x="144.0" y="1223.1" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">store</tspan><tspan fill="#aeb7c0">:</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">PgRoomStore</tspan></text>
+<text x="144.0" y="1244.4" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="15.7" xml:space="preserve"><tspan fill="#aeb7c0"> </tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#dfe4e9">api</tspan><tspan fill="#aeb7c0">:</tspan><tspan fill="#aeb7c0"> </tspan><tspan fill="#6cc8b5">BookingApi</tspan></text>
+<rect x="117.1" y="1289.5" width="88.3" height="29.3" rx="4.9" fill="#9ccf7a" fill-opacity="0.16" stroke="#9ccf7a" stroke-opacity="0.6"/>
+<text x="161.3" y="1310.3" text-anchor="middle" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="16.5" font-weight="500" fill="#9ccf7a">! Pure</text>
+<text x="217.6" y="1310.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" fill="#66727e">no effects</text>
+<rect x="347.0" y="1289.5" width="88.3" height="29.3" rx="4.9" fill="#d5a44f" fill-opacity="0.16" stroke="#d5a44f" stroke-opacity="0.6"/>
+<text x="391.1" y="1310.3" text-anchor="middle" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="16.5" font-weight="500" fill="#d5a44f">Nondet</text>
+<text x="447.5" y="1310.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" fill="#66727e">reads the world</text>
+<rect x="620.7" y="1289.5" width="78.1" height="29.3" rx="4.9" fill="#e29ab8" fill-opacity="0.16" stroke="#e29ab8" stroke-opacity="0.6"/>
+<text x="659.8" y="1310.3" text-anchor="middle" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="16.5" font-weight="500" fill="#e29ab8">Write</text>
+<text x="711.0" y="1310.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" fill="#66727e">changes the world</text>
+<rect x="901.8" y="1289.5" width="98.6" height="29.3" rx="4.9" fill="#7fb3d9" fill-opacity="0.16" stroke="#7fb3d9" stroke-opacity="0.6"/>
+<text x="951.1" y="1310.3" text-anchor="middle" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="16.5" font-weight="500" fill="#7fb3d9">Suspend</text>
+<text x="1012.6" y="1310.3" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" fill="#66727e">may block</text>
+<text x="3322.9" y="1310.3" text-anchor="end" font-family="Noto Sans Mono, DejaVu Sans Mono, Liberation Mono, monospace" font-size="16.5" fill="#66727e">treb parse · fmt · tokens · check · effects · emit [--host] [--target cpp] · serve   |   170 tests, one oracle: the interpreter</text>
+<text x="117.1" y="1391.2" font-family="Noto Sans, Ubuntu, DejaVu Sans, sans-serif" font-size="15.9" fill="#66727e">Trebuchet is immutable-first. The interpreter is the executable specification; every sample must print the same line on the interpreter, on .NET, and on C++.</text>
+</svg>

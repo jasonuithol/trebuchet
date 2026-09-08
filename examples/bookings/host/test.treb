@@ -1,0 +1,22 @@
+module bookings.host.test
+
+// Composition root for tests: fixed clock, in-memory store, predictable ids.
+
+use bookings.domain.ids
+use bookings.domain.booking
+use bookings.application.bookingService
+use bookings.infrastructure.memory
+use bookings.infrastructure.clocks
+use bookings.infrastructure.ids
+use bookings.api.bookingApi
+
+root test
+  clock: FixedClock(Instant.parse("2026-09-05T09:00:00Z"))
+  rooms:
+    - RoomId("boardroom"): Room(RoomId("boardroom"), "Boardroom", 12, [])
+    - RoomId("huddle"): Room(RoomId("huddle"), "Huddle", 4, [])
+  log: emptyLog()
+  store: InMemoryRoomStore
+  ids: sequentialBookingIds(1)
+  bookings: BookingService
+  api: BookingApi

@@ -1,0 +1,50 @@
+module bookings.domain.handlers
+
+// Handlers are the only Write sites. They take state and return events.
+
+use bookings.domain.booking
+use bookings.domain.commands
+use bookings.domain.events
+use bookings.domain.queries
+use bookings.domain.fold
+
+handler request(cmd: RequestBooking, room: Room, now: Instant) -> Result[Vector[RoomEvent], BookingError]
+  if cmd.slot.start < now then
+    error(BookingError.SlotInPast(cmd.slot))
+  else if length(cmd.attendees) > room.capacity then
+    error(BookingError.OverCapacity(room.id, length(cmd.attendees), room.capacity))
+  else if isFree(room, cmd.slot) then
+    ok
+      - BookingHeld(cmd.id, cmd.guest, cmd.slot, cmd.attendees)
+  else if cmd.waitlist then
+    ok
+      - BookingWaitlisted(cmd.id, cmd.guest, cmd.slot, cmd.attendees)
+  else
+    error(BookingError.SlotTaken(room.id, cmd.slot))
+
+handler confirm(cmd: ConfirmBooking, room: Room) -> Result[Vector[RoomEvent], BookingError]
+  match find(room.bookings, \b -> b.id == cmd.id)
+    None =>
+      error(BookingError.BookingNotFound(cmd.id))
+    Some(b) =>
+      if b.status == BookingStatus.Cancelled then
+        error(BookingError.AlreadyCancelled(cmd.id))
+      else if b.status == BookingStatus.Waitlisted then
+        error(BookingError.SlotTaken(room.id, b.slot))
+      else
+        ok
+          - BookingConfirmed(cmd.id)
+
+handler cancel(cmd: CancelBooking, room: Room) -> Result[Vector[RoomEvent], BookingError]
+  match find(room.bookings, \b -> b.id == cmd.id)
+    None =>
+      error(BookingError.BookingNotFound(cmd.id))
+    Some(b) =>
+      if b.status == BookingStatus.Cancelled then
+        error(BookingError.AlreadyCancelled(cmd.id))
+      else
+        cancelled = BookingCancelled(cmd.id, cmd.reason)
+        // a freed slot goes to the oldest waitlisted booking that fits
+        match promotable(apply(room, cancelled))
+          None => ok([cancelled])
+          Some(next) => ok([cancelled, BookingPromoted(next.id)])

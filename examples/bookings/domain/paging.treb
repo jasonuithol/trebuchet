@@ -1,0 +1,12 @@
+module bookings.domain.paging
+
+// A generic page over any vector.
+
+record Page[T]
+  items: Vector[T]
+  total: Int
+  offset: Int
+  limit: Int
+
+fn page[T](xs: Vector[T], offset: Int, limit: Int) -> Page[T] ! Pure
+  Page(take(drop(xs, offset), limit), length(xs), offset, limit)

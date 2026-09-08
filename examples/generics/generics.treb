@@ -1,0 +1,37 @@
+module generics
+
+// User-defined generics: type parameters on records, unions, and functions.
+
+record Pair[A, B](first: A, second: B)
+
+union Either[L, R]
+  Left(value: L)
+  Right(value: R)
+
+fn swap[A, B](p: Pair[A, B]) -> Pair[B, A] ! Pure
+  Pair(p.second, p.first)
+
+fn mapSecond[A, B, C](p: Pair[A, B], f: fn(B) -> C) -> Pair[A, C]
+  Pair(p.first, f(p.second))
+
+fn firsts[A, B](ps: Vector[Pair[A, B]]) -> Vector[A] ! Pure
+  map(ps, \p -> p.first)
+
+fn partition[L, R](xs: Vector[Either[L, R]]) -> Pair[Vector[L], Vector[R]] ! Pure
+  fold(xs, Pair([], []))
+    \acc, x ->
+      match x
+        Left(l) => acc with { first: append(acc.first, l) }
+        Right(r) => acc with { second: append(acc.second, r) }
+
+fn describe[T](e: Either[String, T], show: fn(T) -> String) -> String ! Pure
+  match e
+    Left(msg) => "error: " + msg
+    Right(v) => "ok: " + show(v)
+
+fn demo() -> String ! Pure
+  s = swap(Pair(1, "one"))
+  doubled = mapSecond(Pair("n", 21), \n -> n * 2)
+  parts = partition([Left("a"), Right(1), Right(2), Left("b")])
+  names = firsts([Pair("x", true), Pair("y", false)])
+  s.first + " " + toString(s.second) + "; " + doubled.first + "=" + toString(doubled.second) + "; lefts=" + toString(length(parts.first)) + " rights=" + toString(sum(parts.second)) + "; " + describe(Right(42), \n -> toString(n)) + "; " + describe[Int](Left("boom"), \n -> toString(n)) + "; " + toString(length(names))

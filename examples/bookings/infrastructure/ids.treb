@@ -1,0 +1,12 @@
+module bookings.infrastructure.ids
+
+// Id generators, supplied to the API as factory dependencies.
+
+use bookings.domain.ids
+
+fn uuidBookingId() -> BookingId
+  BookingId(uuid())
+
+fn sequentialBookingIds(start: Int) -> fn() -> BookingId ! Nondet Write
+  counter = Cell.new(start)
+  \-> BookingId("bk-" + counter.getAndUpdate(\n -> n + 1).toString())

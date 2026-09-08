@@ -1,0 +1,22 @@
+{
+  "name": "trebuchet-lang",
+  "displayName": "Trebuchet Language",
+  "description": "Syntax highlighting for Trebuchet (.treb) source files.",
+  "version": "0.1.0",
+  "publisher": "tarbaby",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [{
+      "id": "trebuchet",
+      "aliases": ["Trebuchet", "treb"],
+      "extensions": [".treb"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "trebuchet",
+      "scopeName": "source.trebuchet",
+      "path": "./syntaxes/trebuchet.tmLanguage.json"
+    }]
+  }
+}

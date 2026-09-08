@@ -1,0 +1,16 @@
+module async
+
+// sleep is the first builtin that really suspends. It is declared ! Suspend, so tick and
+// demo infer Suspend without a clause: on .NET they become async ValueTask, on C++ they
+// become Task coroutines scheduled by the event loop, and the interpreter just blocks.
+
+handler tick(log: Cell[Vector[String]], name: String, ms: Int) -> Unit
+  sleep(ms)
+  log.update(\entries -> append(entries, name))
+
+// Sequential in the language: a then b, whatever the delays.
+handler demo() -> Vector[String]
+  log = Cell.new([])
+  tick(log, "a", 30)
+  tick(log, "b", 10)
+  log.get()

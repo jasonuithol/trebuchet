@@ -1,0 +1,28 @@
+module bookings.infrastructure.memory
+
+// Adapter: RoomStore held in memory, for tests.
+// Mutable state lives in a Cell, whose reads are Nondet and writes are Write.
+
+use bookings.domain.ids
+use bookings.domain.booking
+use bookings.domain.events
+use bookings.application.ports
+
+service InMemoryRoomStore(rooms: Map[RoomId, Room], log: Cell[Map[RoomId, Vector[RoomEvent]]])
+  fn load(id: RoomId) -> Result[Vector[RoomEvent], BookingError]
+    ok(log.get().getOr(id, []))
+
+  fn append(id: RoomId, events: Vector[RoomEvent]) -> Result[Unit, BookingError]
+    log.update(\m -> m.set(id, concat(m.getOr(id, []), events)))
+    ok(unit)
+
+  fn seed(id: RoomId) -> Result[Room, BookingError]
+    match rooms.get(id)
+      None => error(BookingError.RoomNotFound(id))
+      Some(r) => ok(r)
+
+  fn roomIds() -> Result[Vector[RoomId], BookingError]
+    ok(keys(rooms))
+
+fn emptyLog() -> Cell[Map[RoomId, Vector[RoomEvent]]]
+  Cell.new({})

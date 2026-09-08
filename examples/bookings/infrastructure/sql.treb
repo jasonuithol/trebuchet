@@ -1,0 +1,30 @@
+module bookings.infrastructure.sql
+
+// Interop stub. A real adapter would bind these to a .NET data provider at the
+// interop boundary; until milestone 7 the methods only report that they are unavailable.
+
+use bookings.domain.events
+
+record DbConfig
+  connectionString: String
+
+record Row
+  name: String
+  capacity: Int
+  payload: String
+
+fn loadDbConfig() -> DbConfig
+  DbConfig(env.get("BOOKINGS_DB"))
+
+resource service PgConnection(config: DbConfig)
+  fn query(sql: String, args: Vector[String]) -> Result[Vector[Row], BookingError] ! Nondet Suspend
+    fail(ArgumentError("PgConnection.query is not available before the .NET backend"))
+
+  fn queryOne(sql: String, args: Vector[String]) -> Result[Option[Row], BookingError] ! Nondet Suspend
+    fail(ArgumentError("PgConnection.queryOne is not available before the .NET backend"))
+
+  fn exec(sql: String, args: Vector[String]) -> Result[Unit, BookingError] ! Write Suspend
+    fail(ArgumentError("PgConnection.exec is not available before the .NET backend"))
+
+  fn release() -> Unit
+    unit

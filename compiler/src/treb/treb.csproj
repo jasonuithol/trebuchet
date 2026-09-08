@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>treb</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>treb</ToolCommandName>
+    <PackageId>Trebuchet.Cli</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- the C++ runtime header ships inside the tool so 'treb emit target cpp' works from an install -->
+    <None Include="..\Trebuchet.Runtime.Cpp\trebuchet.hpp" Link="runtime-cpp\trebuchet.hpp" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Trebuchet.Compiler\Trebuchet.Compiler.csproj" />
+  </ItemGroup>
+
+</Project>

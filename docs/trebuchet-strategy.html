@@ -1,0 +1,681 @@
+<title>Trebuchet Implementation Strategy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#f5f6f8;
+  --surface:#ffffff;
+  --ink:#1e242b;
+  --ink-2:#4a545f;
+  --ink-3:#7a8490;
+  --rule:#d5dae0;
+  --rule-soft:#e6e9ed;
+  --accent:#255b80;
+  --accent-ink:#1b4560;
+  --accent-wash:#e6eef4;
+  --open:#9a6a1c;
+  --open-wash:#f6efe0;
+  --code-bg:#eceff2;
+  --code-ink:#1e242b;
+  --flag-bg:#e6eef4;
+  --flag-ink:#1b4560;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#151a1f;
+    --surface:#1c2228;
+    --ink:#e4e8ec;
+    --ink-2:#aeb7c0;
+    --ink-3:#7f8a95;
+    --rule:#343d46;
+    --rule-soft:#272f37;
+    --accent:#7fb3d9;
+    --accent-ink:#a9cde8;
+    --accent-wash:#1f2f3c;
+    --open:#d5a44f;
+    --open-wash:#2e2716;
+    --code-bg:#11161a;
+    --code-ink:#dfe4e9;
+    --flag-bg:#1f2f3c;
+    --flag-ink:#a9cde8;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#151a1f;
+  --surface:#1c2228;
+  --ink:#e4e8ec;
+  --ink-2:#aeb7c0;
+  --ink-3:#7f8a95;
+  --rule:#343d46;
+  --rule-soft:#272f37;
+  --accent:#7fb3d9;
+  --accent-ink:#a9cde8;
+  --accent-wash:#1f2f3c;
+  --open:#d5a44f;
+  --open-wash:#2e2716;
+  --code-bg:#11161a;
+  --code-ink:#dfe4e9;
+  --flag-bg:#1f2f3c;
+  --flag-ink:#a9cde8;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.page{
+  display:grid;
+  grid-template-columns:1fr;
+  max-width:1120px;
+  margin:0 auto;
+  padding:0 24px 96px;
+}
+@media (min-width:980px){
+  .page{grid-template-columns:220px minmax(0,1fr);column-gap:56px}
+  .rail{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding-top:56px}
+}
+.rail{padding-top:24px}
+.rail h4{
+  margin:0 0 12px;
+  font:500 11px/1 "IBM Plex Sans",sans-serif;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail a{
+  display:flex;gap:10px;align-items:baseline;
+  padding:5px 8px;border-radius:4px;
+  color:var(--ink-2);text-decoration:none;font-size:13.5px;line-height:1.35;
+}
+.rail a:hover,.rail a:focus-visible{background:var(--accent-wash);color:var(--accent-ink);outline:none}
+.rail a .n{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-3);min-width:1.5em}
+.rail .meta{margin-top:28px;padding-top:16px;border-top:1px solid var(--rule-soft);font-size:12.5px;color:var(--ink-3);line-height:1.5}
+
+main{max-width:72ch;padding-top:56px}
+@media (max-width:979px){main{padding-top:16px}}
+
+.eyebrow{
+  font:500 11.5px/1 "IBM Plex Sans",sans-serif;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+  margin:0 0 14px;
+}
+h1{
+  font:700 40px/1.1 "Bitter",Georgia,serif;
+  letter-spacing:-.01em;
+  margin:0 0 18px;
+  text-wrap:balance;
+}
+.lede{font-size:17.5px;line-height:1.55;color:var(--ink-2);margin:0 0 12px;max-width:62ch}
+.status{
+  display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;
+  margin:22px 0 0;padding:14px 0;
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  font-size:13.5px;color:var(--ink-2);
+}
+.status b{font-weight:600;color:var(--ink)}
+.status .pill{
+  display:inline-block;padding:2px 9px;border-radius:999px;
+  background:var(--open-wash);color:var(--open);
+  font:500 12px/1.6 "IBM Plex Sans",sans-serif;letter-spacing:.02em;
+}
+
+h2{
+  font:600 26px/1.2 "Bitter",Georgia,serif;
+  margin:64px 0 18px;padding-top:24px;
+  border-top:1px solid var(--rule);
+  text-wrap:balance;
+}
+h2 .n{font:500 14px/1 "IBM Plex Mono",monospace;color:var(--ink-3);margin-right:12px;vertical-align:.25em}
+h3{
+  font:600 17px/1.3 "Bitter",Georgia,serif;
+  margin:32px 0 10px;
+}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 16px;padding-left:22px}
+li{margin:0 0 6px}
+li>ul{margin-top:6px}
+em{font-style:italic}
+strong{font-weight:600}
+code{
+  font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:.9em;
+  background:var(--code-bg);color:var(--code-ink);
+  padding:1px 5px;border-radius:3px;
+}
+pre{
+  margin:16px 0 20px;padding:16px 18px;
+  background:var(--code-bg);color:var(--code-ink);
+  border-radius:6px;overflow-x:auto;
+  font:400 13.5px/1.55 "IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+pre code{background:none;padding:0;font-size:inherit}
+.flag{
+  font-family:"IBM Plex Mono",monospace;font-size:.85em;font-weight:500;
+  background:var(--flag-bg);color:var(--flag-ink);
+  padding:1px 6px;border-radius:3px;letter-spacing:.01em;white-space:nowrap;
+}
+
+.decision{
+  margin:18px 0 22px;padding:14px 18px 14px 20px;
+  border-left:3px solid var(--accent);
+  background:var(--surface);
+}
+.decision .label{
+  display:block;font:500 11px/1 "IBM Plex Sans",sans-serif;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;
+}
+.decision p:last-child{margin-bottom:0}
+.open-note{
+  margin:18px 0 22px;padding:14px 18px 14px 20px;
+  border-left:3px solid var(--open);
+  background:var(--open-wash);
+}
+.open-note .label{
+  display:block;font:500 11px/1 "IBM Plex Sans",sans-serif;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--open);margin-bottom:8px;
+}
+.open-note p:last-child{margin-bottom:0}
+
+.tablewrap{overflow-x:auto;margin:14px 0 22px}
+table{
+  border-collapse:collapse;width:100%;
+  font-size:14.5px;line-height:1.45;
+}
+th{
+  text-align:left;font:500 11.5px/1.3 "IBM Plex Sans",sans-serif;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  padding:0 14px 10px 0;border-bottom:1px solid var(--rule);
+}
+td{padding:10px 14px 10px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td:first-child,th:first-child{padding-left:0}
+td.k{color:var(--ink-2);white-space:nowrap}
+.glance td:first-child{font-weight:500;width:34%}
+
+.milestones{list-style:none;padding:0;margin:18px 0 0;counter-reset:m}
+.milestones li{
+  display:grid;grid-template-columns:44px minmax(0,1fr);gap:0 14px;
+  padding:14px 0;border-bottom:1px solid var(--rule-soft);margin:0;
+}
+.milestones li::before{
+  counter-increment:m;content:counter(m);
+  font:600 22px/1.2 "Bitter",Georgia,serif;color:var(--accent);
+}
+.milestones li b{display:block;font-weight:600;margin-bottom:3px}
+.milestones li span{color:var(--ink-2);font-size:14.5px}
+
+.questions{list-style:none;padding:0;margin:18px 0 0;counter-reset:q}
+.questions li{
+  display:grid;grid-template-columns:36px minmax(0,1fr);gap:0 12px;
+  padding:12px 0;border-bottom:1px solid var(--rule-soft);margin:0;
+}
+.questions li::before{
+  counter-increment:q;content:"Q" counter(q);
+  font:500 12.5px/1.9 "IBM Plex Mono",monospace;color:var(--ink-3);
+}
+
+.footer{
+  margin-top:72px;padding-top:18px;border-top:1px solid var(--rule);
+  font-size:13px;color:var(--ink-3);
+}
+a{color:var(--accent-ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+
+<div class="page">
+<nav class="rail" aria-label="Contents">
+  <h4>Contents</h4>
+  <ol>
+    <li><a href="#glance"><span class="n">1</span>Decisions at a glance</a></li>
+    <li><a href="#mutation"><span class="n">2</span>Mutation model</a></li>
+    <li><a href="#effects"><span class="n">3</span>Effect system</a></li>
+    <li><a href="#errors"><span class="n">4</span>Errors and panics</a></li>
+    <li><a href="#services"><span class="n">5</span>Services, roots, lifetimes</a></li>
+    <li><a href="#async"><span class="n">6</span>Async and C++ memory</a></li>
+    <li><a href="#crosscut"><span class="n">7</span>Cross-cutting consequences</a></li>
+    <li><a href="#milestones"><span class="n">8</span>Revised milestones</a></li>
+    <li><a href="#open"><span class="n">9</span>Deliberately open</a></li>
+    <li><a href="#questions"><span class="n">10</span>Questions for reviewers</a></li>
+  </ol>
+  <div class="meta">Companion to the Trebuchet design brief.<br>Draft for feedback, revised 8 September 2026.</div>
+</nav>
+
+<main>
+<p class="eyebrow">Trebuchet</p>
+<h1>Implementation Strategy</h1>
+<p class="lede">The design brief set out the goals for an immutable-first language compiling to .NET and C++, and listed its open questions. This document records the decisions taken on those questions, the reasoning behind each, and the revised milestone plan.</p>
+<p class="lede">Each section states a decision, the alternatives considered, and why the decision was taken. Section 9 lists what remains deliberately undecided. Section 10 lists the specific questions on which feedback is sought. All syntax is illustrative.</p>
+<div class="status">
+  <span><b>Status</b> <span class="pill">Draft for review</span></span>
+  <span><b>Date</b> Revised 8 September 2026</span>
+  <span><b>Companion</b> trebuchet-design-brief.md</span>
+</div>
+
+<h2 id="glance"><span class="n">1</span>Decisions at a glance</h2>
+<div class="tablewrap">
+<table class="glance">
+<thead><tr><th>Question from the brief</th><th>Decision</th></tr></thead>
+<tbody>
+<tr><td>Mutation model</td><td>Functional updates only. No <code>mut</code>, no builders. Stdlib ships a fold family.</td></tr>
+<tr><td>Effect set</td><td>Three orthogonal flags: <span class="flag">Nondet</span> <span class="flag">Write</span> <span class="flag">Suspend</span>. No aliases. <code>Scope</code> is not an effect. Inferred; annotations optional and checked as bounds; <code>! Pure</code> asserts none.</td></tr>
+<tr><td>Exceptions</td><td><code>Result[T, E]</code> for recoverable errors. Panics for unrecoverable ones, catchable only at supervisor points.</td></tr>
+<tr><td>Composition roots</td><td>Compile-time resolution only. Runtime and plugin roots deferred.</td></tr>
+<tr><td>Service lifetimes</td><td>Singleton and scoped only. Transient replaced by factory dependencies. A scope is one handler or query invocation.</td></tr>
+<tr><td>Async lowering on C++</td><td>C++20 coroutines. Single-threaded event loop and non-atomic refcounts for the prototype.</td></tr>
+<tr><td>.NET backend form</td><td>Emits C# source, compiled by Roslyn. Direct IL is a possible later replacement.</td></tr>
+<tr><td>Concrete syntax</td><td>Sketched separately. Tree-structured, conventional symbols.</td></tr>
+<tr><td>Module system</td><td>Proposed: one module per file, <code>use</code> imports, qualified names for clashes.</td></tr>
+<tr><td>Mutable state</td><td>No language-level mutation. A stdlib <code>Cell[T]</code> entity with effectful operations is the runtime-level escape hatch.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="mutation"><span class="n">2</span>Mutation model</h2>
+<div class="decision"><span class="label">Decision</span>
+<p>There is no mutation. <code>with</code> expressions with deep paths, plus persistent collections, are the only way to derive a new value from an old one. Loops that accumulate are written as folds.</p>
+</div>
+<h3>Alternatives considered</h3>
+<ul>
+<li><em>Scoped <code>mut</code> locals.</em> Rejected for now. Cheap to add later and painful to remove, and adding it before deep <code>with</code> and persistent collections exist means never learning whether it was needed.</li>
+<li><em>Compiler-generated builders.</em> Rejected. Doubles the type surface and duplicates what deep <code>with</code> provides.</li>
+<li><em>In-place reuse via refcount uniqueness (Perceus-style).</em> Accepted as a backend optimisation, not a language feature. When a value's refcount is one, <code>with</code> and collection updates may mutate in place with no observable difference. This is free on the C++ backend and unavailable on .NET, which has no refcounts.</li>
+</ul>
+<h3>Stdlib obligation</h3>
+<p>Since <code>for</code> does not exist, the collection API must make its absence painless. Minimum fold family:</p>
+<ul>
+<li><code>fold</code>, <code>foldRight</code>, <code>reduce</code>, <code>scan</code></li>
+<li>an early-exit form (<code>foldWhile</code> or equivalent)</li>
+<li><code>map</code>, <code>filter</code>, <code>flatMap</code>, <code>zip</code>, <code>groupBy</code>, <code>partition</code></li>
+</ul>
+<p>Event replay is a fold over events with <code>apply</code> as the combining function, which is why event sourcing is the natural shape rather than a bolt-on.</p>
+<h3>Known pain points</h3>
+<p>Loops with early exit, and loops with several accumulators. The first needs the early-exit fold. The second becomes a fold over a small record, which is acceptable but noisier than three locals.</p>
+
+<h2 id="effects"><span class="n">3</span>Effect system</h2>
+<div class="decision"><span class="label">Decision</span>
+<p>A function signature carries a set of zero or more of three independent flags. Pure is the empty set.</p>
+</div>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Flag</th><th>Meaning</th><th>Compiler consequence</th></tr></thead>
+<tbody>
+<tr><td class="k"><span class="flag">Nondet</span></td><td>The result may depend on state not in the arguments</td><td>Cannot be memoised, merged, or reordered</td></tr>
+<tr><td class="k"><span class="flag">Write</span></td><td>Something other than the return value depends on the call having happened</td><td>Cannot be dropped, duplicated, or reordered relative to other <span class="flag">Write</span> calls</td></tr>
+<tr><td class="k"><span class="flag">Suspend</span></td><td>May not complete synchronously</td><td>Lowered as a coroutine or <code>ValueTask</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3>Rules</h3>
+<ul>
+<li>Effects are inferred from the body. A <code>!</code> clause on a signature is optional; when present it is checked as an upper bound (declaring more than the body needs is allowed, less is an error at that function). <code>! Pure</code> asserts the empty set. Declarations without bodies, meaning <code>shape</code> members, function types, and interop declarations, must carry a clause. (Revised 6 September; see section 7.3.)</li>
+<li>A function may only call functions whose flags are a subset of its own.</li>
+<li>Memoisation, reordering, and parallelisation require neither <span class="flag">Nondet</span> nor <span class="flag">Write</span>. <span class="flag">Suspend</span> alone is memoisable.</li>
+<li>The flags are independent. There is no lattice. <span class="flag">Write</span> does not imply <span class="flag">Nondet</span>.</li>
+<li>No aliases. <code>IO</code> does not exist.</li>
+</ul>
+<h3>Classification examples</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Function</th><th>Flags</th></tr></thead>
+<tbody>
+<tr><td><code>apply(state, event)</code></td><td>none</td></tr>
+<tr><td><code>now()</code></td><td><span class="flag">Nondet</span></td></tr>
+<tr><td><code>random()</code></td><td><span class="flag">Nondet</span></td></tr>
+<tr><td><code>sleep(duration)</code></td><td><span class="flag">Suspend</span></td></tr>
+<tr><td><code>parMap(xs, pureFn)</code></td><td><span class="flag">Suspend</span></td></tr>
+<tr><td>Content-addressed fetch returning <code>Bytes</code></td><td><span class="flag">Suspend</span></td></tr>
+<tr><td>Content-addressed fetch returning <code>Result[Bytes, E]</code></td><td><span class="flag">Nondet</span> <span class="flag">Suspend</span></td></tr>
+<tr><td>HTTP GET</td><td><span class="flag">Nondet</span> <span class="flag">Suspend</span></td></tr>
+<tr><td>Database insert</td><td><span class="flag">Nondet</span> <span class="flag">Write</span> <span class="flag">Suspend</span></td></tr>
+<tr><td><code>race(a, b)</code> over pure suspending work</td><td><span class="flag">Nondet</span> <span class="flag">Suspend</span></td></tr>
+<tr><td>Allocating or comparing an <code>entity</code> by reference</td><td><span class="flag">Nondet</span></td></tr>
+</tbody>
+</table>
+</div>
+<h3>Why properties rather than capabilities</h3>
+<p>The brief proposed <code>IO</code>, <code>Write</code>, and possibly <code>Time</code>, <code>Random</code>, <code>Scope</code>. Those are capabilities: they name what a function accesses. Every decision the compiler needs to make is about a property: can this be cached, can this be reordered, does this need async lowering. Tracking properties directly means the taxonomy stops growing. A new source of non-determinism is simply <span class="flag">Nondet</span>; it does not need a new named effect.</p>
+<h3>Why Nondet and not WorldRead</h3>
+<p>"World read" invites the reading "touches something outside the process", which is both too narrow (scheduler timing and allocator identity are non-deterministic without leaving the process) and too broad (a content-addressed fetch reads the world but is deterministic on success). <span class="flag">Nondet</span> names the property the compiler checks.</p>
+<h3>Time and randomness</h3>
+<p>There is no ambient clock or generator. A function that needs the current time either takes an <code>Instant</code> as an argument (preferred, and pure) or is handed a <code>Clock</code> service whose <code>now()</code> is <span class="flag">Nondet</span>. Tests inject a fixed clock. Substitution is done by injection, not by effect handlers.</p>
+<h3>CQRS mapping</h3>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Construct</th><th>Allowed flags</th></tr></thead>
+<tbody>
+<tr><td><code>record</code></td><td>none (data has no behaviour)</td></tr>
+<tr><td><code>fn</code> (query) and <code>apply</code> (event fold)</td><td>anything except <span class="flag">Write</span></td></tr>
+<tr><td><code>handler</code> and <code>service</code></td><td>any</td></tr>
+</tbody>
+</table>
+</div>
+<p>A query may read the clock. Only a handler may write.</p>
+
+<h2 id="errors"><span class="n">4</span>Errors and panics</h2>
+<div class="decision"><span class="label">Decision</span>
+<p>Two channels, cleanly separated by recoverability.</p>
+</div>
+<ul>
+<li><strong><code>Result[T, E]</code></strong> for anything a caller might handle. <code>E</code> is a record or sealed union, matched exhaustively. A propagation operator (spelling to be decided; postfix <code>?</code> is the placeholder) returns early on the error case. This operator is mandatory: without it every call site is a match expression and the <code>Result</code> decision will not hold.</li>
+<li><strong>Panics</strong> for bugs and invariant violations: division by zero, index out of range, a content-addressed fetch that cannot be satisfied. A panic is bottom, not an effect, so pure functions may panic. Memoisation does not cache a panic.</li>
+</ul>
+<h3>Catching</h3>
+<p>Ordinary code cannot catch a panic. The language names a small set of supervisor points that can: handler dispatch, the composition root, and the interop edge. This lets a server log one failed request and continue serving.</p>
+<h3>Alternatives considered</h3>
+<ul>
+<li><em>No catch at all.</em> Rejected. Forces every handler to wrap everything in <code>Result</code> to get robustness back.</li>
+<li><em>Full exceptions in effectful code.</em> Rejected. Recreates C#'s two competing error channels.</li>
+<li><em>Exceptions as an effect (<code>Throws[E]</code>).</em> Rejected. This is <code>Result</code> with different spelling and only pays off with general effect handlers, which are out of scope.</li>
+</ul>
+<h3>Backend consequences</h3>
+<ul>
+<li><strong>C++:</strong> catching at supervisor points requires unwinding so refcounts are released. C++ exceptions are enabled for this purpose only. Generated code never throws or catches otherwise.</li>
+<li><strong>.NET:</strong> calling into .NET, undeclared exceptions become panics; the boundary declaration may map named exception types to <code>Result</code> errors. Calling out to a C# host, a panic surfaces as a thrown exception.</li>
+</ul>
+
+<h2 id="services"><span class="n">5</span>Services, composition roots, and lifetimes</h2>
+<h3>5.1 Composition roots</h3>
+<div class="decision"><span class="label">Decision</span>
+<p>Compile-time resolution only. The root names concrete types. The compiler walks the constructor graph, checks that every dependency has exactly one provider, checks lifetimes, and emits direct construction code. Missing dependencies, cycles, and captive dependencies are compile errors. No container, no reflection.</p>
+</div>
+<p><strong>Cases that appear to need runtime resolution, and how they are handled without it.</strong></p>
+<ul>
+<li><em>Configuration-driven selection:</em> a branch in the root.</li>
+<li><em>Plugins:</em> a function-typed or record-of-functions dependency. Structural typing means a record of functions already satisfies a service interface.</li>
+<li><em>Existing .NET hosts:</em> deferred to milestone 7. Trebuchet services register into <code>IServiceCollection</code> but resolve internally, treating the host container as a source of leaf dependencies. A <code>dynamic</code> root for true host-side resolution is a planned extension for the .NET backend only, and its shape will be decided once a working compile-time root exists to compare against.</li>
+</ul>
+<p><strong>Why not decide the dynamic root now.</strong> A dynamic root needs runtime identity for structural interfaces: the container must decide at runtime whether a plugin type satisfies <code>Clock</code>. That means either reflection or compiler-emitted witness tables, and it leaks into the C++ backend design. Deferring keeps the C++ backend reflection-free through the prototype.</p>
+
+<h3>5.2 Lifetimes</h3>
+<div class="decision"><span class="label">Decision</span>
+<p>Two lifetimes, singleton and scoped. Transient is replaced by factory dependencies.</p>
+</div>
+<ul>
+<li><strong>Singleton.</strong> Shared by everyone. Inferred for any service whose constructor is pure and whose dependencies are all singletons. External-state singletons (connection pools, caches) must be safe for concurrent use; the compiler cannot check this.</li>
+<li><strong>Scoped.</strong> One instance per handler or query invocation. Declared with a keyword. Resources bound in the scope are released at its end. A scope is not a transaction: a transaction is a resource with an explicit commit (revised 2026-09-08; see section 7.18).</li>
+</ul>
+<p><strong>Transient is replaced by factory dependencies.</strong> Per-use instantiation is a fact about a call site, not a type. A service that needs a fresh resource each time takes a function:</p>
+<pre><code>service Exporter(openOutput: fn(Path) -> FileStream ! Nondet Suspend)
+  fn export(orders: Vector[Order], path: Path) -> Result[Unit, ExportError]
+    stream = openOutput(path)?
+    ...</code></pre>
+<p><code>Exporter</code> is a singleton holding a function. Each <code>export</code> call gets a fresh stream. The root supplies the function either by hand or by synthesis: if a dependency is function-typed, returns a service type, and that service's remaining constructor parameters are resolvable from the root, the compiler generates the lambda.</p>
+<p><strong>Effectful construction.</strong> Opening a connection is <span class="flag">Nondet</span> <span class="flag">Suspend</span>, so constructors may carry effects and the root is an effectful context. Singletons construct at startup; scoped services at scope start.</p>
+<p><strong>Release.</strong> A resource-owning type is marked <code>resource service</code> and must define <code>fn release() -&gt; Unit</code>. A fresh resource is bound with <code>use x = expr</code>, which releases it at the end of the enclosing block in reverse binding order. On C++ release also happens when the refcount reaches zero. (Spelled and implemented 2026-09-08; see section 7.11.)</p>
+<p><strong>Checks.</strong> A singleton capturing a scoped service is a compile error.</p>
+
+<h2 id="async"><span class="n">6</span>Async lowering and the C++ memory model</h2>
+<div class="decision"><span class="label">Decision</span>
+<p><span class="flag">Suspend</span> functions lower to C++20 coroutines. A <span class="flag">Suspend</span> function returns a task type; each call to a <span class="flag">Suspend</span> function is emitted as <code>co_await</code>; results are <code>co_return</code>. Everything else is a plain call. This is the same shape as the .NET lowering to <code>ValueTask</code>, so both backends share one design.</p>
+</div>
+<h3>Why coroutines</h3>
+<ul>
+<li>The <span class="flag">Suspend</span> flag already identifies exactly the functions that need transforming, so the lowering is mechanical.</li>
+<li>Coroutine frames hold their locals on the heap, so refcounted values captured across a suspension stay alive without extra work.</li>
+<li>Matches how modern C++ networking libraries expose async, so the interop boundary is natural.</li>
+</ul>
+<h3>Alternatives considered</h3>
+<ul>
+<li><em>Blocking.</em> <span class="flag">Suspend</span> checked but lowered synchronously. Correct and sufficient for milestone 4, which is the pure subset. Used until the first <span class="flag">Suspend</span> function exists.</li>
+<li><em>CPS transform in the Trebuchet compiler.</em> Rejected. Full control but unreadable generated code and harder debugging.</li>
+<li><em>Stackful fibres.</em> Rejected. Zero compiler work, but per-fibre stacks and no composition with coroutine-based C++ libraries.</li>
+</ul>
+<h3>Refcounting under concurrency</h3>
+<p>Once code runs on more than one thread, refcounts must be atomic, at roughly five to twenty times the cost of a plain increment. Immutability makes sharing safe; it does not make counting cheap. Options are atomic everywhere (Swift), a single-threaded event loop with non-atomic counts (Node), or thread-confined values with atomic handoff at boundaries.</p>
+<p><strong>Prototype choice.</strong> Single-threaded event loop, non-atomic refcounts. Multi-threaded execution is deferred and the atomic-versus-confined choice is recorded as an open item in section 9.</p>
+<p><strong>Parallelism is separate from async.</strong> <code>parMap</code> over pure functions is <span class="flag">Suspend</span> but not <span class="flag">Nondet</span>. On a single-threaded loop it is <code>map</code>. The parallelism story can be designed independently of the async story and should not be conflated with it.</p>
+
+<h2 id="crosscut"><span class="n">7</span>Cross-cutting consequences</h2>
+<p>Decisions above that change something elsewhere in the brief.</p>
+<ul>
+<li>The brief's structural interface example <code>Clock { now() -> Instant }</code> is wrong: <code>now()</code> must be <span class="flag">Nondet</span> or the compiler is entitled to memoise it.</li>
+<li>The brief's lifetime inference from a <code>Scope</code> effect is replaced by inference for pure-constructor services plus an explicit <code>scoped</code> keyword. Same errors, less magic.</li>
+<li>The interop boundary must default to all three flags for .NET calls, with the user narrowing declarations where they know better.</li>
+<li>A resource-ownership marker on types is a new small language feature required by lifetimes.</li>
+<li>A <code>use</code> block or equivalent for early release is required.</li>
+<li>C++ exception support must be enabled in generated code for supervisor-point catching.</li>
+</ul>
+
+<h3>7.1 Findings from a worked sample</h3>
+<p>A room-booking API was written in the sketch syntax and split into onion-architecture layers: nineteen files across domain, application, infrastructure, api, and host. Writing it exposed four gaps that neither the brief nor the earlier sections covered.</p>
+<p><strong>Module system.</strong> Splitting one file into twenty needs one, and nothing had been said about it. Proposal:</p>
+<ul>
+<li><code>module a.b.c</code> is the first line of every file. One module per file.</li>
+<li><code>use a.b.c</code> imports the module's public declarations unqualified.</li>
+<li>A qualified reference by the last segment, <code>handlers.request(...)</code>, resolves a clash. The sample hit one immediately: the service method <code>request</code> calls the domain handler <code>request</code>.</li>
+<li>All declarations are public by default. A <code>private</code> keyword hides one. This is tentative.</li>
+<li>Milestone 1 grows to include module headers, imports, and name resolution.</li>
+</ul>
+<p><strong>Mutable state.</strong> An in-memory test store and a sequential id generator both need somewhere to keep state, and section 2 removed every language-level way to do that. The sample assumes a stdlib <code>Cell[T]</code>:</p>
+<ul>
+<li><code>Cell.new(x)</code> is <span class="flag">Nondet</span> because it allocates reference identity.</li>
+<li><code>get()</code> is <span class="flag">Nondet</span>. <code>set(x)</code> and <code>update(f)</code> are <span class="flag">Write</span>.</li>
+<li>A <code>Cell</code> is an <code>entity</code>, so it has reference identity and is excluded from structural equality.</li>
+</ul>
+<p>This does not reopen section 2. There is still no mutation in the language: a <code>Cell</code> cannot be touched from pure code, and services remain immutable since they capture the cell, not its contents. It is the runtime-level escape hatch, and it is the shape every test double, cache, and in-memory adapter will use. On the single-threaded loop it is trivially safe; multi-threaded execution adds it to the atomic-versus-confined question in section 9.</p>
+<p><strong>Explicit type arguments on calls.</strong> Decoding a row needs <code>json.decode[RoomEvent](payload)</code>. The syntax sketch uses square brackets for type arguments in types but had not said they can appear on a call. They can, with the same brackets.</p>
+<p><strong>Small syntax gaps.</strong> A zero-argument lambda is written <code>\-&gt; expr</code>. A service method and a top-level function may share a name, with the nearest scope winning and qualification available. Both are recorded in the syntax sketch's open choices.</p>
+
+<h3>7.2 Findings from the running prototype</h3>
+<p>Milestone 1's parser and a tree-walking interpreter were built in C#, and the bookings sample runs as an HTTP service through them. The interpreter was pulled forward from its "optional" status because it turned the sample into something that can be exercised, and it is not a replacement for the C++ backend. Observations:</p>
+<ul>
+<li><strong>The tree rule held without special cases.</strong> A line's indented children always belong to the last expression on that line. The parser reproduces all twenty sample files exactly.</li>
+<li><strong>Positional destructuring in patterns.</strong> The sample had used <code>OrderPlaced(e)</code> to bind the whole variant. That is ambiguous with binding a single field. Decision: variant patterns destructure positionally, <code>OrderPlaced(_, customer, lines)</code>, with <code>_</code> as wildcard. An as-binding form is a syntax open choice.</li>
+<li><strong>Method-call sugar needs a priority rule.</strong> <code>x.f(a)</code> first looks for a real member on <code>x</code> (a namespace entry, a service method, a record field) and only then falls back to <code>f(x, a)</code>. Without that order, a record field named the same as a stdlib function would be unreachable.</li>
+<li><strong><code>Cell</code> behaves as specified.</strong> Reads are <span class="flag">Nondet</span>, writes are <span class="flag">Write</span>, and the in-memory store and id generator needed nothing else. The interpreter does not yet enforce the flags, so this is a semantic check, not a compiler one.</li>
+<li><strong>Panic at the request boundary is the right supervisor point.</strong> A <code>fail</code> inside a handler surfaces as an HTTP 500 and the server keeps serving. It also showed that validation of user input must be a <code>Result</code>, not a panic, or every bad request is a 500. The sample's API now checks its inputs before constructing domain records.</li>
+<li><strong>Composition-root resolution rules.</strong> Dependencies resolve by parameter name against root entries, then by type name, then by implicit construction of an unlisted service. Cycles are an error. This matches section 5.1 and needed no runtime container.</li>
+<li><strong>JSON at the edge is a host-adapter concern.</strong> Single-field records such as <code>RoomId("x")</code> flatten to their value when nested and stay objects at the top level. Unions serialise with a <code>type</code> field. This belongs in the .NET interop layer of milestone 7, not the language.</li>
+</ul>
+
+<h3>7.3 Effect annotations are optional</h3>
+<p>The bookings sample showed every service method wearing <code>! Nondet Suspend</code> or <code>! Write Suspend</code>, inherited from the store's shape, the same way every C# method touching a repository ends up <code>async Task</code>. The brief's "the signature is the boundary" rule was for readability, not necessity: effects are a set union over callees, so the compiler can infer them, with a fixpoint for recursive groups. Koka does exactly this.</p>
+<div class="decision"><span class="label">Decision</span>
+<ul style="margin-bottom:0">
+<li>Annotations are optional and inferred when omitted.</li>
+<li>When present they are an upper bound, checked at that function.</li>
+<li><code>! Pure</code> asserts the empty set, and cannot be combined with other flags. A <span class="flag">Pure</span> handler is rejected, since handlers are the <span class="flag">Write</span> sites.</li>
+<li><code>shape</code> members, function types, and interop declarations must carry a clause, because there is no body.</li>
+</ul>
+</div>
+<p>What this gives up is the contract: a change deep in an implementation can widen the effects of everything above it, and the error appears wherever a pure caller finally objects. Two things limit the damage. <span class="flag">Write</span> cannot leak by accident, because a <code>fn</code> is never allowed to carry it, so the error appears at the function that started writing. And <span class="flag">Nondet</span> or <span class="flag">Suspend</span> leaking upward only costs optimisation, not correctness. For published packages, a lint requiring annotations on exported declarations restores the contract where it matters; that is a package-level rule for later, not a language rule.</p>
+<p>The samples now carry effects only on shapes and function types, plus <code>! Pure</code> on a few domain functions as the explicit assertion. <code>Pure</code> lives in the <code>!</code> clause rather than as a keyword so that all effect syntax is in one place.</p>
+
+<h3>7.4 The .NET backend emits C# source</h3>
+<p>Decided 8 September. Milestone 7 lowers Trebuchet to C# source and hands it to Roslyn, rather than emitting IL directly. Records, <code>with</code>, pattern matching, <code>async</code>, and structural equality all have close C# equivalents, so the generated code stays readable and debuggable, and Roslyn does the IL generation and optimisation. Direct IL emission would buy faster compile times and independence from the C# compiler at the cost of reimplementing what Roslyn already does; it can replace the source backend later once the semantics are settled, without changing anything above the lowering. The interop story with a C# host is also easier to verify when the output can be read.</p>
+<p>The interpreter keeps its role as the executable specification: the same programs run through it and through each backend, and any difference in result is a bug in one of them.</p>
+
+<h3>7.5 Findings from the type checker</h3>
+<p>Milestone 1's checker exists (<code>treb check</code>), with a test suite of negative cases, and both samples check clean. Building it settled three things.</p>
+<ul>
+<li><strong>A variant expression has its union's type.</strong> <code>error(E.A(x))</code> and <code>error(E.B)</code> in the two branches of an <code>if</code> must unify, so a variant constructor returns the union, not the variant. Patterns still name variants. Two variants of the same union also unify with each other for the same reason.</li>
+<li><strong>Name shadowing between a service method and a top-level function is a real hazard.</strong> The orders sample had a method <code>place</code> calling a handler <code>place</code>; the method shadowed the handler and the call had the wrong arity. The checker caught it; the interpreter would have failed at runtime. The sample now names the handler <code>placeOrder</code>. Whether the language should forbid the shadow outright is added to the syntax sketch's open choices.</li>
+<li><strong>Generic builtins carry the whole inference load.</strong> The samples never declare a generic function, so the checker instantiates generic builtins per call and infers lambda parameter types from the expected function type, and that was enough. User-defined generics are deferred until a sample needs one.</li>
+</ul>
+<p>The checker also runs before <code>treb serve</code> starts, which turned a class of startup panics into compile errors with positions.</p>
+
+<h3>7.6 Findings from the effect checker</h3>
+<p>Milestone 3 is built on top of the type checker: every body is a frame recording its calls, and a fixpoint over frames gives each function its effect set. <code>treb effects</code> prints the result. Three observations from running it over the samples.</p>
+<ul>
+<li><strong>Every handler in both samples is pure.</strong> Handlers take state and return events; the only <span class="flag">Write</span> in the bookings program is <code>InMemoryRoomStore.append</code>, through the shape the service depends on. The brief's table calls handlers "the only places writes can happen", and the checker says the truth is one level down: handlers are where writes are <em>decided</em>, and the store adapter is where they <em>happen</em>. The <code>handler</code> keyword still matters as the CQRS marker and as the scope boundary, but the rule "a fn cannot write" is what does the enforcement, and it is checked on inferred effects, so it catches indirect writes through helpers and lambdas.</li>
+<li><strong>Declared effects are the contract at call sites.</strong> A first version charged callers the callee's inferred body effects even when a clause was declared, so the Postgres stub, whose methods only <code>fail</code>, looked pure to its callers. That is wrong: a declaration is an upper bound the implementation may change within. Callers now see declared effects when present and inferred effects otherwise.</li>
+<li><strong>Higher-order builtins need their function arguments' effects.</strong> <code>map(xs, f)</code> has whatever effects <code>f</code> has. The checker cannot see inside a builtin, so it adds the effects of every function-typed argument. When the stdlib is written in Trebuchet this special case disappears, since inference will see the bodies.</li>
+</ul>
+<p>The interop rule from section 7 is now concrete: a function-typed value whose type carries no <code>!</code> clause is assumed to have all three effects.</p>
+
+<h3>7.7 Findings from the runtime and the C# backend</h3>
+<p>Milestone 2 (persistent collections) and the C# source half of milestone 7 exist. <code>Trebuchet.Runtime</code> holds a bit-partitioned vector trie, a hash array mapped trie for maps and sets, Option, Result, Cell, and a Prelude mirroring the builtins. The interpreter runs on it, so every existing test exercises the collections. <code>treb emit</code> lowers a checked program to C#, and an integration test builds the bookings output with <code>dotnet build</code> and runs the interpreter's scenario against it with identical results.</p>
+<ul>
+<li><strong>The type checker's side tables were sufficient for lowering.</strong> The emitter needed the type of every expression, how each member access resolved (field, method, shape member, namespace, or call sugar), and which instantiated signature each call chose. Nothing else. That is a good sign for the C++ backend, which will consume the same tables.</li>
+<li><strong>Untyped Result and Option constructors need target typing.</strong> <code>ok(x)</code> does not know its error type. The runtime carries <code>OkValue&lt;T&gt;</code> with an implicit conversion to any <code>Result&lt;T, E&gt;</code>, and the emitter casts at returns and arguments. C++ will need the same trick or explicit type arguments.</li>
+<li><strong>A variant's static type must be its union in the target language too.</strong> C# infers <code>error(new SlotInPast(...))</code> as <code>ErrorValue&lt;SlotInPast&gt;</code>; the emitter casts every variant construction to its union. This is the same decision the checker made in section 7.5, surfacing one level down.</li>
+<li><strong>Structural shapes lower to nominal interfaces by computing satisfaction at compile time.</strong> The emitter asks the checker which shapes each service satisfies and adds those interfaces. Composition roots then type-check in C# without reflection, which is the outcome section 5.1 wanted.</li>
+<li><strong>Expression-oriented source lowers to statement-oriented C# without a general block expression.</strong> Every <code>if</code>, <code>match</code>, and <code>?</code> becomes statements with a typed temporary, and lambdas are statement lambdas. The cost is that a hoisted temporary can be evaluated before a sibling argument; the fix is to hoist all arguments when any needs it, which is a small follow-up.</li>
+</ul>
+<p><strong>Milestone order.</strong> The C# backend was done before the C++ backend, reversing the brief's recommendation. The reasoning: with the checker complete, emitting C# was the shortest path to compiled, host-embeddable output, and it validated the side tables the C++ backend will reuse. The C++ backend remains the one that forces the ownership and refcount decisions, and nothing here changes that; it has simply not been reached yet.</p>
+
+<h3>7.8 Findings from async lowering</h3>
+<p>The <span class="flag">Suspend</span> flag now lowers to <code>async ValueTask&lt;T&gt;</code> in generated C#. The rule is one line: a function is emitted async exactly when its effects, declared or inferred, include <span class="flag">Suspend</span>, and every call to such a function is awaited. Shape members, function-typed values, lambdas, and roots follow the same rule. Pure code and <span class="flag">Nondet</span>-only code stay synchronous. The bookings program builds and passes its scenario with the store methods async and the domain untouched.</p>
+<ul>
+<li><strong>Effect inference is what makes this mechanical.</strong> Without inference every service method would need a manual <code>async</code> decision; with it, the emitter asks the checker one question per function. This is the payoff section 5 of the brief promised, and it needed nothing beyond the effect checker from milestone 3.</li>
+<li><strong>Structural shapes and async interact.</strong> A shape member declared <code>! Suspend</code> becomes an interface method returning <code>ValueTask</code>. An implementing service method whose body never suspends, such as the in-memory store, is emitted async anyway so the interface is satisfied. The checker already allows a method to do less than the shape declares; the emitter has to honour the declaration, not the body.</li>
+<li><strong>Suspending lambdas need async-aware higher-order functions.</strong> A builtin cannot be inspected, so when a lambda argument suspends the emitter calls an <code>Async</code> variant of the builtin. That special case will disappear when the stdlib is written in Trebuchet, since inference will then see both bodies. The same two-variant split will be needed in the C++ runtime, where coroutines make it more visible.</li>
+<li><strong><code>ValueTask</code> versus <code>Task</code>.</strong> <code>ValueTask</code> was chosen because most suspending calls in a CQRS service complete synchronously against a cache or an in-memory adapter, and <code>ValueTask</code> avoids an allocation in that case. A C# host that needs <code>Task</code> can call <code>AsTask()</code> at the boundary, which is where milestone 7's remaining interop work lives.</li>
+</ul>
+<p>Milestone 7 now lacks only the host-facing pieces: <code>IServiceCollection</code> registration, boundary conversions, and exception mapping.</p>
+
+<h3>7.9 Findings from the C# host and the C++ backend</h3>
+<p>Milestone 7 is complete on the host side, and milestone 4 exists: the bookings program compiles to C++ and passes the same scenario, line for line, as the interpreter and the C# output.</p>
+<p><strong>C# host.</strong> <code>treb emit --host</code> generates one <code>AddTrebuchet_&lt;root&gt;()</code> per composition root. The root is built once at startup and each entry is registered under its own type and under every shape it satisfies, so a C# controller can ask the container for <code>RoomStore</code> and receive the in-memory adapter. <code>examples/bookings-host</code> is a stock ASP.NET project whose only hand-written file maps five routes; it was exercised over HTTP with the same results as the interpreter's server. What this settled: compile-time composition and a runtime container coexist without conflict, because the container only ever sees finished objects. The <code>dynamic</code> root from section 5.1 is still not needed.</p>
+<p><strong>C++ backend.</strong> One header, C++20, standard library only. Findings:</p>
+<ul>
+<li><strong>The same side tables lowered to a second language without additions.</strong> Expression types, member resolution kinds, and instantiated callees were enough for C++ as they were for C#. The emitters share their statement-lowering structure almost line for line; the differences are all in type spelling and pattern access.</li>
+<li><strong>Target typing works in C++ through converting constructors.</strong> <code>ok(x)</code> returns an <code>OkValue&lt;T&gt;</code> with a converting constructor on <code>Result&lt;T, E&gt;</code>, so <code>return ok(x)</code> and typed assignments need no casts. A variant value is wrapped in its union at construction, the same rule as in C#, because <code>std::variant</code> comparison is not implicit.</li>
+<li><strong>Argument evaluation order bit the runtime, not the generated code.</strong> <code>Map::set</code> hashed the key and moved it in the same argument list; GCC evaluated the move first, so every stored hash was the hash of an empty string. The whole program "worked" and every lookup missed. This is precisely the class of bug the immutable-by-default language exists to rule out, and it lived in the one place written in a mutable language. The fix is one line; the lesson is that the runtime needs its own property tests, which it now has on the .NET side and needs on the C++ side.</li>
+<li><strong>Records as map keys need generated hashes.</strong> C++ has no structural hashing, so the emitter writes a <code>std::hash</code> specialisation per record and variant, placed between a module's types and its functions so it precedes any instantiation.</li>
+<li><strong><code>std::shared_ptr</code> is the refcount for now.</strong> Its counts are atomic, which section 6 said would be the cost of the simple choice. The runtime header says so. A non-atomic intrusive count is an optimisation for the single-threaded loop and does not change the generated code.</li>
+<li><strong>Blocking, not coroutines.</strong> Milestone 4 asked for the pure subset with <span class="flag">Suspend</span> as blocking, and that is what exists. The C# backend shows the shape the coroutine lowering will take: one predicate per function from the effect checker.</li>
+</ul>
+
+<h3>7.10 Findings from closing the remaining gaps</h3>
+<p>Six items were finished together: comment preservation in the formatter, user-defined generics, an FFI, a non-atomic refcount, coroutine lowering on C++, and property tests for the C++ runtime. Three of them produced decisions.</p>
+<ul>
+<li><strong>Effect polymorphism is necessary, not optional.</strong> The first generic sample failed the checker: a <code>fn</code> that calls a function-typed parameter with no <code>!</code> clause was charged all three effects, so every higher-order function was a Write violation. The rule now is that such a parameter's effects come from the argument at each call site: the checker records which parameters a function calls or passes on, and the fixpoint adds the matching argument's effects. <code>! Pure</code> on a higher-order function therefore means "adds nothing beyond its arguments", which is what it should mean. C# and C++ cannot be polymorphic over async, so the emitters generate a synchronous version and an <code>Async</code> twin, chosen per call site, the same split the Prelude already had. When the stdlib is written in Trebuchet, the Prelude's hand-written twins become generated ones.</li>
+<li><strong>The FFI is a declaration, not a mechanism.</strong> <code>extern fn</code> carries a Trebuchet signature with mandatory effects, one host symbol per target, and <code>catch</code> lines mapping host exception types to error variants. Everything else is the same as any other function: callers are charged the declared effects, <span class="flag">Suspend</span> externs are awaited or become coroutines, and unmapped exceptions become panics at the wrapper. The interop rule from section 7 ("a function value with no clause has all effects") never applies to externs because the clause is required. The interpreter resolves externs from a registry the host fills, so <code>treb serve</code> cannot run a program with externs unless the server registers them; that is correct and deliberate.</li>
+<li><strong>Generic instantiation must always go back to the definition.</strong> Instantiating an already-instantiated record by position re-mapped its fields, so <code>swap[A, B]</code> returned the wrong types. Records and unions now carry a reference to their definition and every instantiation substitutes from it. Recursive generic unions were believed supported by the checker, the interpreter, and C#, but not by C++; section 7.15 records that the checker was wrong too, and how both were fixed.</li>
+</ul>
+<p>The C++ runtime now counts references without atomics, and <span class="flag">Suspend</span> lowers to a lazy coroutine <code>Task&lt;T&gt;</code> with symmetric transfer, decided per function by the same effect predicate the C# backend uses. There is no event loop, so every task completes synchronously and <code>get()</code> drives one from a host; the coroutine machinery is real and the scheduling is not. The runtime's own test program covers the collections, the counting, the coroutines, and time parsing, and the .NET suite compiles and runs it with g++.</p>
+
+<h3>7.11 Findings from resources and disposal</h3>
+<p>The ownership marker and the early-release block from section 5.2 are now spelled and implemented: <code>resource service X(...)</code> marks a service as owning something that must be given back, and <code>use x = expr</code> binds it for the rest of the enclosing block.</p>
+<ul>
+<li><strong>A resource is a service with a <code>release</code> method, nothing more.</strong> The checker requires <code>fn release() -&gt; Unit</code> on a resource service and charges the method's effects to every <code>use</code> site, so a resource whose release suspends makes the block <span class="flag">Suspend</span> without further annotation. Records and unions may not hold resources, for the same reason they may not hold <code>Cell</code>; a resource is not a value.</li>
+<li><strong>A fresh resource must be bound with <code>use</code>.</strong> Constructing a resource service in a plain binding is an error, and <code>use</code> on a non-resource is also an error. There is no way to leak one by forgetting. Passing a resource to a function is fine because the callee borrows it; only the <code>use</code> site owns it.</li>
+<li><strong>Release order is reverse binding order, and it survives early exit.</strong> The interpreter and both backends release at the end of the enclosing block, last-bound first, including when <code>?</code> returns early or a panic unwinds. On .NET this is <code>IDisposable</code> and <code>using</code>, or <code>IAsyncDisposable</code> and <code>await using</code> when <code>release</code> suspends. On C++ the destructor of the service calls <code>release</code> when the last <code>Rc</code> drops, and <code>use</code> is a plain binding; <code>release</code> is wrapped so a throwing release cannot escape a destructor.</li>
+<li><strong>Roots may hold resources.</strong> An entry such as <code>db: PgConnection</code> is a singleton owned by the root; the DI container disposes it on shutdown on .NET, and the root record's destructor does on C++. The captive-dependency check (section 5.2) is implemented alongside: a singleton depending on a <code>scoped</code> service is a compile error.</li>
+</ul>
+<p><code>examples/resources/</code> is the acceptance sample; <code>used a, used b, closed b, closed a</code> is the expected trace on all three targets.</p>
+
+<h3>7.12 Findings from the host boundary</h3>
+<p>The two remaining .NET interop items from section 7.9 were done together: host-supplied leaf dependencies and value conversion at the edge.</p>
+<ul>
+<li><strong>The container is the source of truth for leaves.</strong> <code>AddTrebuchet_&lt;root&gt;()</code> no longer builds the root eagerly. Each entry becomes a keyed factory registration, and each dependency of a service resolves from the container by its declared type first, falling back to the root's own entry. Registrations the host makes before the call therefore win, and the root's entries are the defaults, via <code>TryAdd</code>. A host can replace the clock, the room table, or a store adapter with two lines of ordinary C#, and the test suite does exactly that. Scoped services register scoped, so the container owns lifetimes and disposal; the <code>Root_&lt;name&gt;</code> record is built from the container on first use.</li>
+<li><strong>The boundary converts, the language does not.</strong> <code>Vector[T]</code> now implements <code>IReadOnlyList&lt;T&gt;</code> and <code>Map[K, V]</code> implements <code>IReadOnlyDictionary&lt;K, V&gt;</code>, so Trebuchet values pass into host signatures with no copying. In the other direction every extern result passes through <code>Boundary.To&lt;T&gt;</code>, which turns arrays and enumerables into <code>Vector</code>, dictionaries into <code>Map</code>, null into <code>None</code> when the declared type is <code>Option</code>, and widens integers and dates. A null where the declaration is not <code>Option</code> is a panic at the wrapper, which is the same rule as an unmapped exception. Nothing in the language changed; the sample extern <code>readLines</code> just declares <code>Result[Vector[String], FileError]</code> and binds to <code>File.ReadAllLinesAsync</code>.</li>
+</ul>
+<p>With these, milestone 7 is complete in both directions. JSON at the edge remains a host-adapter concern, as decided in section 7.1.</p>
+
+<h3>7.13 Closing the .NET path</h3>
+<p>Four small items closed the .NET path, and one of them found a bug.</p>
+<ul>
+<li><strong>Set builtins.</strong> <code>Set[T]</code> had a runtime on both targets but no surface. It now has <code>toSet</code>, <code>add</code>, <code>remove</code>, <code>contains</code>, <code>length</code>, <code>isEmpty</code>, <code>items</code>, <code>merge</code>, <code>intersect</code>, and <code>difference</code>, on the interpreter, C#, and C++. The union operation is spelled <code>merge</code> because <code>union</code> is the declaration keyword. <code>examples/collections/</code> is the sample and runs identically on all three targets.</li>
+<li><strong>Structural equality was wrong on .NET.</strong> Writing the sample exposed that <code>==</code> on a <code>Vector</code>, <code>Map</code>, or <code>Set</code> lowered to the C# operator, which is reference equality on a class. Records were unaffected because C# records overload <code>==</code>. The emitter now lowers <code>==</code> and <code>!=</code> on any non-primitive type to <code>Equals</code>, which every runtime type overrides structurally. This is exactly the kind of bug the "same scenario on three targets" rule exists to catch; the interpreter had it right.</li>
+<li><strong>Source mapping.</strong> Generated C# carries a <code>#line</code> directive before every statement, naming the <code>.treb</code> file and line, and <code>#line default</code> after each block. A panic's stack trace and Roslyn's diagnostics therefore point at Trebuchet source; the test asserts the trace of a <code>fail</code> names <code>boom.treb:line 4</code>. <code>treb emit --no-lines</code> turns it off for reading the generated code.</li>
+<li><strong>JSON at the host boundary.</strong> The runtime gains a <code>System.Text.Json</code> converter factory implementing the shape the interpreter's dev server already used: a single-field record flattens to its value when nested and stays an object at the top level; a nullary variant is its name; a variant with fields is an object with a <code>type</code> field; <code>Option</code> is null or the value; a <code>Map</code> is an object when its key is scalar or a single-field record over a scalar, and an array of pairs otherwise. Generated records and unions carry marker attributes so the converter never guesses about host types. The host sample adds it with one line and its responses are now byte-for-byte the dev server's.</li>
+<li><strong>Packaging.</strong> <code>dotnet pack</code> produces <code>Trebuchet.Cli</code>, a dotnet tool exposing <code>treb</code>, and <code>Trebuchet.Runtime</code>. The tool carries the C++ runtime header, and a generated project takes a package reference to the runtime when the tool is not running from a source checkout. Verified by installing the tool to a scratch path and building emitted C# and C++ from it.</li>
+</ul>
+
+<h3>7.14 The C++ event loop</h3>
+<p>The scheduling half of section 6 is now real. <code>trebuchet.hpp</code> has an <code>EventLoop</code>, one per thread, with a ready queue, a timer heap, and a mutex-protected <code>post</code> queue. Everything Trebuchet-generated runs on the loop thread, which is the invariant that keeps the non-atomic refcounts valid; <code>post</code> is the only way work enters from another thread.</p>
+<ul>
+<li><strong><code>Task::get()</code> drives the loop.</strong> It schedules the task if it has not started and steps the loop until the task completes, so a suspension on a timer or an external completion really suspends and other scheduled work runs meanwhile. Drivers and roots did not change; <code>get()</code> still means "run this to completion". If nothing is ready, no timer is armed, and nothing external is pending, <code>get()</code> panics with a deadlock message rather than hanging.</li>
+<li><strong><code>sleep(ms)</code> is the first builtin that truly suspends</strong> on all three targets: <code>Task.Delay</code> in C#, a timer on the loop in C++, <code>Thread.Sleep</code> in the interpreter. Writing it found that both emitters only awaited a builtin when a function argument suspended, never when the builtin's own declared effects did; they now do. This is the second bug the three-target rule has caught in a day.</li>
+<li><strong>Host-side concurrency, not language-side.</strong> <code>spawn(task)</code> starts a task on the loop and returns a joinable handle; <code>Completion&lt;T&gt;</code> is a move-only resolver that any thread may <code>resolve</code> or <code>fail</code>, with <code>pending()</code> giving the awaitable side. Dropping a resolver unresolved fails its waiter with a panic instead of hanging the loop. Between them they are the shape an extern binding uses to adapt a callback-based host API to a <code>Task</code>. The language itself still has no spawn, because parallelism is undesigned (section 6) and <span class="flag">Suspend</span> alone must not imply concurrency.</li>
+<li><strong>The C++ driver demonstrates both.</strong> The language runs two <code>tick</code> handlers sequentially and logs <code>a, b</code> whatever the delays; the host spawns the same two and gets <code>b, a</code>, because they complete in timer order. <code>examples/async/</code> is the sample; the runtime tests cover timers, spawn, completions resolved from a worker thread, nested <code>get()</code> inside the loop, and the dropped-resolver case.</li>
+</ul>
+<p>What this does not do: multi-threaded execution. The atomic-versus-confined refcount question in section 9 is unchanged, and the loop makes the confined option concrete: a value stays on the thread whose loop created it, and crossing to another loop would need a handoff at the <code>post</code> boundary.</p>
+
+<h3>7.15 Recursive types on every target</h3>
+<p>The last C++ gap from section 7.10 was recursive generic unions. Closing it found two checker bugs first.</p>
+<ul>
+<li><strong>Instantiation looped.</strong> Instantiating <code>Tree[Int]</code> substituted into every variant field eagerly, and a field of type <code>Tree[T]</code> instantiated <code>Tree[Int]</code> again, without end. Instantiated records and variants now compute their fields on first access from the definition; a recursive generic instantiates in constant work and each field is substituted once, when someone looks at it. The mutability walk that forbids <code>Cell</code> in records also had to visit by definition rather than by instance, since every instantiation is a fresh object.</li>
+<li><strong>Locals were being generalised.</strong> Every name lookup freshened a generic type's parameters, which is right for the nullary variant of a generic union and wrong for a local whose type mentions the enclosing function's type parameter: inside <code>chainLength[T]</code>, the parameter <code>c: Chain[T]</code> became <code>Chain[?]</code>, and the recursive call was instantiated at an unbound variable that C# printed as <code>object</code> and C++ as <code>Unit</code>. It went unnoticed because every earlier generic sample bound the variable through its return type. Only nullary variants are marked for freshening now.</li>
+<li><strong>C++ boxes the recursive field, nothing else changes.</strong> A field whose type mentions its own record or union is emitted as <code>Box&lt;T&gt;</code>, a value behind a reference-counted pointer that converts to and from <code>T</code>, compares structurally, and hashes through. Variant structs are forward-declared so the <code>std::variant</code> alias can come first and a variant can hold <code>Box&lt;Union&gt;</code>. Field access and pattern destructuring dereference the box, so generated code and the language are unaware of it.</li>
+</ul>
+<p><code>examples/trees/</code> has a recursive expression union, a generic tree, and a generic record recursive through <code>Option</code>, with <code>mirror</code>, <code>leftmost</code>, and a length function that exercise the recursive generic calls; it prints the same line on all three targets. With this, the C++ backend has no known gap against the interpreter other than in-place reuse when a refcount is one, which is an optimisation.</p>
+
+<h3>7.16 Factory synthesis and the supervisor point</h3>
+<p>The two language items left on milestones 5 and 6 are done.</p>
+<ul>
+<li><strong>Synthesised factory lambdas</strong> (section 5.2) work as specified. When a service depends on a function that returns a service and the root has no entry for it, the compiler builds the lambda: each parameter of the function type fills the first unfilled constructor parameter of the target whose type unifies, in order, and the remaining constructor parameters resolve from the root exactly as a direct dependency would, by name, then by type, then implicitly. <code>examples/factories/</code> has a <code>Client(open: fn(String) -&gt; Conn ! Pure)</code> whose root names only a config and a log; the root wires <code>Conn</code>'s other two parameters and <code>Client</code> never learns of them. The same synthesis runs in the checker, the interpreter, both emitters, and the C# host registration, where the host may still replace the factory by registering its own <code>Func</code>.</li>
+<li><strong><code>supervise expr</code> is the supervisor point</strong> from section 4, made a language construct. It yields <code>Result[T, Panic]</code>, where <code>Panic</code> is a builtin record with the message, and it is allowed only in a handler or a service method. A <code>fn</code> cannot contain one, so pure code still cannot observe a panic and memoisation stays sound. Resources bound with <code>use</code> inside the supervised expression are released during the unwind on every target, because release is <code>finally</code>, <code>using</code>, or a destructor. The bookings API now wraps the command in <code>supervise</code> and maps a caught panic to a new <code>Internal</code> error, so a bug in the service is a 500 from the language rather than from the host's catch-all; the dev server's and the ASP.NET host's catch-alls remain as the outermost net.</li>
+</ul>
+<p>The construct answers reviewer question 4 in section 10 in the negative for now: nothing in the samples needed a catch in ordinary code, and the request boundary is the right place. Should a legitimate case appear, widening the allowed frames is a one-line change in the checker, and the effect system does not care either way because a panic is not an effect.</p>
+
+<h3>7.17 Visibility, the acceptance scenario, and two items closed by decision</h3>
+<ul>
+<li><strong><code>private</code> is enforced.</strong> A module exports every declaration not marked <code>private</code>; <code>use</code> sees the rest neither unqualified nor qualified, and a private union hides its variants too. A <code>private</code> service method is callable from the service's own methods only. Whether modules map to files or directories stays as it is: one file, one module, named by its header. Nothing in the samples needed opt-in export lists, so public-by-default stands.</li>
+<li><strong>The milestone-6 acceptance scenario runs on all three targets.</strong> <code>examples/orders/</code> has one command, one handler, one query, one service, and one root; the same scenario (place, place again, place empty, describe) prints one line on the interpreter, on .NET, and on C++. Until now the emitter tests only compiled it.</li>
+<li><strong>Dynamic composition roots are the host container.</strong> On .NET the generated registration already makes every root entry an overridable default (section 7.12), which is what a plugin needs: register the plugin's implementation first and the root picks it up. No language feature is needed, and on C++ the same effect is a different root. Closed.</li>
+<li><strong>In-place reuse when a refcount is one stays deferred, with a reason.</strong> Generated code passes values as lvalues (<code>r = append(r, x)</code>), so the runtime cannot tell at <code>append</code> whether the caller still needs the old vector; safe reuse needs a last-use analysis in the emitter that turns the final use of a binding into a move. That is an optimisation pass, not a runtime change, and it waits for a benchmark that needs it.</li>
+</ul>
+
+<h3>7.18 Scoped is a lifetime, not a transaction</h3>
+<p>Section 5.2 said the scope boundary is where a transaction commits. That sentence is withdrawn (2026-09-08). The reasoning behind it was the unit-of-work pattern: handlers are the only <span class="flag">Write</span> sites, a scoped service lives for one handler invocation, so committing at scope end would make application code unable to forget a commit and would roll back on panic for free. It does not survive contact with the rest of the design.</p>
+<ul>
+<li>It hides the most important side effect a command has. The effect system exists to make world-writes visible; an implicit commit at a block end is the opposite.</li>
+<li>"The scope ended successfully" is not well defined. A handler returning <code>Error(SlotTaken)</code> is a domain outcome, not a failure, and sometimes a rejection should be committed. Tying commit to <code>Ok</code> conflates the domain result with the transactional one.</li>
+<li>The samples never needed it. With an event store the unit of atomicity is the one <code>append</code> of the events a command produced, which is what bookings and orders already do. Transactions spanning aggregates are what event sourcing advises against.</li>
+<li>The language already has the right primitive. A transaction is a resource: <code>use tx = db.begin()</code>, an explicit <code>tx.commit()?</code>, and <code>release</code> rolls back if nothing committed. Commit is visible, rollback on error or panic comes from the existing unwind, and nothing new enters the language.</li>
+<li>C# developers read <code>scoped</code> as one instance per request, which is what it means in ASP.NET. Giving it commit semantics would surprise the people the .NET backend is for.</li>
+</ul>
+<div class="decision"><span class="label">Decision</span><p><code>scoped</code> means one instance per handler or query invocation and nothing more. Transactions are resource services with an explicit commit and rollback on release. A unit-of-work convenience, if a project wants one, is a library pattern: a scoped resource whose <code>release</code> commits when a flag was set. Milestone 6 has nothing remaining.</p></div>
+
+<h3>7.19 The demo grows into the language</h3>
+<p>The bookings sample and its React front end were extended to touch more of the language, and the exercise produced five stdlib additions and one dev-server feature rather than any language change.</p>
+<ul>
+<li><strong>Attendees and capacity.</strong> A booking carries <code>attendees: Set[GuestId]</code>; the handler rejects a request whose attendee count exceeds the room's capacity with a new <code>OverCapacity</code> error. The API takes a <code>Vector[String]</code> and converts it with <code>toSet(map(...))</code>, so <code>Set</code> is a domain type and never a wire type.</li>
+<li><strong>A waitlist with promotion.</strong> A request that would conflict may ask to be waitlisted; it becomes a <code>BookingWaitlisted</code> event and a <code>Waitlisted</code> status. Cancelling a booking emits <code>BookingCancelled</code> and, when the oldest waitlisted booking now fits, <code>BookingPromoted</code>. The handler decides this by applying the cancellation to the room first and asking the <code>promotable</code> query, which is the event-sourcing idiom in two lines: fold, then query the folded state.</li>
+<li><strong>Paging and sorting.</strong> <code>record Page[T]</code> with <code>page[T](xs, offset, limit)</code> is the first user-defined generic in the sample; the API sorts by slot start with <code>sortBy</code> before paging.</li>
+<li><strong>Cross-room stats.</strong> <code>overview()</code> on the service asks the store for every room id, rebuilds each room with <code>traverse</code>, and maps a pure <code>stats</code> query over them; the query counts statuses into a <code>Map[String, Int]</code> and distinct guests into a <code>Set</code>. <code>traverse</code> stops at the first store error, which is the behaviour the <code>?</code> operator would give a loop if the language had one.</li>
+<li><strong>An extern in the API layer.</strong> <code>getInfo</code> reports the host name through <code>extern fn hostName()</code> bound to <code>System.Net.Dns.GetHostName</code> on .NET and <code>host::hostName</code> on C++. The dev server now binds every <code>csharp</code> extern symbol by reflection, loading the framework assembly that owns the namespace when it is not loaded yet, so a program with BCL-bound externs runs in the interpreter without host code.</li>
+<li><strong><code>private</code></strong> marks the fold's <code>setStatus</code> helper and the service's <code>current</code>, the first uses since visibility was enforced (section 7.17).</li>
+</ul>
+<p>The stdlib gained <code>take</code>, <code>drop</code>, <code>at</code>, <code>sortBy</code>, and <code>traverse</code>, each on all three targets with Async twins where a function argument may suspend. The three-target scenario grew from nine steps to fifteen and still prints one line per step identically on the interpreter, on .NET, and on C++; the C# host gained the three routes and the UI shows capacity, attendees, waitlist status, a pager, a stats table, and the host line.</p>
+
+<h2 id="milestones"><span class="n">8</span>Revised milestones</h2>
+<p>Milestones from the brief, with the decisions above folded in.</p>
+<ol class="milestones">
+<li><b>Parser and type checker.</b><span>Done, including user-defined generics (section 7.10). Records, deep immutability, structural equality, flat then deep <code>with</code>. Sealed unions and exhaustive matching, since <code>Result</code> depends on them. Module headers, <code>use</code> imports, and name resolution. Shape satisfaction at roots (section 7.5).</span></li>
+<li><b>Persistent collections runtime.</b><span>Done for .NET and C++ (sections 7.7, 7.13): Vector as a bit-partitioned trie (RRB deferred), Map and Set as HAMT with builtins on all three targets, fold family, <code>Cell[T]</code>.</span></li>
+<li><b>Effect system.</b><span>Done (section 7.6). <span class="flag">Nondet</span> <span class="flag">Write</span> <span class="flag">Suspend</span> inference and checking. Errors only, no lowering.</span></li>
+<li><b>C++ backend.</b><span>Done (sections 7.9, 7.10, 7.14, 7.15): records, unions, generics, recursive types via <code>Box</code>, functions, services, shapes, roots, externs, collections, non-atomic <code>Rc</code> refcounting, <span class="flag">Suspend</span> as <code>Task</code> coroutines on a single-threaded event loop with timers, <code>spawn</code>, and cross-thread completions. Remaining: refcount-uniqueness in-place reuse.</span></li>
+<li><b><code>service</code> and compile-time composition roots.</b><span>Done: singletons, singleton inference, factory dependencies with synthesised lambdas (section 7.16), effectful constructors, <code>scoped</code> services, the captive-dependency check, and <code>resource</code> services (section 7.11).</span></li>
+<li><b><code>handler</code>, <code>apply</code>, and the event-sourcing slice.</b><span>Done: handlers, <code>use</code> release at block end, coroutine lowering, and <code>supervise</code> as the supervisor point (section 7.16). Scope-boundary commits were withdrawn (section 7.18); nothing remains.</span></li>
+<li><b>.NET backend.</b><span>Done (sections 7.4, 7.8 to 7.13): C# source with <code>#line</code> mapping, <code>async ValueTask</code>, container-driven <code>IServiceCollection</code> registration with host overrides, <code>IDisposable</code> for resources, panics as exceptions, externs with exception mapping and boundary conversion, JSON converters, and a packaged <code>treb</code> tool plus runtime package.</span></li>
+</ol>
+<p style="margin-top:18px"><strong>Interpreter.</strong> A C# tree-walking interpreter now exists alongside milestone 1. It runs the samples and the bookings HTTP service, and serves as the executable specification the type checker and the C++ backend are tested against. It stays dynamically typed; the type checker is the next piece of milestone 1.</p>
+<p><strong>Acceptance test for milestone 6</strong> is met (section 7.17): <code>examples/orders/</code> has one command, one handler, one query, one service, and one composition root, and the same scenario runs on the interpreter, on C++, and on .NET.</p>
+
+<h2 id="open"><span class="n">9</span>Deliberately open</h2>
+<div class="open-note"><span class="label">Not yet decided</span>
+<ul style="margin-bottom:0">
+<li><strong>Concrete syntax.</strong> Sketched separately; open choices listed there.</li>
+<li><strong>Multi-threaded refcounting.</strong> Atomic everywhere versus thread-confined with handoff. Decide when the single-threaded loop becomes a limit.</li>
+<li><strong>Parallelism primitives.</strong> <code>parMap</code> and <code>race</code> exist conceptually; their runtime is undesigned.</li>
+<li><strong>Whether <code>mut</code> locals ever return.</strong> Revisit only with evidence from real code after milestone 4.</li>
+</ul>
+</div>
+
+<h2 id="questions"><span class="n">10</span>Questions for reviewers</h2>
+<ol class="questions">
+<li>Does the three-flag effect model (<span class="flag">Nondet</span> <span class="flag">Write</span> <span class="flag">Suspend</span>) miss any property the compiler would need for the stated goals? In particular, is there a compiler decision that needs to distinguish kinds of non-determinism?</li>
+<li>Is treating <span class="flag">Suspend</span>-only functions as memoisable sound in the presence of cancellation or timeouts?</li>
+<li>Is the "no <code>mut</code> at all" position going to be a serious adoption barrier for C# developers, even with in-place reuse on the C++ backend? Is there evidence from Clojure, Elm, or Roc either way?</li>
+<li>Panics catchable only at supervisor points: are there cases in a typical service where a catch is legitimately needed in ordinary code?</li>
+<li>Replacing transient with factory dependencies: any lifetime pattern from real .NET DI use that this cannot express?</li>
+<li>Is defining a scope as one handler or query invocation too narrow? Batch jobs and long-running streams do not fit this shape obviously.</li>
+<li>Single-threaded event loop for the prototype: does this risk baking in assumptions that make multi-threading hard later, particularly around the refcount representation?</li>
+<li>Is C++20 coroutine support mature enough across the target toolchains to depend on for generated code?</li>
+<li><code>Cell[T]</code> as the only mutable primitive: does an entity with effectful <code>get</code> and <code>set</code> undermine the immutability story in practice, or is it the right size of escape hatch?</li>
+<li>Module system: is one module per file with <code>use</code> imports and public-by-default the right granularity, or should visibility be opt-in?</li>
+</ol>
+
+<div class="footer">Trebuchet implementation strategy, draft for feedback. Source of record is <code>trebuchet-implementation-strategy.md</code> in the project directory.</div>
+</main>
+</div>

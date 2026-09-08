@@ -1,0 +1,15 @@
+module bookings.domain.commands
+
+use bookings.domain.ids
+use bookings.domain.slot
+
+record RequestBooking
+  id: BookingId
+  room: RoomId
+  guest: GuestId
+  slot: Slot
+  attendees: Set[GuestId]
+  waitlist: Bool
+
+record ConfirmBooking(id: BookingId)
+record CancelBooking(id: BookingId, reason: String)

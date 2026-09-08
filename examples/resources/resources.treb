@@ -1,0 +1,23 @@
+module resources
+
+// Resources and disposal. A resource service owns external state and must define
+// release. `use` binds a fresh resource and releases it at the end of the block, panics
+// included. A resource may also be a service dependency, released with its owner.
+
+resource service Handle(name: String, log: Cell[Vector[String]])
+  fn touch() -> Unit
+    log.update(\entries -> append(entries, "used " + name))
+
+  fn release() -> Unit
+    log.update(\entries -> append(entries, "closed " + name))
+
+handler openAndClose(log: Cell[Vector[String]]) -> Unit
+  use a = Handle("a", log)
+  use b = Handle("b", log)
+  a.touch()
+  b.touch()
+
+handler demo() -> Vector[String]
+  log = Cell.new([])
+  openAndClose(log)
+  log.get()

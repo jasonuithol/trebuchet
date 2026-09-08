@@ -1,0 +1,33 @@
+module bookings.domain.fold
+
+// State transitions: pure folds over events.
+
+use bookings.domain.ids
+use bookings.domain.booking
+use bookings.domain.events
+
+fn apply(room: Room, ev: RoomEvent) -> Room ! Pure
+  match ev
+    BookingHeld(id, guest, slot, attendees) =>
+      room with
+        bookings: append(room.bookings, Booking(id, room.id, guest, slot, BookingStatus.Held, attendees))
+    BookingWaitlisted(id, guest, slot, attendees) =>
+      room with
+        bookings: append(room.bookings, Booking(id, room.id, guest, slot, BookingStatus.Waitlisted, attendees))
+    BookingConfirmed(id) =>
+      room with
+        bookings: setStatus(room.bookings, id, BookingStatus.Confirmed)
+    BookingCancelled(id, _) =>
+      room with
+        bookings: setStatus(room.bookings, id, BookingStatus.Cancelled)
+    BookingPromoted(id) =>
+      room with
+        bookings: setStatus(room.bookings, id, BookingStatus.Held)
+
+// A helper nobody outside this module needs.
+private fn setStatus(bookings: Vector[Booking], id: BookingId, status: BookingStatus) -> Vector[Booking]
+  map(bookings)
+    \b -> if b.id == id then b with { status: status } else b
+
+fn replay(room: Room, history: Vector[RoomEvent]) -> Room ! Pure
+  fold(history, room, apply)

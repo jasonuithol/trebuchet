@@ -1,0 +1,21 @@
+module collections
+
+// Set builtins alongside the vector and map ones. Sets are persistent hash sets with
+// structural equality; toSet, add, remove, contains, items, merge, intersect, difference.
+
+fn tags(words: Vector[String]) -> Set[String] ! Pure
+  toSet(words)
+
+fn demo() -> String ! Pure
+  a = tags(["red", "green", "blue", "red"])
+  b = add(toSet(["green", "yellow"]), "blue")
+  both = intersect(a, b)
+  either = merge(a, b)
+  onlyA = difference(a, b)
+  sameAgain = toSet(["blue", "red", "green"]) == a
+  counts = toString(length(a)) + " unique; both=" + toString(length(both)) + " either=" + toString(length(either))
+  yesNo = \flag -> if flag then "yes" else "no"
+  detail = " onlyA=" + fold(items(onlyA), "", \acc, x -> acc + x) + " hasRed=" + yesNo(contains(a, "red"))
+  rest = " afterRemove=" + toString(length(remove(a, "red"))) + " equal=" + yesNo(sameAgain) + " empty=" + yesNo(isEmpty(difference(a, a)))
+  vectors = " vec=" + yesNo([1, 2] == [1, 2]) + " map=" + yesNo(set({}, "k", 1) == set({}, "k", 1))
+  counts + detail + rest + vectors

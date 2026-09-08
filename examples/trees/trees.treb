@@ -1,0 +1,51 @@
+module trees
+
+// Recursive unions and records, plain and generic. On C++ a field whose type mentions its
+// own record or union is boxed behind a shared pointer; the language does not see that.
+
+union Expr
+  Num(n: Int)
+  Add(l: Expr, r: Expr)
+  Mul(l: Expr, r: Expr)
+
+union Tree[T]
+  Leaf(value: T)
+  Node(left: Tree[T], right: Tree[T])
+
+record Chain[T]
+  value: T
+  next: Option[Chain[T]]
+
+fn eval(e: Expr) -> Int ! Pure
+  match e
+    Num(n) => n
+    Add(l, r) => eval(l) + eval(r)
+    Mul(l, r) => eval(l) * eval(r)
+
+fn sum(t: Tree[Int]) -> Int ! Pure
+  match t
+    Leaf(v) => v
+    Node(l, r) => sum(l) + sum(r)
+
+fn mirror[T](t: Tree[T]) -> Tree[T] ! Pure
+  match t
+    Leaf(v) => Leaf(v)
+    Node(l, r) => Node(mirror(r), mirror(l))
+
+fn leftmost[T](t: Tree[T]) -> T ! Pure
+  match t
+    Leaf(v) => v
+    Node(l, _) => leftmost(l)
+
+fn chainLength[T](c: Chain[T]) -> Int ! Pure
+  match c.next
+    Some(rest) => 1 + chainLength(rest)
+    None => 1
+
+fn demo() -> String ! Pure
+  e = Add(Num(1), Mul(Num(2), Num(3)))
+  t = Node(Leaf(4), Node(Leaf(5), Leaf(6)))
+  m = mirror(t)
+  c = Chain("a", Some(Chain("b", Some(Chain("c", None)))))
+  same = if mirror(m) == t then "same" else "different"
+  toString(eval(e)) + " " + toString(sum(t)) + " " + toString(leftmost(m)) + " " + toString(chainLength(c)) + " " + same

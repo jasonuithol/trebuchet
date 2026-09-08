@@ -1,0 +1,5 @@
+module bookings.domain.ids
+
+record BookingId(value: String)
+record RoomId(value: String)
+record GuestId(value: String)

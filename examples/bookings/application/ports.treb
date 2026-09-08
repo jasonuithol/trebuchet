@@ -1,0 +1,17 @@
+module bookings.application.ports
+
+// Ports: shapes the application layer needs the outside world to satisfy.
+// Interfaces are structural, so any service with these members qualifies.
+
+use bookings.domain.ids
+use bookings.domain.booking
+use bookings.domain.events
+
+shape RoomStore
+  fn load(id: RoomId) -> Result[Vector[RoomEvent], BookingError] ! Nondet Suspend
+  fn append(id: RoomId, events: Vector[RoomEvent]) -> Result[Unit, BookingError] ! Write Suspend
+  fn seed(id: RoomId) -> Result[Room, BookingError] ! Nondet Suspend
+  fn roomIds() -> Result[Vector[RoomId], BookingError] ! Nondet Suspend
+
+shape Clock
+  fn now() -> Instant ! Nondet

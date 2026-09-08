@@ -1,0 +1,50 @@
+module bookings.api.bookingApi
+
+// HTTP edge: one function per route. Binding to a host is interop.
+
+use bookings.domain.ids
+use bookings.domain.slot
+use bookings.domain.booking
+use bookings.domain.commands
+use bookings.domain.queries
+use bookings.domain.paging
+use bookings.application.bookingService
+use bookings.api.contracts
+use bookings.api.errors
+use bookings.api.system
+
+service BookingApi(bookings: BookingService, ids: fn() -> BookingId ! Nondet Write)
+  fn postBooking(req: BookingRequest) -> Result[BookingResponse, ApiError]
+    if req.end <= req.start then
+      error(ApiError.BadRequest("end must be after start"))
+    else
+      attendees = toSet(map(req.attendees, \name -> GuestId(name)))
+      cmd = RequestBooking(ids(), RoomId(req.room), GuestId(req.guest), Slot(req.start, req.end), attendees, req.waitlist)
+      // the supervisor point: a panic inside the service is an Internal error, not a dead server
+      outcome = supervise bookings.request(cmd)
+      id = outcome.mapError(crashed)?.mapError(toApiError)?
+      ok(BookingResponse(id.value))
+
+  fn postConfirm(room: String, id: String) -> Result[Unit, ApiError]
+    bookings.confirm(RoomId(room), ConfirmBooking(BookingId(id))).mapError(toApiError)
+
+  fn deleteBooking(room: String, id: String, reason: String) -> Result[Unit, ApiError]
+    bookings.cancel(RoomId(room), CancelBooking(BookingId(id), reason)).mapError(toApiError)
+
+  fn getAvailability(room: String, start: Instant, end: Instant) -> Result[Bool, ApiError]
+    bookings.availability(RoomId(room), Slot(start, end)).mapError(toApiError)
+
+  fn getBookings(room: String) -> Result[Vector[Booking], ApiError]
+    bookings.bookings(RoomId(room)).mapError(toApiError)
+
+  // One page of a room's bookings, earliest first.
+  fn getPage(room: String, offset: Int, limit: Int) -> Result[Page[Booking], ApiError]
+    all = bookings.bookings(RoomId(room)).mapError(toApiError)?
+    ok(page(sortBy(all, \b -> b.slot.start), offset, limit))
+
+  fn getStats() -> Result[Vector[RoomStats], ApiError]
+    bookings.overview().mapError(toApiError)
+
+  fn getInfo() -> Result[ServerInfo, ApiError]
+    rooms = bookings.overview().mapError(toApiError)?
+    ok(ServerInfo(hostName(), length(rooms), "0.1.0"))

@@ -1,0 +1,9 @@
+module bookings.domain.slot
+
+record Slot
+  start: Instant
+  end: Instant
+    init => if value > start then value else fail(ArgumentError("slot ends before it starts"))
+
+fn overlaps(a: Slot, b: Slot) -> Bool ! Pure
+  a.start < b.end and b.start < a.end

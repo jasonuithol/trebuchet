@@ -1,0 +1,52 @@
+module bookings.domain.queries
+
+// Queries carry no Write effect.
+
+use bookings.domain.ids
+use bookings.domain.slot
+use bookings.domain.booking
+
+// Bookings that hold their slot.
+fn active(room: Room) -> Vector[Booking]
+  filter(room.bookings, \b -> b.status == BookingStatus.Held or b.status == BookingStatus.Confirmed)
+
+fn waitlisted(room: Room) -> Vector[Booking]
+  filter(room.bookings, \b -> b.status == BookingStatus.Waitlisted)
+
+fn isFree(room: Room, slot: Slot) -> Bool ! Pure
+  not any(active(room), \b -> overlaps(b.slot, slot))
+
+fn bookingsFor(room: Room, guest: GuestId) -> Vector[Booking]
+  filter(active(room), \b -> b.guest == guest)
+
+// The oldest waitlisted booking whose slot is free now.
+fn promotable(room: Room) -> Option[Booking]
+  find(waitlisted(room), \b -> isFree(room, b.slot))
+
+// Everyone with a claim on the room: hosts and their attendees, each counted once.
+fn guests(room: Room) -> Set[GuestId]
+  fold(active(room), toSet([]), \acc, b -> add(merge(acc, b.attendees), b.guest))
+
+fn statusName(s: BookingStatus) -> String ! Pure
+  match s
+    Held => "Held"
+    Confirmed => "Confirmed"
+    Cancelled => "Cancelled"
+    Waitlisted => "Waitlisted"
+
+fn countByStatus(room: Room) -> Map[String, Int]
+  fold(room.bookings, {}, \acc, b -> acc.set(statusName(b.status), acc.getOr(statusName(b.status), 0) + 1))
+
+record RoomStats
+  room: String
+  name: String
+  capacity: Int
+  held: Int
+  confirmed: Int
+  cancelled: Int
+  waitlisted: Int
+  guests: Int
+
+fn stats(room: Room) -> RoomStats ! Pure
+  counts = countByStatus(room)
+  RoomStats(room.id.value, room.name, room.capacity, counts.getOr("Held", 0), counts.getOr("Confirmed", 0), counts.getOr("Cancelled", 0), counts.getOr("Waitlisted", 0), length(guests(room)))

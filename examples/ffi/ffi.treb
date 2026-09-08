@@ -1,0 +1,38 @@
+module ffi
+
+// Calling host code. An extern declares a Trebuchet signature, must state its effects
+// (there is no body to infer from), and names the host symbol for each target. A catch
+// line maps a host exception type to a variant of the error type carrying the message.
+
+union FileError
+  Unreadable(message: String)
+
+extern fn readTextFile(path: String) -> Result[String, FileError] ! Nondet Suspend
+  csharp "System.IO.File.ReadAllTextAsync"
+  cpp "host::readTextFile"
+  catch csharp "System.IO.IOException" -> Unreadable
+  catch cpp "std::ios_base::failure" -> Unreadable
+
+// The host returns a string array; the boundary converts it to a Vector.
+extern fn readLines(path: String) -> Result[Vector[String], FileError] ! Nondet Suspend
+  csharp "System.IO.File.ReadAllLinesAsync"
+  cpp "host::readLines"
+  catch csharp "System.IO.IOException" -> Unreadable
+  catch cpp "std::ios_base::failure" -> Unreadable
+
+extern fn urlEncode(s: String) -> String ! Pure
+  csharp "System.Net.WebUtility.UrlEncode"
+  cpp "host::urlEncode"
+
+fn describeFile(path: String) -> String
+  match readTextFile(path)
+    Ok(text) => "read " + toString(length(text)) + " chars"
+    Error(e) => "error"
+
+fn countLines(path: String) -> String
+  match readLines(path)
+    Ok(lines) => toString(length(lines)) + " lines"
+    Error(e) => "error"
+
+fn demo(present: String, missing: String) -> String
+  describeFile(present) + "; " + describeFile(missing) + "; " + urlEncode("a b") + "; " + countLines(present)

@@ -1,0 +1,17 @@
+module bookings.api.errors
+
+use bookings.domain.events
+use bookings.api.contracts
+
+// A panic caught at the request boundary is a 500, never a domain error.
+fn crashed(p: Panic) -> ApiError ! Pure
+  ApiError.Internal(p.message)
+
+fn toApiError(e: BookingError) -> ApiError
+  match e
+    RoomNotFound(room) => ApiError.NotFound("room " + room.value)
+    BookingNotFound(id) => ApiError.NotFound("booking " + id.value)
+    SlotTaken(_, _) => ApiError.Conflict("slot already booked")
+    SlotInPast(_) => ApiError.BadRequest("slot is in the past")
+    OverCapacity(_, requested, capacity) => ApiError.BadRequest("room holds " + toString(capacity) + ", " + toString(requested) + " requested")
+    AlreadyCancelled(_) => ApiError.Conflict("booking already cancelled")

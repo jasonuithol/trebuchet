@@ -1,0 +1,50 @@
+module bookings.application.bookingService
+
+// Use cases: load state, run a domain handler, persist the resulting events.
+
+use bookings.domain.ids
+use bookings.domain.slot
+use bookings.domain.booking
+use bookings.domain.commands
+use bookings.domain.events
+use bookings.domain.fold
+use bookings.domain.queries
+use bookings.domain.handlers
+use bookings.application.ports
+
+service BookingService(store: RoomStore, clock: Clock)
+  // Rebuilding a room from its history is this service's business alone.
+  private fn current(room: RoomId) -> Result[Room, BookingError]
+    seed = store.seed(room)?
+    history = store.load(room)?
+    ok(replay(seed, history))
+
+  fn request(cmd: RequestBooking) -> Result[BookingId, BookingError]
+    room = current(cmd.room)?
+    events = handlers.request(cmd, room, clock.now())?
+    store.append(cmd.room, events)?
+    ok(cmd.id)
+
+  fn confirm(room: RoomId, cmd: ConfirmBooking) -> Result[Unit, BookingError]
+    state = current(room)?
+    events = handlers.confirm(cmd, state)?
+    store.append(room, events)
+
+  fn cancel(room: RoomId, cmd: CancelBooking) -> Result[Unit, BookingError]
+    state = current(room)?
+    events = handlers.cancel(cmd, state)?
+    store.append(room, events)
+
+  fn availability(room: RoomId, slot: Slot) -> Result[Bool, BookingError]
+    state = current(room)?
+    ok(isFree(state, slot))
+
+  fn bookings(room: RoomId) -> Result[Vector[Booking], BookingError]
+    state = current(room)?
+    ok(state.bookings)
+
+  // Every room, rebuilt and summarised. traverse stops at the first store error.
+  fn overview() -> Result[Vector[RoomStats], BookingError]
+    ids = store.roomIds()?
+    rooms = traverse(ids, \id -> current(id))?
+    ok(map(rooms, stats))

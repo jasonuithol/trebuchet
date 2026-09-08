@@ -1,0 +1,232 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Trebuchet",
+  "scopeName": "source.trebuchet",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#declaration"
+    },
+    {
+      "include": "#effects"
+    },
+    {
+      "include": "#sequence-item"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#keyword"
+    },
+    {
+      "include": "#lambda"
+    },
+    {
+      "include": "#operator"
+    },
+    {
+      "include": "#type"
+    },
+    {
+      "include": "#call"
+    },
+    {
+      "include": "#property"
+    },
+    {
+      "include": "#identifier"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "match": "//.*$",
+      "name": "comment.line.double-slash.trebuchet"
+    },
+    "declaration": {
+      "patterns": [
+        {
+          "comment": "module header and imports: module a.b.c, use a.b.c",
+          "match": "^\\s*(module|use)\\s+([a-z][A-Za-z0-9]*(?:\\.[a-z][A-Za-z0-9]*)*)",
+          "captures": {
+            "1": {
+              "name": "keyword.control.import.trebuchet"
+            },
+            "2": {
+              "name": "entity.name.namespace.trebuchet"
+            }
+          }
+        },
+        {
+          "comment": "type-introducing declarations: record Order, union OrderEvent, entity Session, shape Clock, service OrderService",
+          "match": "^\\s*((?:(?:scoped|resource)\\s+)*(?:record|entity|union|shape|service))\\s+([A-Z][A-Za-z0-9]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.trebuchet"
+            },
+            "2": {
+              "name": "entity.name.type.declaration.trebuchet"
+            }
+          }
+        },
+        {
+          "comment": "function-like declarations: fn total(, handler place(, root main",
+          "match": "^\\s*(?:(extern)\\s+)?(fn|handler|root)\\s+([a-z][A-Za-z0-9]*)",
+          "captures": {
+            "1": {
+              "name": "storage.modifier.extern.trebuchet"
+            },
+            "2": {
+              "name": "keyword.declaration.function.trebuchet"
+            },
+            "3": {
+              "name": "entity.name.function.declaration.trebuchet"
+            }
+          }
+        },
+        {
+          "comment": "fn as a type constructor: fn(Path) -> FileStream",
+          "match": "\\b(fn)(?=\\s*\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.function.trebuchet"
+            }
+          }
+        }
+      ]
+    },
+    "effects": {
+      "comment": "! Nondet Write Suspend, to end of line",
+      "begin": "(!)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.operator.effect.trebuchet"
+        }
+      },
+      "end": "$",
+      "patterns": [
+        {
+          "match": "\\b(Nondet|Write|Suspend|Pure)\\b",
+          "name": "storage.modifier.effect.trebuchet"
+        },
+        {
+          "include": "#comment"
+        }
+      ]
+    },
+    "sequence-item": {
+      "match": "^\\s*(-)\\s",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.list.item.trebuchet"
+        }
+      }
+    },
+    "string": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.trebuchet",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.trebuchet"
+        }
+      ]
+    },
+    "number": {
+      "match": "\\b\\d+(\\.\\d+)?\\b",
+      "name": "constant.numeric.trebuchet"
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "match": "^\\s*(csharp|cpp|catch)\\b",
+          "name": "keyword.other.binding.trebuchet"
+        },
+        {
+          "match": "\\b(match|with|if|then|else|init|fail|supervise|use)\\b",
+          "name": "keyword.control.trebuchet"
+        },
+        {
+          "match": "\\b(and|or|not)\\b",
+          "name": "keyword.operator.logical.trebuchet"
+        },
+        {
+          "match": "\\b(ok|error)\\b(?=\\s*\\(|\\s*$)",
+          "name": "support.function.result.trebuchet"
+        },
+        {
+          "match": "\\b(true|false|None|Some)\\b",
+          "name": "constant.language.trebuchet"
+        },
+        {
+          "match": "\\b(scoped|resource)\\b",
+          "name": "storage.modifier.lifetime.trebuchet"
+        }
+      ]
+    },
+    "lambda": {
+      "match": "(\\\\)",
+      "captures": {
+        "1": {
+          "name": "keyword.operator.lambda.trebuchet"
+        }
+      }
+    },
+    "operator": {
+      "patterns": [
+        {
+          "match": "->|=>",
+          "name": "keyword.operator.arrow.trebuchet"
+        },
+        {
+          "match": "\\?",
+          "name": "keyword.operator.propagate.trebuchet"
+        },
+        {
+          "match": "==|!=|<=|>=|<|>",
+          "name": "keyword.operator.comparison.trebuchet"
+        },
+        {
+          "match": "[+\\-*/%]",
+          "name": "keyword.operator.arithmetic.trebuchet"
+        },
+        {
+          "match": "=",
+          "name": "keyword.operator.assignment.trebuchet"
+        }
+      ]
+    },
+    "type": {
+      "comment": "UpperCamel identifiers are types and variants",
+      "match": "\\b[A-Z][A-Za-z0-9]*\\b",
+      "name": "entity.name.type.trebuchet"
+    },
+    "call": {
+      "match": "\\b([a-z][A-Za-z0-9]*)(?=\\()",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.call.trebuchet"
+        }
+      }
+    },
+    "property": {
+      "comment": "name: in fields, params, with-paths and roots",
+      "match": "\\b([a-z][A-Za-z0-9]*(?:\\.[a-z][A-Za-z0-9]*)*)(?=\\s*:)",
+      "captures": {
+        "1": {
+          "name": "variable.other.property.trebuchet"
+        }
+      }
+    },
+    "identifier": {
+      "match": "\\b[a-z][A-Za-z0-9]*\\b",
+      "name": "variable.other.trebuchet"
+    }
+  }
+}

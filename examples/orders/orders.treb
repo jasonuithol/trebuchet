@@ -1,0 +1,109 @@
+// --- data ---
+
+record OrderId(value: String)
+record CustomerId(value: String)
+
+record Line
+  sku: String
+  qty: Int
+  price: Int
+
+union OrderStatus
+  New
+  Placed
+  Cancelled
+
+record Order
+  id: OrderId
+  customer: CustomerId
+  lines: Vector[Line]
+  status: OrderStatus
+
+union OrderEvent
+  OrderPlaced(id: OrderId, customer: CustomerId, lines: Vector[Line])
+  OrderCancelled(id: OrderId, reason: String)
+
+union OrderError
+  AlreadyPlaced
+  EmptyOrder
+
+record PlaceOrder
+  id: OrderId
+  customer: CustomerId
+  lines: Vector[Line]
+
+// --- pure logic ---
+
+fn apply(state: Order, ev: OrderEvent) -> Order ! Pure
+  match ev
+    OrderPlaced(_, customer, lines) =>
+      state with
+        customer: customer
+        lines: lines
+        status: OrderStatus.Placed
+    OrderCancelled(_, _) =>
+      state with
+        status: OrderStatus.Cancelled
+
+fn total(order: Order) -> Int ! Pure
+  fold(order.lines, 0)
+    \acc, line -> acc + line.price * line.qty
+
+fn openOrders(orders: Vector[Order]) -> Vector[Order]
+  filter(orders, \o -> o.status == OrderStatus.Placed)
+
+fn statusName(s: OrderStatus) -> String ! Pure
+  match s
+    New => "New"
+    Placed => "Placed"
+    Cancelled => "Cancelled"
+
+// The query: rebuild the order from its history and describe it.
+fn summary(id: OrderId, customer: CustomerId, history: Vector[OrderEvent]) -> String ! Pure
+  order = fold(history, Order(id, customer, [], OrderStatus.New), apply)
+  "total=" + toString(total(order)) + " status=" + statusName(order.status)
+
+// --- ports ---
+
+shape OrderRepo
+  fn load(id: OrderId) -> Result[Vector[OrderEvent], OrderError] ! Nondet Suspend
+  fn append(id: OrderId, events: Vector[OrderEvent]) -> Result[Unit, OrderError] ! Write Suspend
+
+// --- effectful edge ---
+
+handler placeOrder(cmd: PlaceOrder, state: Order) -> Result[Vector[OrderEvent], OrderError]
+  if state.status != OrderStatus.New then
+    error(OrderError.AlreadyPlaced)
+  else if cmd.lines.isEmpty then
+    error(OrderError.EmptyOrder)
+  else
+    ok
+      - OrderPlaced(cmd.id, cmd.customer, cmd.lines)
+
+service OrderService(repo: OrderRepo)
+  fn place(cmd: PlaceOrder) -> Result[Unit, OrderError]
+    history = repo.load(cmd.id)?
+    state = fold(history, Order(cmd.id, cmd.customer, [], OrderStatus.New), apply)
+    events = placeOrder(cmd, state)?
+    repo.append(cmd.id, events)
+
+  fn describe(id: OrderId, customer: CustomerId) -> Result[String, OrderError]
+    history = repo.load(id)?
+    ok(summary(id, customer, history))
+
+// --- infrastructure ---
+
+service InMemoryOrderRepo(log: Cell[Map[OrderId, Vector[OrderEvent]]])
+  fn load(id: OrderId) -> Result[Vector[OrderEvent], OrderError]
+    ok(log.get().getOr(id, []))
+
+  fn append(id: OrderId, events: Vector[OrderEvent]) -> Result[Unit, OrderError]
+    log.update(\m -> m.set(id, concat(m.getOr(id, []), events)))
+    ok(unit)
+
+// --- wiring ---
+
+root main
+  log: Cell.new({})
+  repo: InMemoryOrderRepo
+  orderService: OrderService

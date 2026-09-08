@@ -1,0 +1,9 @@
+module bookings.api.system
+
+// Host facts through the FFI. The dev server binds the csharp symbol by reflection, the
+// C# build calls it directly, and the C++ driver defines host::hostName before including
+// the generated header.
+
+extern fn hostName() -> String ! Nondet
+  csharp "System.Net.Dns.GetHostName"
+  cpp "host::hostName"
