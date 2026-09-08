@@ -300,6 +300,14 @@ public class EmitterTests
     }
 
     [Fact]
+    public void LazySequencesCompileAndRun()
+    {
+        var asm = EmitAndBuild("lazy");
+        var demo = asm.GetType("Generated.Lazy")!.GetMethod("demo")!;
+        Assert.Equal(InterpreterTests.LazyExpected, (string)demo.Invoke(null, null)!);
+    }
+
+    [Fact]
     public void PatternsCompileAndRun()
     {
         var asm = EmitAndBuild("patterns");

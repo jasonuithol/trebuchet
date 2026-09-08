@@ -197,6 +197,8 @@ public sealed class TypeChecker
 
     private void Run()
     {
+        // the built-in Ord shape's members are class members too, so Ord.compare(a, b) resolves an instance like any other
+        foreach (var (memberName, memberType) in BuiltinSignatures.Ord.Members) _classMembers[memberType] = ("Ord", memberName);
         foreach (var m in _modules.Modules)
         {
             var imports = new Scope(_builtins, $"imports of {m.Name}");
@@ -800,10 +802,20 @@ public sealed class TypeChecker
             {
                 var inner = Prune(Infer(p.Inner, ctx, null));
                 if (inner is PrimT { Name: "?" }) return PrimT.Unknown;
-                if (inner is not AppT { Ctor: "Result" } res)
-                    return Error(ctx, p.Pos, $"'?' needs a Result but found {Show(inner)}");
                 if (ctx.ReturnType is null)
                     return Error(ctx, p.Pos, "'?' can only be used inside a function");
+                if (inner is AppT { Ctor: "Option" } opt)
+                {
+                    // ? on an Option: None returns None from a function that itself returns an Option
+                    var r = Prune(ctx.ReturnType);
+                    if (r is VarT ov) Unify(ov, new AppT("Option", new TType[] { new VarT("t") }));
+                    r = Prune(ctx.ReturnType);
+                    if (r is not AppT { Ctor: "Option" })
+                        return Error(ctx, p.Pos, $"'?' on an Option is used in {ctx.Where}, which returns {Show(r)} rather than an Option");
+                    return opt.Args[0];
+                }
+                if (inner is not AppT { Ctor: "Result" } res)
+                    return Error(ctx, p.Pos, $"'?' needs a Result or an Option but found {Show(inner)}");
                 var ret = Prune(ctx.ReturnType);
                 if (ret is VarT rv) Unify(rv, new AppT("Result", new TType[] { new VarT("t"), res.Args[1] }));
                 ret = Prune(ctx.ReturnType);
@@ -1029,6 +1041,10 @@ public sealed class TypeChecker
                 Error(ctx, expr.Pos, $"argument '{chosen.ParamNames[i] ?? (i + 1).ToString()}' of {name}: expected {Show(paramType)} but found {Show(slotTypes[i]!)}");
             else if (Prune(paramType) is FnT { Effects: { } allowed } && Prune(slotTypes[i]!) is FnT given && _frameOf.TryGetValue(given, out var givenFrame))
                 _obligations.Add(new Obligation(givenFrame, allowed, expr.Pos, $"argument '{chosen.ParamNames[i] ?? (i + 1).ToString()}' of {name}", ctx.Module));
+            // a function given to a lazy sequence runs whenever the sequence is pulled, so it may not suspend
+            var lazy = _builtinFns.Contains(chosenAlt) && Prune(chosen.Return) is AppT { Ctor: "Seq" };
+            if (lazy && Prune(paramType) is FnT && Prune(slotTypes[i] ?? Infer(expr, ctx, paramType)) is FnT lazyFn && _frameOf.TryGetValue(lazyFn, out var lazyFrame))
+                _obligations.Add(new Obligation(lazyFrame, new HashSet<string> { "Nondet", "Write" }, expr.Pos, $"a function given to the lazy '{name}' (it runs when the sequence is pulled, so it cannot Suspend)", ctx.Module));
         }
         RecordCall(ctx, pos, name, chosenAlt, chosen, slots, slotTypes, receiver, call?.Callee);
         if (call is not null)

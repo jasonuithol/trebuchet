@@ -218,6 +218,17 @@ unions cannot hold resources. In C# a resource implements `IDisposable` (or
 the destructor calls `release`. A singleton depending on a `scoped` service is a compile
 error. `examples/resources/` is the sample.
 
+## Lazy sequences and property tests
+
+`Seq[T]` is lazy and may be infinite: `Seq.iterate(seed, f)`, `Seq.range(from, to)`,
+`Seq.from(vector)`; `map`, `filter`, `take`, `drop`, `takeWhile` stay lazy; `toVector`, `first`,
+`fold` pull. A function given to a lazy combinator may not `Suspend`. `?` also works on an
+`Option` inside a function that returns an `Option`. `examples/lazy/` is the sample.
+
+`treb test <dir> [--cases 100] [--seed N]` runs every function named `prop*` that returns
+`Bool`, generating arguments from the parameter types and shrinking a failing case before
+reporting it. `examples/properties/` has seven; the runner is `Trebuchet.Compiler.Testing`.
+
 ## Shapes over types
 
 A shape with one type parameter is a type class. `instance Shape[Type]` supplies its members

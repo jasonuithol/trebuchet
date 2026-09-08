@@ -187,7 +187,12 @@ public sealed class Interpreter
                     if (r.TypeName == "Ok") return r.FieldValues[0];
                     throw new PropagateSignal(r);
                 }
-                throw new TrebPanic($"{p.Pos}: '?' applied to a non-Result value {inner.Show()}");
+                if (inner is RecordValue { Union: "Option" } o)
+                {
+                    if (o.TypeName == "Some") return o.FieldValues[0];
+                    throw new PropagateSignal(o);
+                }
+                throw new TrebPanic($"{p.Pos}: '?' applied to a value that is neither a Result nor an Option: {inner.Show()}");
             }
             case LambdaExpr lam:
                 return new Closure("lambda", lam.Params.Select(p => p.Name).ToList(), lam.Body, env);

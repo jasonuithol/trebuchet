@@ -41,6 +41,36 @@ public class TypeCheckerTests
     }
 
     [Fact]
+    public void LazyCombinatorsRejectSuspendingFunctions()
+    {
+        var modules = ModuleSet.Load(new[] { ("t.treb", """
+            fn slow(n: Int) -> Int
+              sleep(n)
+              n
+            fn bad() -> Seq[Int] ! Pure
+              map(Seq.range(0, 3), \n -> slow(n))
+            """) });
+        var checker = TypeChecker.CheckWithEffects(modules);
+        Assert.Contains(checker.Diagnostics, d => d.Message.Contains("lazy 'map'") && d.Message.Contains("Suspend"));
+    }
+
+    [Fact]
+    public void PropagationOnOptionNeedsAnOptionReturn()
+    {
+        var modules = ModuleSet.Load(new[] { ("t.treb", """
+            fn good(xs: Vector[Int]) -> Option[Int] ! Pure
+              x = first(xs)?
+              Some(x + 1)
+            fn bad(xs: Vector[Int]) -> Result[Int, String] ! Pure
+              x = first(xs)?
+              ok(x)
+            """) });
+        var checker = TypeChecker.CheckWithEffects(modules);
+        var d = Assert.Single(checker.Diagnostics);
+        Assert.Contains("returns Result[Int, String] rather than an Option", d.Message);
+    }
+
+    [Fact]
     public void ConstraintsAreCheckedAtCallSitesAndComparisons()
     {
         var modules = ModuleSet.Load(new[] { ("t.treb", """

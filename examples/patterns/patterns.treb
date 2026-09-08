@@ -44,6 +44,11 @@ fn classify(p: (Int, Int)) -> String ! Pure
     (x, y) if x == y => "diagonal"
     _ => "plane"
 
+// ? works on Option too: None leaves the function with None.
+fn secondOfFirst(xs: Vector[Vector[Int]]) -> Option[Int] ! Pure
+  first = at(xs, 0)?
+  at(first, 1)
+
 fn demo() -> String ! Pure
   shapes = [Circle(0), Circle(2), Rect(3, 3), Rect(2, 5)]
   (lo, hi) = minMax([4, 9, 1, 7])
@@ -52,4 +57,5 @@ fn demo() -> String ! Pure
   lists = toString(total([1, 2, 3, 4])) + " " + firstTwo([7, 8, 9]) + " " + firstTwo([5]) + " " + firstTwo([])
   tuples = toString(lo) + ".." + toString(hi) + " " + toString(swapped.0) + swapped.1
   points = classify((0, 0)) + " " + classify((3, 0)) + " " + classify((0, 4)) + " " + classify((2, 2)) + " " + classify((1, 2))
-  described + lists + " " + tuples + " " + points
+  options = toString(getOr(secondOfFirst([[1, 2], [3]]), -1)) + " " + toString(getOr(secondOfFirst([]), -1))
+  described + lists + " " + tuples + " " + points + " " + options

@@ -33,7 +33,9 @@ Everything else is conventional. Where a C-family or ML-family spelling exists, 
 | List pattern | `[]`, `[a, b]`, `[first, ...rest]`, `[a, ..._]` | `[x, ...rest] => x + total(rest)` |
 | Tuple | `(A, B)` type, `(a, b)` value or pattern, `p.0` item | `(lo, hi) = minMax(xs)` |
 | As-pattern | `name @ pattern` | `whole @ Rect(w, h) if w == h => ...` |
-| Result propagation | postfix `?` | `repo.load(id)?` |
+| Result propagation | postfix `?`, on a `Result` or an `Option` | `repo.load(id)?`, `at(xs, 0)?` |
+| Lazy sequence | `Seq[T]` from `Seq.iterate`, `Seq.range`, `Seq.from` | `take(Seq.iterate(0, \n -> n + 1), 5)` |
+| Property | a fn named `prop...` returning `Bool`, run by `treb test` | `fn prop_reverseTwice(xs: Vector[Int]) -> Bool` |
 | Binding | `=` | `state = fold(history, Order.empty, apply)` |
 | Strings | double quotes | `"Brisbane"` |
 | Comment | `//` | `// replay events` |
@@ -315,6 +317,8 @@ A guarded arm never counts towards exhaustiveness. A match on a vector is exhaus
 Literals: `[a, b]` is a `Vector`, `{k: v}` is a `Map`; there is no set literal, `toSet([...])` builds one. The builtin families are `map`, `filter`, `fold`, `any`, `all`, `find`, `forEach`, `append`, `concat`, `first`, `last`, `reverse`, `contains`, `length`, `isEmpty` on vectors; `take`, `drop`, `at`, `sortBy`, `traverse` (stops at the first `Error`) on vectors; `get`, `set`, `remove`, `keys`, `values`, `contains`, `getOr` on maps; `toSet`, `add`, `remove`, `contains`, `items`, `merge`, `intersect`, `difference` on sets. `merge` rather than `union` because `union` declares a type. `==` is structural on every collection.
 
 Records and unions may be recursive, directly (`Node(left: Tree[T], right: Tree[T])`) or through `Option` or a collection; nothing marks the recursion, the C++ backend boxes it.
+
+`Seq[T]` is lazy: `map`, `filter`, `take`, `drop`, `takeWhile` on a `Seq` return a `Seq` without pulling; `toVector`, `first`, `fold` pull. A function given to a lazy combinator may not `Suspend`. A `Seq` is not compared with `==`.
 
 `sleep(ms)` is `! Suspend` and is the reference builtin for suspension; a function that calls it infers `Suspend`. There is no `spawn`; a Trebuchet body is sequential and concurrency is the host's, until parallelism is designed.
 

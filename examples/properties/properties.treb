@@ -1,0 +1,37 @@
+module properties
+
+// Properties: any fn whose name starts with prop and returns Bool. `treb test` generates the
+// arguments from the parameter types, runs each property for a hundred cases, and shrinks a
+// failing case before reporting it. Pure functions need no setup, so this costs nothing.
+
+fn prop_reverseTwice(xs: Vector[Int]) -> Bool ! Pure
+  reverse(reverse(xs)) == xs
+
+fn isSorted(xs: Vector[Int]) -> Bool ! Pure
+  match xs
+    [a, b, ...rest] => a <= b and isSorted(concat([b], rest))
+    _ => true
+
+fn prop_sortSorts(xs: Vector[Int]) -> Bool ! Pure
+  isSorted(sort(xs))
+
+fn prop_sortKeepsLength(xs: Vector[Int]) -> Bool ! Pure
+  length(sort(xs)) == length(xs)
+
+fn prop_concatLength(a: Vector[String], b: Vector[String]) -> Bool ! Pure
+  length(concat(a, b)) == length(a) + length(b)
+
+fn prop_setNeverGrows(xs: Vector[Int]) -> Bool ! Pure
+  length(toSet(xs)) <= length(xs)
+
+record Money(cents: Int)
+
+instance Ord[Money]
+  fn compare(a: Money, b: Money) -> Int
+    a.cents - b.cents
+
+fn prop_moneyOrderIsAntisymmetric(a: Money, b: Money) -> Bool ! Pure
+  Ord.compare(a, b) * Ord.compare(b, a) <= 0
+
+fn prop_pageNeverExceedsLimit(xs: Vector[Int], offset: Int, limit: Int) -> Bool ! Pure
+  length(take(drop(xs, offset), limit)) <= if limit < 0 then 0 else limit

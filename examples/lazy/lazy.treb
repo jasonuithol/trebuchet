@@ -1,0 +1,19 @@
+module lazy
+
+// Seq[T] is lazy and may be infinite; Vector[T] is strict. map, filter, take, drop, and
+// takeWhile stay lazy; toVector, first, and fold pull. A function given to a lazy combinator
+// runs whenever the sequence is pulled, so it may not Suspend.
+
+fn naturals() -> Seq[Int] ! Pure
+  Seq.iterate(0, \n -> n + 1)
+
+fn squares() -> Seq[Int] ! Pure
+  map(naturals(), \n -> n * n)
+
+fn demo() -> String ! Pure
+  evens = toVector(take(filter(naturals(), \n -> n % 2 == 0), 5))
+  small = toVector(takeWhile(squares(), \s -> s < 50))
+  firstBig = getOr(first(drop(squares(), 100)), -1)
+  total = fold(Seq.range(1, 11), 0, \acc, n -> acc + n)
+  fromVec = toVector(map(Seq.from([1, 2, 3]), \x -> x * 10))
+  toString(evens) + " " + toString(small) + " " + toString(firstBig) + " " + toString(total) + " " + toString(fromVec)

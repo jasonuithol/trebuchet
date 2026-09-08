@@ -435,6 +435,14 @@ The pitch "Haskell for .NET" needs one thing above all: generic code that can as
 
 `examples/classes/` runs a `Monoid` with two instances, an `Ord` instance, a constrained fold, and the constrained builtins through the same line on all three targets. Writing it found that the built-in `Ord` shape was being re-populated per checker instance, which the parallel test runner turned into a corrupted dictionary; it is now initialised once.
 
+### 7.22 The rest of the Haskell list: `?` on Option, lazy sequences, property tests
+
+- **`?` on `Option`.** In a function that returns an `Option`, `x = at(xs, 0)?` leaves with `None` when there is nothing there, the same shape `?` already gave `Result`. Mixing is an error with a pointer to the return type. C# lowers it to an `is None<T>` test and an early return; C++ to `has_value`; the interpreter to the same signal `Result` uses.
+- **`Seq[T]` is lazy; `Vector[T]` stays strict.** `Seq.iterate`, `Seq.range`, and `Seq.from` build one; `map`, `filter`, `take`, `drop`, and `takeWhile` return another without pulling; `toVector`, `first`, and `fold` pull. A `Seq` is a computation rather than a value, so it has reference identity and no structural `==`, and a function handed to a lazy combinator may not `Suspend`, because it runs whenever the sequence is pulled; the checker enforces that through the same obligation mechanism that checks a lambda against a declared function type. Laziness by default was rejected in §7 of the brief's addenda and stays rejected: this is the useful part of it, and .NET developers already know it as deferred LINQ. The three runtimes implement it as a re-iterable enumerable factory (.NET), a pull function factory (C++), and the same in the interpreter.
+- **Property tests come for free from purity.** `treb test <dir>` runs every function whose name starts with `prop` and returns `Bool`, generating arguments from the parameter types: primitives, vectors, sets, maps, options, results, tuples, records through their validating constructors, and unions by variant. A failing case is shrunk greedily toward zero, empty, and shorter before it is reported, so a property that a vector of length three breaks reports `xs = [0, 0, 0]`. The runner is in the compiler library, so the test suite uses it too. Nothing about it is specific to the interpreter except that the interpreter is what runs the property; a pure function has no setup to fake.
+
+Running the properties over the sample found a bug in the type-class work of §7.21: the built-in `Ord` shape's members were not registered as class members, so `Ord.compare(a, b)` on a concrete type was not resolved and the interpreter tried to evaluate `Ord` as a value. The first property that compared two `Money` values caught it on its first case.
+
 ---
 
 ## 8. Revised milestones

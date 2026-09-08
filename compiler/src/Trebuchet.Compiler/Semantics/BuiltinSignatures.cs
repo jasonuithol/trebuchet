@@ -59,20 +59,22 @@ public static class BuiltinSignatures
         Def("concat", "[T](Vector[T], Vector[T]) -> Vector[T] ! Pure");
         Def("length", "[T](Vector[T]) -> Int ! Pure", "(String) -> Int ! Pure", "[K, V](Map[K, V]) -> Int ! Pure", "[T](Set[T]) -> Int ! Pure");
         Def("isEmpty", "[T](Vector[T]) -> Bool ! Pure", "(String) -> Bool ! Pure", "[K, V](Map[K, V]) -> Bool ! Pure", "[T](Set[T]) -> Bool ! Pure");
-        Def("map", "[T, U](Vector[T], fn(T) -> U) -> Vector[U]", "[T, E, U](Result[T, E], fn(T) -> U) -> Result[U, E]", "[T, U](Option[T], fn(T) -> U) -> Option[U]");
-        Def("filter", "[T](Vector[T], fn(T) -> Bool) -> Vector[T]");
-        Def("fold", "[T, A](Vector[T], A, fn(A, T) -> A) -> A");
+        Def("map", "[T, U](Vector[T], fn(T) -> U) -> Vector[U]", "[T, E, U](Result[T, E], fn(T) -> U) -> Result[U, E]", "[T, U](Option[T], fn(T) -> U) -> Option[U]", "[T, U](Seq[T], fn(T) -> U) -> Seq[U]");
+        Def("filter", "[T](Vector[T], fn(T) -> Bool) -> Vector[T]", "[T](Seq[T], fn(T) -> Bool) -> Seq[T]");
+        Def("fold", "[T, A](Vector[T], A, fn(A, T) -> A) -> A", "[T, A](Seq[T], A, fn(A, T) -> A) -> A");
+        Def("takeWhile", "[T](Seq[T], fn(T) -> Bool) -> Seq[T]");
+        Def("toVector", "[T](Seq[T]) -> Vector[T] ! Pure");
         Def("any", "[T](Vector[T], fn(T) -> Bool) -> Bool");
         Def("all", "[T](Vector[T], fn(T) -> Bool) -> Bool");
         Def("find", "[T](Vector[T], fn(T) -> Bool) -> Option[T]");
         Def("forEach", "[T, U](Vector[T], fn(T) -> U) -> Unit");
-        Def("first", "[T](Vector[T]) -> Option[T] ! Pure");
+        Def("first", "[T](Vector[T]) -> Option[T] ! Pure", "[T](Seq[T]) -> Option[T] ! Pure");
         Def("last", "[T](Vector[T]) -> Option[T] ! Pure");
         Def("reverse", "[T](Vector[T]) -> Vector[T] ! Pure");
         Def("contains", "[T](Vector[T], T) -> Bool ! Pure", "[K, V](Map[K, V], K) -> Bool ! Pure", "(String, String) -> Bool ! Pure", "[T](Set[T], T) -> Bool ! Pure");
         Def("sum", "(Vector[Int]) -> Int ! Pure");
-        Def("take", "[T](Vector[T], Int) -> Vector[T] ! Pure");
-        Def("drop", "[T](Vector[T], Int) -> Vector[T] ! Pure");
+        Def("take", "[T](Vector[T], Int) -> Vector[T] ! Pure", "[T](Seq[T], Int) -> Seq[T] ! Pure");
+        Def("drop", "[T](Vector[T], Int) -> Vector[T] ! Pure", "[T](Seq[T], Int) -> Seq[T] ! Pure");
         Def("at", "[T](Vector[T], Int) -> Option[T] ! Pure");
         Def("sortBy", "[T, K](Vector[T], fn(T) -> K) -> Vector[T]");
         Def("sort", "[T: Ord](Vector[T]) -> Vector[T] ! Pure");
@@ -103,6 +105,7 @@ public static class BuiltinSignatures
         Def("sleep", "(Int) -> Unit ! Suspend");
 
         Namespace(g, "Cell", ("new", "[T](T) -> Cell[T] ! Nondet"));
+        Namespace(g, "Seq", ("from", "[T](Vector[T]) -> Seq[T] ! Pure"), ("iterate", "[T](T, fn(T) -> T) -> Seq[T]"), ("range", "(Int, Int) -> Seq[Int] ! Pure"));
         Namespace(g, "Instant", ("parse", "(String) -> Instant ! Pure"), ("now", "() -> Instant ! Nondet"));
         Namespace(g, "sys", ("clock", "() -> Instant ! Nondet"));
         Namespace(g, "env", ("get", "(String) -> String ! Nondet"));

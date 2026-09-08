@@ -99,17 +99,23 @@ public static class Builtins
             var target = Arg(a, 0, "map");
             var f = Arg(a, 1, "map");
             if (target is ListValue l) return new ListValue(Vector<Value>.From(l.Items.Select(x => it.Call(f, new[] { x }))));
+            if (target is SeqValue sq) return new SeqValue(() => sq.Items().Select(x => it.Call(f, new[] { x })));
             if (IsOk(target, out var ok)) return Ok(it.Call(f, new[] { ok }));
             if (IsError(target, out _)) return target;
             if (target is RecordValue { Union: "Option" } o) return o.TypeName == "Some" ? Some(it.Call(f, new[] { o.FieldValues[0] })) : o;
             throw new TrebPanic($"map: unsupported receiver {target.Show()}");
         });
-        Def("filter", (it, a) => new ListValue(Vector<Value>.From(List(a, 0, "filter").Items.Where(x => Truthy(it.Call(Arg(a, 1, "filter"), new[] { x }), "filter")))));
+        Def("filter", (it, a) => Arg(a, 0, "filter") is SeqValue sq
+            ? new SeqValue(() => sq.Items().Where(x => Truthy(it.Call(Arg(a, 1, "filter"), new[] { x }), "filter")))
+            : new ListValue(Vector<Value>.From(List(a, 0, "filter").Items.Where(x => Truthy(it.Call(Arg(a, 1, "filter"), new[] { x }), "filter")))));
+        Def("takeWhile", (it, a) => new SeqValue(() => SeqArg(a, 0, "takeWhile").Items().TakeWhile(x => Truthy(it.Call(Arg(a, 1, "takeWhile"), new[] { x }), "takeWhile"))));
+        Def("toVector", (_, a) => new ListValue(Vector<Value>.From(SeqArg(a, 0, "toVector").Items())));
         Def("fold", (it, a) =>
         {
             var acc = Arg(a, 1, "fold");
             var f = Arg(a, 2, "fold");
-            foreach (var x in List(a, 0, "fold").Items) acc = it.Call(f, new[] { acc, x });
+            var source = Arg(a, 0, "fold") is SeqValue sq ? sq.Items() : List(a, 0, "fold").Items;
+            foreach (var x in source) acc = it.Call(f, new[] { acc, x });
             return acc;
         });
         Def("any", (it, a) => Bool(List(a, 0, "any").Items.Any(x => Truthy(it.Call(Arg(a, 1, "any"), new[] { x }), "any"))));
@@ -126,8 +132,12 @@ public static class Builtins
             foreach (var x in List(a, 0, "forEach").Items) it.Call(Arg(a, 1, "forEach"), new[] { x });
             return UnitValue.Instance;
         });
-        Def("take", (_, a) => new ListValue(Vector<Value>.From(List(a, 0, "take").Items.Take((int)Math.Max(0, ((IntValue)Arg(a, 1, "take")).V)))));
-        Def("drop", (_, a) => new ListValue(Vector<Value>.From(List(a, 0, "drop").Items.Skip((int)Math.Max(0, ((IntValue)Arg(a, 1, "drop")).V)))));
+        Def("take", (_, a) => Arg(a, 0, "take") is SeqValue sq
+            ? new SeqValue(() => sq.Items().Take((int)Math.Max(0, ((IntValue)Arg(a, 1, "take")).V)))
+            : new ListValue(Vector<Value>.From(List(a, 0, "take").Items.Take((int)Math.Max(0, ((IntValue)Arg(a, 1, "take")).V)))));
+        Def("drop", (_, a) => Arg(a, 0, "drop") is SeqValue sq
+            ? new SeqValue(() => sq.Items().Skip((int)Math.Max(0, ((IntValue)Arg(a, 1, "drop")).V)))
+            : new ListValue(Vector<Value>.From(List(a, 0, "drop").Items.Skip((int)Math.Max(0, ((IntValue)Arg(a, 1, "drop")).V)))));
         Def("at", (_, a) =>
         {
             var l = List(a, 0, "at").Items;
@@ -175,7 +185,11 @@ public static class Builtins
             }
             return Ok(new ListValue(acc));
         });
-        Def("first", (_, a) => List(a, 0, "first").Items is { Count: > 0 } l ? Some(l.Get(0)) : None);
+        Def("first", (_, a) =>
+        {
+            if (Arg(a, 0, "first") is SeqValue sq) { foreach (var x in sq.Items()) return Some(x); return None; }
+            return List(a, 0, "first").Items is { Count: > 0 } l ? Some(l.Get(0)) : None;
+        });
         Def("last", (_, a) => List(a, 0, "last").Items is { Count: > 0 } l ? Some(l.Get(l.Count - 1)) : None);
         Def("reverse", (_, a) => new ListValue(Vector<Value>.From(List(a, 0, "reverse").Items.AsEnumerable().Reverse())));
         Def("contains", (_, a) => Arg(a, 0, "contains") switch
@@ -234,6 +248,22 @@ public static class Builtins
             c.Current = it.Call(Arg(a, 1, "getAndUpdate"), new[] { old });
             return old;
         });
+        var seq = new Env(null, "Seq");
+        seq.Define("from", new Builtin("Seq.from", (_, a) => { var items = List(a, 0, "Seq.from").Items; return new SeqValue(() => items); }));
+        seq.Define("iterate", new Builtin("Seq.iterate", (it, a) =>
+        {
+            var seed = Arg(a, 0, "Seq.iterate");
+            var f = Arg(a, 1, "Seq.iterate");
+            return new SeqValue(() => Iterate(it, seed, f));
+        }));
+        seq.Define("range", new Builtin("Seq.range", (_, a) =>
+        {
+            var from = ((IntValue)Arg(a, 0, "Seq.range")).V;
+            var to = ((IntValue)Arg(a, 1, "Seq.range")).V;
+            return new SeqValue(() => Enumerable.Range(0, (int)Math.Max(0, to - from)).Select(i => (Value)new IntValue(from + i)));
+        }));
+        g.Define("Seq", new NamespaceValue("Seq", seq));
+
         var cell = new Env(null, "Cell");
         cell.Define("new", new Builtin("Cell.new", (_, a) => new CellValue(Arg(a, 0, "Cell.new"))));
         g.Define("Cell", new NamespaceValue("Cell", cell));
@@ -321,6 +351,19 @@ public static class Builtins
             _ => throw new TrebPanic($"sortBy: cannot order {x?.Show()} against {y?.Show()}"),
         };
     }
+
+    private static IEnumerable<Value> Iterate(Interpreter it, Value seed, Value f)
+    {
+        var current = seed;
+        while (true)
+        {
+            yield return current;
+            current = it.Call(f, new[] { current });
+        }
+    }
+
+    private static SeqValue SeqArg(IReadOnlyList<Value> a, int i, string fn) =>
+        Arg(a, i, fn) as SeqValue ?? throw new TrebPanic($"{fn}: argument {i + 1} is not a sequence: {a[i].Show()}");
 
     private static SetValue SetArg(IReadOnlyList<Value> a, int i, string fn) =>
         Arg(a, i, fn) as SetValue ?? throw new TrebPanic($"{fn}: argument {i + 1} is not a set: {a[i].Show()}");

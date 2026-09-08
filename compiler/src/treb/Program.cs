@@ -11,6 +11,8 @@ static int Usage()
           treb tokens <file>              dump the token stream
           treb check <dir>                load all modules and report type errors
           treb effects <dir>              print the inferred effects of every function
+          treb test <dir> [--cases 100] [--seed N]
+                                          run every prop* function with generated arguments
           treb emit <dir> --out <outdir> [--host] [--target cpp] [--no-lines]
                                           lower to a C# project against Trebuchet.Runtime;
                                           --host adds IServiceCollection registration per root
@@ -78,6 +80,28 @@ if (command == "emit")
     catch (Exception ex) when (ex is SyntaxException or Trebuchet.Compiler.Semantics.SemanticException)
     {
         Console.Error.WriteLine($"error: {ex}");
+        return 1;
+    }
+}
+
+if (command == "test")
+{
+    try
+    {
+        var modules = Trebuchet.Compiler.Semantics.ModuleSet.Load(positional[0]);
+        var runner = new Trebuchet.Compiler.Testing.PropertyRunner(modules, int.Parse(options.GetValueOrDefault("seed", "20260908")));
+        if (runner.Diagnostics.Count > 0)
+        {
+            foreach (var d in runner.Diagnostics) Console.Error.WriteLine(d);
+            return 1;
+        }
+        var outcomes = runner.RunAll(int.Parse(options.GetValueOrDefault("cases", "100")));
+        Console.Write(Trebuchet.Compiler.Testing.PropertyRunner.Report(outcomes));
+        return outcomes.All(o => o.Passed || o.Counterexample is null) ? 0 : 1;
+    }
+    catch (Exception ex) when (ex is SyntaxException or Trebuchet.Compiler.Semantics.SemanticException or Trebuchet.Compiler.Runtime.TrebPanic)
+    {
+        Console.Error.WriteLine($"error: {ex.Message}");
         return 1;
     }
 }

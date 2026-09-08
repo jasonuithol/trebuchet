@@ -858,6 +858,12 @@ public sealed class CppEmitter
                     var inner = EmitExpr(p.Inner, null);
                     var rt = Prune(TypeOf(p.Inner)) as AppT ?? throw new InvalidOperationException("? on non-Result");
                     var tv = Tmp("r");
+                    if (rt.Ctor == "Option")
+                    {
+                        Line($"auto {tv} = {inner};");
+                        Line($"if (!{tv}.v.has_value()) {ReturnKeyword} NoneValue{{}};");
+                        return $"(*{tv}.v)";
+                    }
                     Line($"auto {tv} = {inner};");
                     Line($"if (!{tv}.ok) {ReturnKeyword} ErrorValue<{_e.CppType(rt.Args[1])}>{{*{tv}.error}};");
                     return $"(*{tv}.value)";
@@ -910,6 +916,7 @@ public sealed class CppEmitter
                     var label = ns.Scope.Label;
                     if (_e._modules.Find(label) is not null) return $"gen::{Ns(label)}::{Id(mem.Name)}";
                     if (label == "Cell") return mem.Name == "new" ? "treb::cellCreate" : $"Cell::{mem.Name}";
+                    if (label == "Seq") return $"treb::seq::{mem.Name}";
                     if (label is "Instant") return $"Instant::{mem.Name}";
                     if (label is "sys" or "env" or "json") return $"treb::{label}::{mem.Name}";
                     return Prune(TypeOf(mem)) is UnionT u ? $"{_e.CppType(u)}{{{mem.Name}{GenericArgs(u.TypeArgs)}{{}}}}" : mem.Name;

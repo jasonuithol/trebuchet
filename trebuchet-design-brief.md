@@ -279,4 +279,6 @@ The open questions in §10 were worked through in a follow-up session. Full reas
 
 **Added 2026-09-08, shapes over types:** `shape Monoid[T]` is a type class, `instance Monoid[Money]` an instance, `[T: Monoid]` a constraint, `Monoid.combine(a, b)` a call resolved at compile time and lowered to dictionary passing on both targets. `Ord` is built in with comparison operators on constrained parameters and `sort`, `minimum`, `maximum`. See `trebuchet-implementation-strategy.md` §7.21.
 
+**Added 2026-09-08, the rest of the Haskell list:** `?` on `Option`; lazy `Seq[T]` next to strict `Vector[T]`, with functions given to lazy combinators forbidden to `Suspend`; `treb test` runs `prop*` functions with generated, shrunk arguments. See `trebuchet-implementation-strategy.md` §7.22.
+
 **Still open:** concrete syntax details (sketched in `trebuchet-syntax-sketch.md`), multi-threaded refcounting, parallelism primitives, and whether `mut` locals ever return.

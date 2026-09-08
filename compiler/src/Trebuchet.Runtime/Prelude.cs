@@ -68,6 +68,16 @@ public static class Prelude
     public static bool contains<K, V>(Map<K, V> m, K key) where K : notnull => m.ContainsKey(key);
     public static bool contains(string s, string sub) => s.Contains(sub, StringComparison.Ordinal);
     public static long sum(Vector<long> v) => v.Sum();
+    // ---- lazy sequences
+    public static Seq<U> map<T, U>(Seq<T> s, Func<T, U> f) => new(() => s.Select(f));
+    public static Seq<T> filter<T>(Seq<T> s, Func<T, bool> f) => new(() => s.Where(f));
+    public static Seq<T> takeWhile<T>(Seq<T> s, Func<T, bool> f) => new(() => s.TakeWhile(f));
+    public static Seq<T> take<T>(Seq<T> s, long n) => new(() => s.Take((int)Math.Max(0, n)));
+    public static Seq<T> drop<T>(Seq<T> s, long n) => new(() => s.Skip((int)Math.Max(0, n)));
+    public static Option<T> first<T>(Seq<T> s) { foreach (var x in s) return Option<T>.Some(x); return Option<T>.None; }
+    public static Vector<T> toVector<T>(Seq<T> s) => Vector<T>.From(s);
+    public static A fold<T, A>(Seq<T> s, A init, Func<A, T, A> f) { var acc = init; foreach (var x in s) acc = f(acc, x); return acc; }
+
     public static Vector<T> take<T>(Vector<T> v, long n) => Vector<T>.From(v.Take((int)Math.Max(0, Math.Min(n, v.Count))));
     public static Vector<T> drop<T>(Vector<T> v, long n) => Vector<T>.From(v.Skip((int)Math.Max(0, Math.Min(n, v.Count))));
     public static Option<T> at<T>(Vector<T> v, long i) => i >= 0 && i < v.Count ? Option<T>.Some(v.Get((int)i)) : Option<T>.None;

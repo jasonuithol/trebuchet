@@ -52,7 +52,7 @@ public sealed class AppT : TType
 
     public static readonly Dictionary<string, int> Arities = new()
     {
-        ["Vector"] = 1, ["Set"] = 1, ["Option"] = 1, ["Cell"] = 1, ["Map"] = 2, ["Result"] = 2,
+        ["Vector"] = 1, ["Set"] = 1, ["Seq"] = 1, ["Option"] = 1, ["Cell"] = 1, ["Map"] = 2, ["Result"] = 2,
     };
     public static string Normalize(string name) => name == "List" ? "Vector" : name;
 }

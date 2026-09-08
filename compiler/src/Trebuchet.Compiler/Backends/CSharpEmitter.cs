@@ -927,6 +927,12 @@ public sealed class CSharpEmitter
                     var rt = Prune(TypeOf(p.Inner)) as AppT ?? throw new InvalidOperationException("? on non-Result");
                     var tv = Tmp("r");
                     var ev = Tmp("e");
+                    if (rt.Ctor == "Option")
+                    {
+                        Line($"var {tv} = {inner};");
+                        Line($"if ({tv} is None<{_e.CsType(rt.Args[0])}>) return {Coerce("None", null, _returnType)};");
+                        return $"((Some<{_e.CsType(rt.Args[0])}>){tv}).value";
+                    }
                     Line($"var {tv} = {inner};");
                     Line($"if ({tv} is Error<{_e.CsType(rt.Args[0])}, {_e.CsType(rt.Args[1])}> {ev}) return {Coerce($"error({ev}.error)", null, _returnType)};");
                     return $"((Ok<{_e.CsType(rt.Args[0])}, {_e.CsType(rt.Args[1])}>){tv}).value";
@@ -988,6 +994,7 @@ public sealed class CSharpEmitter
                     if (_e._modules.Find(label) is not null)
                         return $"{ClassName(label)}.{Id(mem.Name)}";
                     if (label is "Cell") return "Cell." + (mem.Name == "new" ? "create" : mem.Name);
+                    if (label is "Seq") return $"Seq.{mem.Name}";
                     if (label is "Instant" or "sys" or "env" or "json") return $"{label}.{mem.Name}";
                     // a union namespace: variant reference
                     return Prune(TypeOf(mem)) is UnionT u ? $"(({_e.CsType(u)}){mem.Name}{GenericArgs(u.TypeArgs)}.Instance)" : mem.Name;

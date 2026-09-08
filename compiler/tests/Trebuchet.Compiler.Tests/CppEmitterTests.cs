@@ -189,6 +189,17 @@ public class CppEmitterTests
     }
 
     [Fact]
+    public void LazySequencesCompileAndRun()
+    {
+        var (outDir, log, exit) = Emit("lazy", Path.Combine(ExamplesDir(), "lazy", "cpp", "driver.cpp"));
+        Assert.True(exit == 0, "g++ failed:\n" + log);
+        var run = Process.Start(new ProcessStartInfo(Path.Combine(outDir, "driver")) { RedirectStandardOutput = true })!;
+        var output = run.StandardOutput.ReadToEnd().Trim();
+        run.WaitForExit();
+        Assert.Equal(InterpreterTests.LazyExpected, output);
+    }
+
+    [Fact]
     public void PatternsCompileAndRun()
     {
         var (outDir, log, exit) = Emit("patterns", Path.Combine(ExamplesDir(), "patterns", "cpp", "driver.cpp"));

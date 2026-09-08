@@ -132,6 +132,14 @@ public sealed class RecordValue : Value
     }
 }
 
+/// <summary>A lazy, re-iterable, possibly infinite sequence. Reference identity: a sequence is not a value you compare.</summary>
+public sealed class SeqValue : Value
+{
+    public Func<IEnumerable<Value>> Items { get; }
+    public SeqValue(Func<IEnumerable<Value>> items) => Items = items;
+    public override string Show() => "<seq>";
+}
+
 public sealed class TupleValue : Value
 {
     public ImmutableArray<Value> Items { get; }

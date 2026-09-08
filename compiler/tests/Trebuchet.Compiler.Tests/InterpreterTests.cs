@@ -296,7 +296,7 @@ public class InterpreterTests
         Assert.Equal(OrdersExpected, $"placed={placed} again={again} empty={empty} {((StringValue)described).V}");
     }
 
-    public const string PatternsExpected = "point; circle 2; square 3 area 9; rect 2x5; 10 7,8 5 none 1..9 1a origin x-axis 3 y-axis 4 diagonal plane";
+    public const string PatternsExpected = "point; circle 2; square 3 area 9; rect 2x5; 10 7,8 5 none 1..9 1a origin x-axis 3 y-axis 4 diagonal plane 2 -1";
 
     [Fact]
     public void GuardsListsTuplesAndAsPatternsRun()
@@ -316,6 +316,17 @@ public class InterpreterTests
         var it = new Interpreter(modules);
         it.EnvOf(modules.Find("classes")!).TryGet("demo", out var demo);
         Assert.Equal(new StringValue(ClassesExpected), it.Call(demo, Array.Empty<Value>()));
+    }
+
+    public const string LazyExpected = "[0, 2, 4, 6, 8] [0, 1, 4, 9, 16, 25, 36, 49] 10000 55 [10, 20, 30]";
+
+    [Fact]
+    public void LazySequencesRun()
+    {
+        var modules = ModuleSet.Load(Path.Combine(ExamplesDir(), "lazy"));
+        var it = new Interpreter(modules);
+        it.EnvOf(modules.Find("lazy")!).TryGet("demo", out var demo);
+        Assert.Equal(new StringValue(LazyExpected), it.Call(demo, Array.Empty<Value>()));
     }
 
     public const string CollectionsDemoExpected = "3 unique; both=2 either=4 onlyA=red hasRed=yes afterRemove=2 equal=yes empty=yes vec=yes map=yes";

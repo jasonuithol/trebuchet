@@ -956,6 +956,51 @@ template <class T, class F> auto traverseAsync(Vector<T> v, F f)
     }
     co_return OkValue<Vector<typename R::value_type>>{acc};
 }
+// ---------------------------------------------------------------- Seq: lazy sequences
+
+/// A lazy, re-iterable, possibly infinite sequence: start() yields a fresh puller that returns
+/// one item per call and nullopt at the end. A Seq is a computation, not a value: no ==.
+template <class T>
+class Seq {
+public:
+    using Puller = std::function<std::optional<T>()>;
+    std::function<Puller()> start;
+    Seq() = default;
+    explicit Seq(std::function<Puller()> s) : start(std::move(s)) {}
+};
+
+namespace seq {
+template <class T> Seq<T> from(Vector<T> v) {
+    return Seq<T>([v] { int i = 0; return [v, i]() mutable -> std::optional<T> { if (i < v.size()) return v.get(i++); return std::nullopt; }; });
+}
+template <class T, class F> Seq<T> iterate(T seed, F f) {
+    return Seq<T>([seed, f] { std::optional<T> cur; return [seed, f, cur]() mutable -> std::optional<T> { cur = cur ? f(*cur) : seed; return cur; }; });
+}
+inline Seq<std::int64_t> range(std::int64_t from, std::int64_t to) {
+    return Seq<std::int64_t>([from, to] { std::int64_t i = from; return [i, to]() mutable -> std::optional<std::int64_t> { if (i < to) return i++; return std::nullopt; }; });
+}
+}
+
+template <class T, class F> auto map(const Seq<T>& s, F f) -> Seq<decltype(f(std::declval<T>()))> {
+    using U = decltype(f(std::declval<T>()));
+    return Seq<U>([s, f] { auto pull = s.start(); return [pull, f]() mutable -> std::optional<U> { auto x = pull(); if (!x) return std::nullopt; return f(*x); }; });
+}
+template <class T, class F> Seq<T> filter(const Seq<T>& s, F f) {
+    return Seq<T>([s, f] { auto pull = s.start(); return [pull, f]() mutable -> std::optional<T> { for (;;) { auto x = pull(); if (!x || f(*x)) return x; } }; });
+}
+template <class T, class F> Seq<T> takeWhile(const Seq<T>& s, F f) {
+    return Seq<T>([s, f] { auto pull = s.start(); bool done = false; return [pull, f, done]() mutable -> std::optional<T> { if (done) return std::nullopt; auto x = pull(); if (!x || !f(*x)) { done = true; return std::nullopt; } return x; }; });
+}
+template <class T> Seq<T> take(const Seq<T>& s, std::int64_t n) {
+    return Seq<T>([s, n] { auto pull = s.start(); std::int64_t left = n; return [pull, left]() mutable -> std::optional<T> { if (left <= 0) return std::nullopt; --left; return pull(); }; });
+}
+template <class T> Seq<T> drop(const Seq<T>& s, std::int64_t n) {
+    return Seq<T>([s, n] { auto pull = s.start(); std::int64_t skip = n; return [pull, skip]() mutable -> std::optional<T> { while (skip > 0) { --skip; if (!pull()) return std::nullopt; } return pull(); }; });
+}
+template <class T> Option<T> first(const Seq<T>& s) { auto pull = s.start(); auto x = pull(); return x ? Option<T>::Some(*x) : Option<T>::None(); }
+template <class T> Vector<T> toVector(const Seq<T>& s) { Vector<T> r; auto pull = s.start(); while (auto x = pull()) r = r.append(*x); return r; }
+template <class T, class A, class F> A fold(const Seq<T>& s, A acc, F f) { auto pull = s.start(); while (auto x = pull()) acc = f(acc, *x); return acc; }
+
 // The built-in Ord instances. A generated instance is a struct with the same shape.
 struct Ord_Int { std::int64_t compare(std::int64_t a, std::int64_t b) const { return a < b ? -1 : (a > b ? 1 : 0); } };
 struct Ord_Float { std::int64_t compare(double a, double b) const { return a < b ? -1 : (a > b ? 1 : 0); } };
