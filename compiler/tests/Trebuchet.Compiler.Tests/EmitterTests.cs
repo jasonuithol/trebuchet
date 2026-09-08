@@ -290,6 +290,24 @@ public class EmitterTests
     }
 
     [Fact]
+    public void ShapesOverTypesCompileAndRun()
+    {
+        var asm = EmitAndBuild("classes");
+        var demo = asm.GetType("Generated.Classes")!.GetMethod("demo")!;
+        Assert.Equal(InterpreterTests.ClassesExpected, (string)demo.Invoke(null, null)!);
+        Assert.True(asm.GetType("Generated.Monoid`1")!.IsInterface);
+        Assert.Contains(asm.GetType("Generated.Monoid`1")!.MakeGenericType(asm.GetType("Generated.Money")!), asm.GetType("Generated.Monoid_Money")!.GetInterfaces());
+    }
+
+    [Fact]
+    public void PatternsCompileAndRun()
+    {
+        var asm = EmitAndBuild("patterns");
+        var demo = asm.GetType("Generated.Patterns")!.GetMethod("demo")!;
+        Assert.Equal(InterpreterTests.PatternsExpected, (string)demo.Invoke(null, null)!);
+    }
+
+    [Fact]
     public void OrdersAcceptanceScenario()
     {
         var asm = EmitAndBuild("orders");

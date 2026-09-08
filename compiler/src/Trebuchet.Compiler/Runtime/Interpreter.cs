@@ -19,10 +19,16 @@ public sealed class Interpreter
     public Dictionary<string, Func<IReadOnlyList<Value>, Value>> Externs { get; } = new();
     private readonly Dictionary<Module, Env> _moduleEnvs = new();
 
+    /// <summary>The type checker's verdict on the program, used for what the interpreter cannot decide from values alone: which instance a constrained call gets.</summary>
+    public TypeChecker? Checker { get; }
+    private readonly Dictionary<(string Shape, string TypeKey), Value> _instances = new();
+
     public Interpreter(ModuleSet modules)
     {
         Modules = modules;
         Global = Builtins.CreateGlobalEnv();
+        try { Checker = TypeChecker.CheckWithEffects(modules); }
+        catch (Exception) { Checker = null; }
 
         // Pass 1: each module gets [own decls] -> [imports] -> Global.
         var importEnvs = new Dictionary<Module, Env>();
@@ -75,8 +81,18 @@ public sealed class Interpreter
                     break;
                 }
                 case FnDecl fn:
-                    env.Define(fn.Signature.Name, new Closure(fn.Signature.Name, fn.Signature.Params.Select(p => p.Name).ToList(), fn.Body, env));
+                    env.Define(fn.Signature.Name, new Closure(fn.Signature.Name, ParamNames(fn.Signature), fn.Body, env));
                     break;
+                case InstanceDecl inst:
+                {
+                    // an instance is a namespace of its methods; constrained calls receive it as a hidden argument
+                    var members = new Env(env, $"instance {inst.Shape}");
+                    foreach (var method in inst.Methods)
+                        members.Define(method.Signature.Name, new Closure(method.Signature.Name, ParamNames(method.Signature), method.Body, env));
+                    var key = inst.Target is NamedType nt ? nt.Name : Printer.PrintType(inst.Target);
+                    _instances[(inst.Shape, key)] = new NamespaceValue($"{inst.Shape}[{key}]", members);
+                    break;
+                }
                 case ExternDecl ex:
                 {
                     var key = $"{m.Name}.{ex.Signature.Name}";
@@ -129,6 +145,8 @@ public sealed class Interpreter
             case BoolLit b: return BoolValue.Of(b.Value);
             case ListLit l:
                 return new ListValue(Vector<Value>.From(l.Items.Select(i => Eval(i, env))));
+            case TupleLit tl:
+                return new TupleValue(tl.Items.Select(i => Eval(i, env)).ToImmutableArray());
             case MapLit m:
             {
                 var b = Map<Value, Value>.Empty;
@@ -186,7 +204,7 @@ public sealed class Interpreter
                 foreach (var arm in mx.Arms)
                 {
                     var armEnv = new Env(env, "arm");
-                    if (TryMatch(arm.Pattern, scrutinee, armEnv))
+                    if (TryMatch(arm.Pattern, scrutinee, armEnv) && (arm.Guard is null || Eval(arm.Guard, armEnv) is BoolValue { V: true }))
                         return ExecBlock(arm.Body, armEnv);
                 }
                 throw new TrebPanic($"{mx.Pos}: no match arm for {scrutinee.Show()}");
@@ -214,6 +232,12 @@ public sealed class Interpreter
 
     private Value EvalBinary(BinaryExpr b, Env env)
     {
+        if (Checker is not null && Checker.OrdComparisons.TryGetValue(b, out var ordParam))
+        {
+            var dict = env.TryGet($"__Ord_{ordParam}", out var d) ? d : throw new TrebPanic($"{b.Pos}: no Ord dictionary for {ordParam} in scope");
+            var cmp = Builtins.CompareWith(this, dict, Eval(b.Left, env), Eval(b.Right, env));
+            return BoolValue.Of(b.Op switch { "<" => cmp < 0, "<=" => cmp <= 0, ">" => cmp > 0, ">=" => cmp >= 0, _ => throw new TrebPanic($"{b.Pos}: unexpected operator {b.Op}") });
+        }
         if (b.Op == "and")
         {
             var l = Eval(b.Left, env) as BoolValue ?? throw new TrebPanic($"{b.Pos}: 'and' on non-Bool");
@@ -244,6 +268,13 @@ public sealed class Interpreter
                         local.Define(bind.Name, Eval(bind.Value, local));
                         last = UnitValue.Instance;
                         break;
+                    case DestructureStmt ds:
+                    {
+                        var value = Eval(ds.Value, local);
+                        if (!TryMatch(ds.Pattern, value, local)) throw new TrebPanic($"{ds.Pos}: the pattern does not match {value.Show()}");
+                        last = UnitValue.Instance;
+                        break;
+                    }
                     case UseStmt use:
                     {
                         var v = Eval(use.Value, local);
@@ -271,6 +302,27 @@ public sealed class Interpreter
         if (si.Env.TryGet("release", out var release)) Call(release, Array.Empty<Value>());
     }
 
+    /// <summary>Parameter names of a function, followed by the hidden dictionary parameters its constraints add.</summary>
+    private static List<string> ParamNames(FnSignature sig)
+    {
+        var names = sig.Params.Select(p => p.Name).ToList();
+        if (sig.TypeConstraints is { } constraints)
+            foreach (var param in sig.TypeParams)
+                if (constraints.TryGetValue(param, out var shapes))
+                    foreach (var shape in shapes) names.Add($"__{shape}_{param}");
+        return names;
+    }
+
+    /// <summary>The dictionary for a shape at a type: a hidden parameter when the type is a parameter, else a built-in or declared instance.</summary>
+    private Value DictionaryFor(string shape, TType type, Env env, Position pos)
+    {
+        var t = Unifier.Prune(type);
+        if (t is ParamT p)
+            return env.TryGet($"__{shape}_{p.Name}", out var d) ? d : throw new TrebPanic($"{pos}: no {shape} dictionary for {p.Name} in scope");
+        if (BuiltinSignatures.HasBuiltinInstance(shape, t)) return Builtins.OrdPrimitive;
+        return _instances.TryGetValue((shape, TypeChecker.TypeKey(t)), out var inst) ? inst : throw new TrebPanic($"{pos}: no instance of {shape} for {t.Show()}");
+    }
+
     private Value EvalCall(CallExpr c, Env env)
     {
         var positional = new List<Value>();
@@ -281,6 +333,10 @@ public sealed class Interpreter
             if (a.Name is null) positional.Add(v);
             else named.Add((a.Name, v));
         }
+        if (Checker is not null && Checker.CallDictionaries.TryGetValue(c, out var dicts))
+            foreach (var (shape, type) in dicts) positional.Add(DictionaryFor(shape, type, env, c.Pos));
+        if (Checker is not null && Checker.ClassCalls.TryGetValue(c, out var cc))
+            return Member(DictionaryFor(cc.Shape, cc.Type, env, c.Pos), cc.Member, env, positional, c.Pos, named);
         if (c.Callee is MemberExpr mem)
             return Member(Eval(mem.Target, env), mem.Name, env, positional, mem.Pos, named);
         var callee = Eval(c.Callee, env);
@@ -294,6 +350,8 @@ public sealed class Interpreter
     /// </summary>
     public Value Member(Value target, string name, Env env, IReadOnlyList<Value>? args, Position pos, IReadOnlyList<(string, Value)>? named = null)
     {
+        if (target is TupleValue tuple && int.TryParse(name, out var tupleIndex))
+            return tupleIndex >= 0 && tupleIndex < tuple.Items.Length ? tuple.Items[tupleIndex] : throw new TrebPanic($"{pos}: tuple has no item {tupleIndex}");
         switch (target)
         {
             case NamespaceValue ns when ns.Members.TryGet(name, out var member):
@@ -415,6 +473,24 @@ public sealed class Interpreter
             case BindPattern b:
                 env.Define(b.Name, v);
                 return true;
+            case AsPattern ap:
+                env.Define(ap.Name, v);
+                return TryMatch(ap.Inner, v, env);
+            case TuplePattern tp:
+            {
+                if (v is not TupleValue tv || tv.Items.Length != tp.Items.Count) return false;
+                for (var i = 0; i < tp.Items.Count; i++)
+                    if (!TryMatch(tp.Items[i], tv.Items[i], env)) return false;
+                return true;
+            }
+            case ListPattern lp:
+            {
+                if (v is not ListValue lv) return false;
+                if (lp.Rest is null ? lv.Items.Count != lp.Items.Count : lv.Items.Count < lp.Items.Count) return false;
+                for (var i = 0; i < lp.Items.Count; i++)
+                    if (!TryMatch(lp.Items[i], lv.Items.Get(i), env)) return false;
+                return lp.Rest is null || TryMatch(lp.Rest, new ListValue(Vector<Value>.From(lv.Items.Skip(lp.Items.Count))), env);
+            }
             case LiteralPattern lit:
                 return Eval(lit.Literal, env).Equals(v);
             case VariantPattern vp:

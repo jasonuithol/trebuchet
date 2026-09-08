@@ -134,6 +134,9 @@ public sealed class Parser
             case TokenKind.KwShape:
                 Next();
                 return ShapeDecl(pos, isPrivate);
+            case TokenKind.KwInstance:
+                Next();
+                return InstanceDecl(pos, isPrivate);
             case TokenKind.KwRoot:
                 Next();
                 return RootDecl(pos, isPrivate);
@@ -142,18 +145,48 @@ public sealed class Parser
         }
     }
 
-    /// <summary>Optional [T, U] after a declaration name.</summary>
+    /// <summary>Constraints parsed by the last <see cref="TypeParams"/> call: parameter name to shape names.</summary>
+    private Dictionary<string, IReadOnlyList<string>> _lastConstraints = new();
+
+    /// <summary>Optional [T, U] after a declaration name; a parameter may carry constraints, [T: Ord, K: Monoid Show].</summary>
     private List<string> TypeParams()
     {
         var ps = new List<string>();
+        _lastConstraints = new Dictionary<string, IReadOnlyList<string>>();
         if (!Accept(TokenKind.LBracket)) return ps;
         while (!At(TokenKind.RBracket))
         {
-            ps.Add(Expect(TokenKind.TypeName, "a type parameter name").Text);
+            var name = Expect(TokenKind.TypeName, "a type parameter name").Text;
+            ps.Add(name);
+            if (Accept(TokenKind.Colon))
+            {
+                var shapes = new List<string> { Expect(TokenKind.TypeName, "a shape name after ':'").Text };
+                while (At(TokenKind.TypeName)) shapes.Add(Next().Text);
+                _lastConstraints[name] = shapes;
+            }
             if (!Accept(TokenKind.Comma)) break;
         }
         Expect(TokenKind.RBracket);
         return ps;
+    }
+
+    private InstanceDecl InstanceDecl(Position pos, bool isPrivate)
+    {
+        var shape = Expect(TokenKind.TypeName, "a shape name").Text;
+        Expect(TokenKind.LBracket, "'[' and the instance's type");
+        var target = Type();
+        Expect(TokenKind.RBracket, "']' after the instance's type");
+        ExpectNewline();
+        Expect(TokenKind.Indent, "an indented list of fn definitions");
+        var methods = new List<FnDecl>();
+        while (!At(TokenKind.Dedent))
+        {
+            var mpos = Cur.Start;
+            if (!At(TokenKind.KwFn)) throw Error($"expected 'fn' inside instance but found {Describe(Cur)}");
+            methods.Add(FnDecl(mpos, false));
+        }
+        Next();
+        return new InstanceDecl(pos, isPrivate, shape, target, methods);
     }
 
     private RecordDecl RecordDecl(Position pos, bool isPrivate, bool isEntity)
@@ -265,11 +298,12 @@ public sealed class Parser
         var pos = Cur.Start;
         var name = Expect(TokenKind.Identifier, "a function name").Text;
         var typeParams = TypeParams();
+        var constraints = _lastConstraints.Count > 0 ? _lastConstraints : null;
         var ps = Params();
         Expect(TokenKind.Arrow, "'->' and a return type");
         var ret = Type();
         var effects = Effects();
-        return new FnSignature(pos, name, ps, ret, effects, effects is { Count: 0 }, typeParams);
+        return new FnSignature(pos, name, ps, ret, effects, effects is { Count: 0 }, typeParams, constraints);
     }
 
     /// <summary>
@@ -323,6 +357,8 @@ public sealed class Parser
     private ShapeDecl ShapeDecl(Position pos, bool isPrivate)
     {
         var name = Expect(TokenKind.TypeName, "a shape name").Text;
+        var typeParams = TypeParams();
+        if (typeParams.Count > 1) throw Error("a shape over a type takes exactly one type parameter");
         ExpectNewline();
         Expect(TokenKind.Indent, "an indented list of members");
         var members = new List<FnSignature>();
@@ -336,7 +372,7 @@ public sealed class Parser
             ExpectNewline();
         }
         Next();
-        return new ShapeDecl(pos, isPrivate, name, members);
+        return new ShapeDecl(pos, isPrivate, name, members, typeParams);
     }
 
     private RootDecl RootDecl(Position pos, bool isPrivate)
@@ -370,6 +406,14 @@ public sealed class Parser
     private TypeRef Type()
     {
         var pos = Cur.Start;
+        if (Accept(TokenKind.LParen))
+        {
+            var items = new List<TypeRef> { Type() };
+            while (Accept(TokenKind.Comma)) items.Add(Type());
+            Expect(TokenKind.RParen, "')' to close the tuple type");
+            if (items.Count == 1) return items[0];
+            return new TupleType(pos, items);
+        }
         if (Accept(TokenKind.KwFn))
         {
             Expect(TokenKind.LParen);
@@ -427,6 +471,18 @@ public sealed class Parser
             var name = Next().Text;
             Next();
             return new BindingStmt(pos, name, Value());
+        }
+        if (At(TokenKind.LParen) || At(TokenKind.LBracket) || (At(TokenKind.Identifier) && KindAt(1) == TokenKind.At))
+        {
+            // a destructuring binding if a pattern followed by '=' parses; otherwise an expression line
+            var save = _i;
+            try
+            {
+                var pat = PatternExpr();
+                if (Accept(TokenKind.Assign)) return new DestructureStmt(pos, pat, Value());
+            }
+            catch (SyntaxException) { }
+            _i = save;
         }
         return new ExprStmt(pos, LineExpr());
     }
@@ -630,7 +686,7 @@ public sealed class Parser
             if (At(TokenKind.Dot))
             {
                 Next();
-                var name = At(TokenKind.TypeName)
+                var name = At(TokenKind.TypeName) || At(TokenKind.Integer)
                     ? Next().Text
                     : Expect(TokenKind.Identifier, "a member name").Text;
                 e = new MemberExpr(e.Pos, e, name);
@@ -703,6 +759,13 @@ public sealed class Parser
             {
                 Next();
                 var inner = Expression();
+                if (At(TokenKind.Comma))
+                {
+                    var items = new List<Expr> { inner };
+                    while (Accept(TokenKind.Comma)) items.Add(Expression());
+                    Expect(TokenKind.RParen, "')' to close the tuple");
+                    return new TupleLit(t.Start, items);
+                }
                 Expect(TokenKind.RParen);
                 return inner;
             }
@@ -817,16 +880,18 @@ public sealed class Parser
         {
             var apos = Cur.Start;
             var pat = PatternExpr();
+            Expr? guard = null;
+            if (Accept(TokenKind.KwIf)) guard = Expression();
             Expect(TokenKind.FatArrow, "'=>' after pattern");
             if (At(TokenKind.Newline))
             {
                 Next();
-                arms.Add(new MatchArm(apos, pat, Block(), false));
+                arms.Add(new MatchArm(apos, pat, Block(), false, guard));
             }
             else
             {
                 var body = LineExpr();
-                arms.Add(new MatchArm(apos, pat, new Block(body.Pos, new[] { new ExprStmt(body.Pos, body) }), true));
+                arms.Add(new MatchArm(apos, pat, new Block(body.Pos, new[] { new ExprStmt(body.Pos, body) }), true, guard));
             }
         }
         Next();
@@ -838,6 +903,42 @@ public sealed class Parser
         var t = Cur;
         switch (t.Kind)
         {
+            case TokenKind.LBracket:
+            {
+                Next();
+                var items = new List<Pattern>();
+                Pattern? rest = null;
+                while (!At(TokenKind.RBracket))
+                {
+                    if (Accept(TokenKind.Ellipsis))
+                    {
+                        var rt = Cur;
+                        if (rt.Kind != TokenKind.Identifier) throw Error("expected a name or '_' after '...'");
+                        Next();
+                        rest = rt.Text == "_" ? new WildcardPattern(rt.Start) : new BindPattern(rt.Start, rt.Text);
+                        Accept(TokenKind.Comma);
+                        break;
+                    }
+                    items.Add(PatternExpr());
+                    if (!Accept(TokenKind.Comma)) break;
+                }
+                Expect(TokenKind.RBracket, "']' to close the list pattern");
+                return new ListPattern(t.Start, items, rest);
+            }
+            case TokenKind.LParen:
+            {
+                Next();
+                var items = new List<Pattern> { PatternExpr() };
+                while (Accept(TokenKind.Comma)) items.Add(PatternExpr());
+                Expect(TokenKind.RParen, "')' to close the tuple pattern");
+                if (items.Count == 1) return items[0];
+                return new TuplePattern(t.Start, items);
+            }
+            case TokenKind.Identifier when KindAt(1) == TokenKind.At:
+            {
+                Next(); Next();
+                return new AsPattern(t.Start, t.Text, PatternExpr());
+            }
             case TokenKind.TypeName:
             {
                 Next();

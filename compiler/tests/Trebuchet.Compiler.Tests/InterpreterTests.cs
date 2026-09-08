@@ -296,6 +296,28 @@ public class InterpreterTests
         Assert.Equal(OrdersExpected, $"placed={placed} again={again} empty={empty} {((StringValue)described).V}");
     }
 
+    public const string PatternsExpected = "point; circle 2; square 3 area 9; rect 2x5; 10 7,8 5 none 1..9 1a origin x-axis 3 y-axis 4 diagonal plane";
+
+    [Fact]
+    public void GuardsListsTuplesAndAsPatternsRun()
+    {
+        var modules = ModuleSet.Load(Path.Combine(ExamplesDir(), "patterns"));
+        var it = new Interpreter(modules);
+        it.EnvOf(modules.Find("patterns")!).TryGet("demo", out var demo);
+        Assert.Equal(new StringValue(PatternsExpected), it.Call(demo, Array.Empty<Value>()));
+    }
+
+    public const string ClassesExpected = "400c abc 10c 20c 30c 50c 9 apple,fig,pear,";
+
+    [Fact]
+    public void ShapesOverTypesDispatchThroughInstances()
+    {
+        var modules = ModuleSet.Load(Path.Combine(ExamplesDir(), "classes"));
+        var it = new Interpreter(modules);
+        it.EnvOf(modules.Find("classes")!).TryGet("demo", out var demo);
+        Assert.Equal(new StringValue(ClassesExpected), it.Call(demo, Array.Empty<Value>()));
+    }
+
     public const string CollectionsDemoExpected = "3 unique; both=2 either=4 onlyA=red hasRed=yes afterRemove=2 equal=yes empty=yes vec=yes map=yes";
 
     [Fact]

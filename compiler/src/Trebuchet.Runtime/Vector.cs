@@ -53,6 +53,13 @@ public sealed class Vector<T> : IReadOnlyList<T>, IEquatable<Vector<T>>
     private int TailOffset => _count < Width ? 0 : ((_count - 1) >> Bits) << Bits;
 
     public T this[int index] => Get(index);
+    /// <summary>Range indexing and Slice make C# list patterns (<c>[var first, .. var rest]</c>) work on a Vector.</summary>
+    public Vector<T> this[Range range] { get { var (start, length) = range.GetOffsetAndLength(_count); return Slice(start, length); } }
+    public Vector<T> Slice(int start, int length)
+    {
+        if (start < 0 || length < 0 || start + length > _count) throw new TrebPanic($"slice {start}..{start + length} out of range for a vector of {_count}");
+        return From(Enumerable.Range(start, length).Select(Get));
+    }
 
     public T Get(int index)
     {

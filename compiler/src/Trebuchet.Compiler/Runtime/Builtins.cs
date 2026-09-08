@@ -140,6 +140,28 @@ public static class Builtins
             var keyed = List(a, 0, "sortBy").Items.Select(x => (key: it.Call(f, new[] { x }), item: x)).ToList();
             return new ListValue(Vector<Value>.From(keyed.OrderBy(p => p.key, ValueComparer.Instance).Select(p => p.item)));
         });
+        // constrained builtins receive their Ord dictionary as a trailing argument
+        Def("sort", (it, a) =>
+        {
+            var dict = Arg(a, 1, "sort");
+            var items = List(a, 0, "sort").Items.ToList();
+            var sorted = items.OrderBy(x => x, Comparer<Value>.Create((x, y) => Math.Sign(CompareWith(it, dict, x, y)))).ToList();
+            return new ListValue(Vector<Value>.From(sorted));
+        });
+        Def("maximum", (it, a) =>
+        {
+            var dict = Arg(a, 1, "maximum");
+            Value? best = null;
+            foreach (var x in List(a, 0, "maximum").Items) if (best is null || CompareWith(it, dict, x, best) > 0) best = x;
+            return best is null ? None : Some(best);
+        });
+        Def("minimum", (it, a) =>
+        {
+            var dict = Arg(a, 1, "minimum");
+            Value? best = null;
+            foreach (var x in List(a, 0, "minimum").Items) if (best is null || CompareWith(it, dict, x, best) < 0) best = x;
+            return best is null ? None : Some(best);
+        });
         Def("traverse", (it, a) =>
         {
             var f = Arg(a, 1, "traverse");
@@ -265,6 +287,23 @@ public static class Builtins
 
     private static MapValue Map(IReadOnlyList<Value> a, int i, string fn) =>
         Arg(a, i, fn) as MapValue ?? throw new TrebPanic($"{fn}: argument {i + 1} is not a map: {a[i].Show()}");
+
+    /// <summary>The built-in Ord instance: compare over primitives, as a namespace value with a compare member.</summary>
+    public static readonly NamespaceValue OrdPrimitive = MakeOrdPrimitive();
+    private static NamespaceValue MakeOrdPrimitive()
+    {
+        var env = new Env(null, "Ord");
+        env.Define("compare", new Builtin("Ord.compare", (_, a) => new IntValue(ValueComparer.Instance.Compare(Arg(a, 0, "compare"), Arg(a, 1, "compare")))));
+        return new NamespaceValue("Ord", env);
+    }
+
+    /// <summary>Compares two values through an Ord dictionary: a namespace with a compare member.</summary>
+    public static long CompareWith(Interpreter it, Value dict, Value x, Value y)
+    {
+        if (dict is not NamespaceValue ns || !ns.Members.TryGet("compare", out var compare))
+            throw new TrebPanic($"expected an Ord instance but found {dict.Show()}");
+        return ((IntValue)it.Call(compare, new[] { x, y })).V;
+    }
 
     /// <summary>Ordering for sortBy keys: numbers, strings (ordinal), instants, and booleans.</summary>
     private sealed class ValueComparer : IComparer<Value>

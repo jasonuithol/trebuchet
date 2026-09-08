@@ -48,6 +48,31 @@ public sealed class TypeChecker
 
     public enum MemberKind { Namespace, Field, Method, ShapeMember, Sugar }
 
+    /// <summary>Dictionaries a call to a constrained function must pass, in the callee's constraint order: (shape, the type the constraint resolved to).</summary>
+    public Dictionary<CallExpr, IReadOnlyList<(string Shape, TType Type)>> CallDictionaries { get; } = new();
+    /// <summary>A call through a shape over a type, <c>Monoid.combine(a, b)</c>: the shape, the member, and the type the parameter resolved to.</summary>
+    public Dictionary<CallExpr, (string Shape, string Member, TType Type)> ClassCalls { get; } = new();
+    /// <summary>A comparison on a type parameter constrained by Ord: the parameter name.</summary>
+    public Dictionary<BinaryExpr, string> OrdComparisons { get; } = new();
+    /// <summary>Instances declared anywhere in the program, by shape and the key of the instance's type.</summary>
+    public Dictionary<(string Shape, string TypeKey), (InstanceDecl Decl, Module Module)> Instances { get; } = new();
+    /// <summary>The name that identifies a type for instance lookup and emitted instance names.</summary>
+    public static string TypeKey(TType t) => Prune(t) switch
+    {
+        PrimT p => p.Name,
+        RecordT r => r.Union?.Name ?? r.Name,
+        UnionT u => u.Name,
+        var other => other.Show(),
+    };
+    private readonly Dictionary<FnT, (string Shape, string Member)> _classMembers = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<(InstanceDecl, string), FnT> _instanceMethods = new();
+    /// <summary>For each instance method, its type with the shape member's declared effects: what the emitted method must look like.</summary>
+    public Dictionary<(InstanceDecl Decl, string Member), FnT> InstanceMemberTypes { get; } = new();
+    /// <summary>The resolved type each instance is for.</summary>
+    public Dictionary<InstanceDecl, TType> InstanceTargets { get; } = new();
+    private readonly Dictionary<ShapeT, Scope> _classScopes = new(ReferenceEqualityComparer.Instance);
+    private readonly List<Action> _deferred = new();
+
     /// <summary>The effects a caller is charged for calling this function: declared if present, else inferred, else builtin (pure), else all.</summary>
     public IReadOnlySet<string> EffectsOf(FnT f)
     {
@@ -157,9 +182,11 @@ public sealed class TypeChecker
         public string Where { get; init; } = "";
         /// <summary>The service whose method body is being checked, for private-method access.</summary>
         public ServiceT? Service { get; init; }
+        /// <summary>Constraints of the enclosing function's type parameters, for class calls and comparisons on them.</summary>
+        public IReadOnlyDictionary<string, IReadOnlyList<string>> Constraints { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
         /// <summary>Parameter names to indices for the enclosing named function, for effect polymorphism.</summary>
         public IReadOnlyDictionary<string, int> ParamIndex { get; init; } = new Dictionary<string, int>();
-        public Ctx With(Scope scope) => new() { Scope = scope, Module = Module, Frame = Frame, ReturnType = ReturnType, Where = Where, ParamIndex = ParamIndex, Service = Service };
+        public Ctx With(Scope scope) => new() { Scope = scope, Module = Module, Frame = Frame, ReturnType = ReturnType, Where = Where, ParamIndex = ParamIndex, Service = Service, Constraints = Constraints };
     }
 
     private TType Error(Ctx ctx, Position pos, string message)
@@ -191,6 +218,8 @@ public sealed class TypeChecker
         foreach (var m in _modules.Modules) ResolveSignatures(m);
         foreach (var m in _modules.Modules) CheckImmutability(m);
         foreach (var m in _modules.Modules) CheckBodies(m);
+        foreach (var check in _deferred) check();
+        _deferred.Clear();
         SolveEffects();
         CheckEffects();
     }
@@ -255,7 +284,7 @@ public sealed class TypeChecker
                     own.DefineType(s.Name, st);
                     break;
                 case ShapeDecl sh:
-                    var ht = new ShapeT(sh.Name);
+                    var ht = new ShapeT(sh.Name) { TypeParams = sh.TypeParams ?? Array.Empty<string>() };
                     _shapes[sh] = ht;
                     own.DefineType(sh.Name, ht);
                     break;
@@ -305,6 +334,8 @@ public sealed class TypeChecker
                 }
                 return found;
             }
+            case TupleType tt:
+                return new TupleT(tt.Items.Select(i => ResolveType(i, scope, m)).ToList());
             case FnType f:
                 return new FnT(
                     f.Params.Select(p => ResolveType(p, scope, m)).ToList(),
@@ -322,7 +353,12 @@ public sealed class TypeChecker
         var names = sig.Params.Select(p => (string?)p.Name).ToList();
         var ret = ResolveType(sig.Return, scope, m);
         IReadOnlySet<string>? effects = sig.Effects is null ? null : new HashSet<string>(sig.Effects);
-        return new FnT(ps, ret, effects, names, isHandler, sig.TypeParams.ToList());
+        if (sig.TypeConstraints is { } constraints)
+            foreach (var (param, shapes) in constraints)
+                foreach (var shapeName in shapes)
+                    if (scope.LookupType(shapeName) is not ShapeT { IsClass: true })
+                        Diagnostics.Add(new Diagnostic(m.File, sig.Pos, $"'{shapeName}' in '{param}: {shapeName}' is not a shape over a type"));
+        return new FnT(ps, ret, effects, names, isHandler, sig.TypeParams.ToList(), constraints: sig.TypeConstraints);
     }
 
     /// <summary>A child scope in which each type parameter name resolves to a rigid ParamT.</summary>
@@ -431,7 +467,58 @@ public sealed class TypeChecker
                 case ShapeDecl sh:
                 {
                     var ht = _shapes[sh];
-                    foreach (var member in sh.Members) ht.Members[member.Name] = ResolveSignature(member, own, m, false);
+                    var memberScope = ht.IsClass ? WithTypeParams(own, ht.TypeParams) : own;
+                    foreach (var member in sh.Members)
+                    {
+                        var mt = ResolveSignature(member, memberScope, m, false);
+                        if (ht.IsClass)
+                        {
+                            // a class member is generic in the shape's parameter, so a call instantiates it like any generic function
+                            mt = new FnT(mt.Params, mt.Return, mt.Effects, mt.ParamNames, false, ht.TypeParams.ToList());
+                            _classMembers[mt] = (sh.Name, member.Name);
+                        }
+                        ht.Members[member.Name] = mt;
+                    }
+                    break;
+                }
+                case InstanceDecl inst:
+                {
+                    if (own.LookupType(inst.Shape) is not ShapeT { IsClass: true } shape)
+                    {
+                        Diagnostics.Add(new Diagnostic(m.File, inst.Pos, $"'{inst.Shape}' is not a shape over a type; an instance needs 'shape {inst.Shape}[T]'"));
+                        break;
+                    }
+                    var target = ResolveType(inst.Target, own, m);
+                    var key = TypeKey(target);
+                    if (Prune(target) is RecordT { TypeArgs.Count: > 0 } or UnionT { TypeArgs.Count: > 0 } or AppT or TupleT or FnT)
+                        Diagnostics.Add(new Diagnostic(m.File, inst.Target.Pos, $"an instance must be for a record, union, or primitive type, not {Show(target)}"));
+                    if (Instances.ContainsKey((inst.Shape, key)))
+                        Diagnostics.Add(new Diagnostic(m.File, inst.Pos, $"{inst.Shape}[{key}] already has an instance"));
+                    Instances[(inst.Shape, key)] = (inst, m);
+                    InstanceTargets[inst] = target;
+                    var subst = new Dictionary<string, TType> { [shape.TypeParams[0]] = target };
+                    var seen = new HashSet<string>();
+                    foreach (var method in inst.Methods)
+                    {
+                        var name = method.Signature.Name;
+                        if (!seen.Add(name)) Diagnostics.Add(new Diagnostic(m.File, method.Pos, $"instance {inst.Shape}[{key}] defines '{name}' twice"));
+                        var mt = ResolveSignature(method.Signature, own, m, method.Kind == FnKind.Handler);
+                        _instanceMethods[(inst, name)] = mt;
+                        var frame = NewFrame(mt, $"{m.Name}.{inst.Shape}[{key}].{name}", method.Pos, FrameKind.Fn, m);
+                        if (!shape.Members.TryGetValue(name, out var expected))
+                        {
+                            Diagnostics.Add(new Diagnostic(m.File, method.Pos, $"shape {inst.Shape} has no member '{name}'"));
+                            continue;
+                        }
+                        var want = Subst(new FnT(expected.Params, expected.Return, expected.Effects, expected.ParamNames), subst);
+                        if (!TryUnify(new FnT(mt.Params, mt.Return), want))
+                            Diagnostics.Add(new Diagnostic(m.File, method.Pos, $"'{name}' in instance {inst.Shape}[{key}] has type {Show(mt)} but the shape needs {Show(want)}"));
+                        if (expected.Effects is { } allowed)
+                            _obligations.Add(new Obligation(frame, allowed, method.Pos, $"'{name}' in instance {inst.Shape}[{key}]", m));
+                        InstanceMemberTypes[(inst, name)] = new FnT(mt.Params, mt.Return, expected.Effects, mt.ParamNames);
+                    }
+                    foreach (var (name, _) in shape.Members)
+                        if (!seen.Contains(name)) Diagnostics.Add(new Diagnostic(m.File, inst.Pos, $"instance {inst.Shape}[{key}] is missing '{name}'"));
                     break;
                 }
             }
@@ -491,6 +578,7 @@ public sealed class TypeChecker
             AppT { Ctor: "Cell" } => true,
             ServiceT { IsResource: true } => true,
             AppT a => a.Args.Any(x => ContainsMutable(x, visited)),
+            TupleT tt => tt.Items.Any(x => ContainsMutable(x, visited)),
             _ => false,
         };
     }
@@ -520,6 +608,11 @@ public sealed class TypeChecker
                         CheckFunction(method, st.Methods[method.Signature.Name], new Scope(serviceScope, method.Signature.Name), m, st);
                     break;
                 }
+                case InstanceDecl inst:
+                    foreach (var method in inst.Methods)
+                        if (_instanceMethods.TryGetValue((inst, method.Signature.Name), out var mt))
+                            CheckFunction(method, mt, new Scope(own, $"instance {inst.Shape} {method.Signature.Name}"), m);
+                    break;
                 case RootDecl root:
                     CheckRoot(root, own, m);
                     break;
@@ -551,7 +644,7 @@ public sealed class TypeChecker
         for (var i = 0; i < fn.Signature.Params.Count; i++)
             scope.DefineValue(fn.Signature.Params[i].Name, new ValueSym(type.Params[i]));
         var paramIndex = fn.Signature.Params.Select((p, i) => (p.Name, i)).ToDictionary(x => x.Name, x => x.i);
-        var ctx = new Ctx { Scope = scope, Module = m, Frame = _frameOf[type], ReturnType = type.Return, Where = fn.Signature.Name, ParamIndex = paramIndex, Service = service };
+        var ctx = new Ctx { Scope = scope, Module = m, Frame = _frameOf[type], ReturnType = type.Return, Where = fn.Signature.Name, ParamIndex = paramIndex, Service = service, Constraints = type.Constraints };
         var bodyType = Block(fn.Body, ctx, type.Return);
         if (!Unify(bodyType, type.Return))
             Error(ctx, fn.Body.Pos, $"{fn.Signature.Name} is declared to return {Show(type.Return)} but its body has type {Show(bodyType)}");
@@ -577,6 +670,15 @@ public sealed class TypeChecker
                     ctx.Scope.DefineValue(b.Name, new ValueSym(t));
                     last = PrimT.Unit;
                     if (isLast) Error(ctx, b.Pos, $"a block cannot end with a binding; '{b.Name}' is never used");
+                    break;
+                }
+                case DestructureStmt ds:
+                {
+                    var t = Infer(ds.Value, ctx, null);
+                    if (!Pattern(ds.Pattern, t, VariantsOf(Prune(t)), ctx.Scope, ctx, new()))
+                        Error(ctx, ds.Pos, "this pattern can fail to match, so it cannot be a binding; use match, or a pattern that matches every value");
+                    last = PrimT.Unit;
+                    if (isLast) Error(ctx, ds.Pos, "a block cannot end with a binding");
                     break;
                 }
                 case UseStmt u:
@@ -627,11 +729,18 @@ public sealed class TypeChecker
     {
         switch (e)
         {
+            case TupleLit tl:
+            {
+                var hints = Prune(hint ?? PrimT.Unknown) is TupleT ht && ht.Items.Count == tl.Items.Count ? ht.Items : null;
+                return new TupleT(tl.Items.Select((item, i) => Infer(item, ctx, hints?[i])).ToList());
+            }
             case NameExpr n:
                 return ValueOf(n.Name, n.Pos, ctx);
             case TypeNameExpr tn:
             {
                 var sym = ctx.Scope.LookupValue(tn.Name);
+                if (sym is null && ctx.Scope.LookupType(tn.Name) is ShapeT { IsClass: true } cls)
+                    return new NamespaceT(tn.Name, ClassScope(cls));
                 if (sym is null)
                 {
                     if (ctx.Scope.LookupType(tn.Name) is { } asType)
@@ -772,6 +881,10 @@ public sealed class TypeChecker
             case RecordT r when r.Field(mem.Name) is { } field:
                 MemberKinds[mem] = MemberKind.Field;
                 return (field, null);
+            case TupleT tt when int.TryParse(mem.Name, out var index):
+                MemberKinds[mem] = MemberKind.Field;
+                if (index < 0 || index >= tt.Items.Count) return (Error(ctx, mem.Pos, $"tuple {Show(tt)} has no item {index}"), null);
+                return (tt.Items[index], null);
             case ServiceT s when s.Methods.TryGetValue(mem.Name, out var method):
                 MemberKinds[mem] = MemberKind.Method;
                 if (s.PrivateMethods.Contains(mem.Name) && ctx.Service?.Name != s.Name)
@@ -922,6 +1035,33 @@ public sealed class TypeChecker
         {
             CalleeOf[call] = chosen;
             if (chosenTypeArgs is not null && !_builtinFns.Contains(chosenAlt)) CallTypeArgs[call] = chosenTypeArgs;
+            if (chosenTypeArgs is not null && chosenOriginal is not null)
+            {
+                // resolved after every body is checked, when inference variables have their final bindings
+                var original = chosenOriginal;
+                var targs = chosenTypeArgs;
+                var callSite = call;
+                var callCtx = ctx;
+                if (_classMembers.TryGetValue(original, out var cm))
+                    _deferred.Add(() =>
+                    {
+                        var t = Prune(targs[0]);
+                        if (CheckConstraint(cm.Shape, t, callCtx, pos, $"{cm.Shape}.{cm.Member}")) ClassCalls[callSite] = (cm.Shape, cm.Member, t);
+                    });
+                else if (original.Constraints.Count > 0)
+                    _deferred.Add(() =>
+                    {
+                        var dicts = new List<(string, TType)>();
+                        for (var i = 0; i < original.TypeParams.Count; i++)
+                        {
+                            if (!original.Constraints.TryGetValue(original.TypeParams[i], out var shapes)) continue;
+                            var t = Prune(targs[i]);
+                            foreach (var shapeName in shapes)
+                                if (CheckConstraint(shapeName, t, callCtx, pos, $"'{name}'")) dicts.Add((shapeName, t));
+                        }
+                        CallDictionaries[callSite] = dicts;
+                    });
+            }
         }
         var result = chosen.Return;
         if (hint is not null) Unify(result, hint);
@@ -1022,7 +1162,7 @@ public sealed class TypeChecker
         var frame = new Frame { Name = "lambda", Pos = lam.Pos, Kind = FrameKind.Lambda, Module = ctx.Module };
         _frames.Add(frame);
         _lambdaFrames[lam] = frame;
-        var inner = new Ctx { Scope = scope, Module = ctx.Module, Frame = frame, ReturnType = ret, Where = "this lambda", Service = ctx.Service };
+        var inner = new Ctx { Scope = scope, Module = ctx.Module, Frame = frame, ReturnType = ret, Where = "this lambda", Service = ctx.Service, Constraints = ctx.Constraints };
         var bodyType = Block(lam.Body, inner, ret);
         if (!Unify(bodyType, ret))
             Error(ctx, lam.Pos, $"lambda body has type {Show(bodyType)} but {Show(ret)} is expected");
@@ -1068,6 +1208,15 @@ public sealed class TypeChecker
             if (comparison) return PrimT.Bool;
         }
         if (SameNamed("Instant") && comparison) return PrimT.Bool;
+        if (comparison && left is ParamT lp && right is ParamT rp && lp.Name == rp.Name)
+        {
+            if (ctx.Constraints.TryGetValue(lp.Name, out var shapes) && shapes.Contains("Ord"))
+            {
+                OrdComparisons[b] = lp.Name;
+                return PrimT.Bool;
+            }
+            return Error(ctx, b.Pos, $"'{b.Op}' on {lp.Name} needs '{lp.Name}: Ord' in the type parameters");
+        }
         return Error(ctx, b.Pos, $"operator '{b.Op}' is not defined on {Show(left)} and {Show(right)}");
     }
 
@@ -1075,10 +1224,10 @@ public sealed class TypeChecker
     {
         var scrutinee = Prune(Infer(mx.Scrutinee, ctx, null));
         var variants = VariantsOf(scrutinee);
-        if (variants is null && scrutinee is not PrimT { Name: "Bool" or "Int" or "String" or "?" })
+        if (variants is null && scrutinee is not PrimT { Name: "Bool" or "Int" or "String" or "?" } && scrutinee is not TupleT && scrutinee is not AppT { Ctor: "Vector" })
             return Error(ctx, mx.Scrutinee.Pos, scrutinee is VarT
                 ? "cannot match on a value whose type is not yet known; add a type annotation"
-                : $"cannot match on {Show(scrutinee)}; only unions, Option, Result, Bool, Int and String can be matched");
+                : $"cannot match on {Show(scrutinee)}; only unions, Option, Result, tuples, vectors, Bool, Int and String can be matched");
 
         var result = hint ?? new VarT("arm");
         var covered = new HashSet<string>();
@@ -1086,7 +1235,14 @@ public sealed class TypeChecker
         foreach (var arm in mx.Arms)
         {
             var armScope = new Scope(ctx.Scope, "arm");
-            var total = Pattern(arm.Pattern, scrutinee, variants, armScope, ctx, covered);
+            // a guarded arm covers nothing for exhaustiveness: the guard may be false
+            var total = Pattern(arm.Pattern, scrutinee, variants, armScope, ctx, arm.Guard is null ? covered : new HashSet<string>());
+            if (arm.Guard is not null)
+            {
+                var gt = Infer(arm.Guard, ctx.With(armScope), PrimT.Bool);
+                if (!Unify(gt, PrimT.Bool)) Error(ctx, arm.Guard.Pos, $"a guard must be a Bool but this one is {Show(gt)}");
+                total = false;
+            }
             if (total) catchAll = true;
             var bodyType = Block(arm.Body, ctx.With(armScope), result);
             if (!Unify(bodyType, result))
@@ -1102,6 +1258,14 @@ public sealed class TypeChecker
         {
             if (!(covered.Contains("true") && covered.Contains("false")))
                 Error(ctx, mx.Pos, "match on Bool is not exhaustive; add the missing case or a '_' arm");
+        }
+        else if (!catchAll && scrutinee is AppT { Ctor: "Vector" })
+        {
+            // exhaustive when some arm takes every length from k up and each length below k has an exact arm
+            var rests = covered.Where(c => c.StartsWith("rest:")).Select(c => int.Parse(c[5..])).ToList();
+            var exact = covered.Where(c => c.StartsWith("len:")).Select(c => int.Parse(c[4..])).ToHashSet();
+            var ok = rests.Count > 0 && Enumerable.Range(0, rests.Min()).All(exact.Contains);
+            if (!ok) Error(ctx, mx.Pos, $"match on {Show(scrutinee)} is not exhaustive; add a '_' arm or a '[..., ...rest]' arm that covers the remaining lengths");
         }
         else if (!catchAll && variants is null && scrutinee is not PrimT { Name: "?" })
             Error(ctx, mx.Pos, $"match on {Show(scrutinee)} needs a '_' arm");
@@ -1128,6 +1292,44 @@ public sealed class TypeChecker
             case BindPattern b:
                 scope.DefineValue(b.Name, new ValueSym(t));
                 return true;
+            case AsPattern ap:
+                scope.DefineValue(ap.Name, new ValueSym(t));
+                return Pattern(ap.Inner, t, variants, scope, ctx, covered);
+            case TuplePattern tp:
+            {
+                if (t is VarT) Unify(t, new TupleT(tp.Items.Select(_ => (TType)new VarT("item")).ToList()));
+                t = Prune(t);
+                if (t is PrimT { Name: "?" }) { foreach (var item in tp.Items) Pattern(item, PrimT.Unknown, null, scope, ctx, new()); return false; }
+                if (t is not TupleT tt || tt.Items.Count != tp.Items.Count)
+                {
+                    Error(ctx, tp.Pos, $"a tuple pattern with {tp.Items.Count} items cannot match {Show(t)}");
+                    return false;
+                }
+                var allTotal = true;
+                for (var i = 0; i < tp.Items.Count; i++)
+                    if (!Pattern(tp.Items[i], tt.Items[i], VariantsOf(Prune(tt.Items[i])), scope, ctx, new())) allTotal = false;
+                return allTotal;
+            }
+            case ListPattern lp:
+            {
+                if (t is VarT) Unify(t, new AppT("Vector", new TType[] { new VarT("elem") }));
+                t = Prune(t);
+                if (t is PrimT { Name: "?" }) { foreach (var item in lp.Items) Pattern(item, PrimT.Unknown, null, scope, ctx, new()); return false; }
+                if (t is not AppT { Ctor: "Vector" } vec)
+                {
+                    Error(ctx, lp.Pos, $"a list pattern cannot match {Show(t)}");
+                    return false;
+                }
+                var elem = vec.Args[0];
+                var itemsTotal = true;
+                foreach (var item in lp.Items)
+                    if (!Pattern(item, elem, VariantsOf(Prune(elem)), scope, ctx, new())) itemsTotal = false;
+                var restTotal = lp.Rest is not null && Pattern(lp.Rest, t, null, scope, ctx, new());
+                // for exhaustiveness: this arm covers exactly this length, or every length from here up
+                if (itemsTotal && lp.Rest is null) covered.Add($"len:{lp.Items.Count}");
+                if (itemsTotal && restTotal) covered.Add($"rest:{lp.Items.Count}");
+                return lp.Items.Count == 0 && restTotal;
+            }
             case LiteralPattern lit:
             {
                 var lt = Infer(lit.Literal, ctx, null);
@@ -1312,6 +1514,38 @@ public sealed class TypeChecker
             plan.Add(idx);
         }
         return plan;
+    }
+
+    /// <summary>The members of a shape over a type as a namespace scope, for <c>Shape.member(...)</c> calls.</summary>
+    private Scope ClassScope(ShapeT cls)
+    {
+        if (_classScopes.TryGetValue(cls, out var existing)) return existing;
+        var scope = new Scope(null, cls.Name);
+        foreach (var (name, fn) in cls.Members) scope.DefineValue(name, new ValueSym(fn));
+        _classScopes[cls] = scope;
+        return scope;
+    }
+
+    /// <summary>Whether <paramref name="t"/> satisfies the shape: a constrained parameter in scope, a built-in instance, or a declared one.</summary>
+    private bool CheckConstraint(string shape, TType t, Ctx ctx, Position pos, string what)
+    {
+        t = Prune(t);
+        switch (t)
+        {
+            case ParamT p:
+                if (ctx.Constraints.TryGetValue(p.Name, out var shapes) && shapes.Contains(shape)) return true;
+                Error(ctx, pos, $"{what} needs {p.Name} to be {shape}; add '{p.Name}: {shape}' to the type parameters");
+                return false;
+            case VarT:
+                Error(ctx, pos, $"{what}: cannot tell which type the {shape} instance is for; add a type argument");
+                return false;
+            case PrimT { Name: "?" }:
+                return false;
+            default:
+                if (BuiltinSignatures.HasBuiltinInstance(shape, t) || Instances.ContainsKey((shape, TypeKey(t)))) return true;
+                Error(ctx, pos, $"{what}: no instance of {shape} for {Show(t)}");
+                return false;
+        }
     }
 
     /// <summary>Checks that a provided value can stand in for a required dependency type, structurally for shapes.</summary>

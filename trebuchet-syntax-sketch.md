@@ -29,6 +29,10 @@ Everything else is conventional. Where a C-family or ML-family spelling exists, 
 | Purity assertion | `! Pure` | `-> Money ! Pure` |
 | Lambda | `\params -> body` | `\acc, line -> acc + line.total` |
 | Match arm | `pattern => body` | `OrderPlaced(id, _, _) => ...` |
+| Guard | `pattern if cond => body` | `Some(x) if x > 0 => ...` |
+| List pattern | `[]`, `[a, b]`, `[first, ...rest]`, `[a, ..._]` | `[x, ...rest] => x + total(rest)` |
+| Tuple | `(A, B)` type, `(a, b)` value or pattern, `p.0` item | `(lo, hi) = minMax(xs)` |
+| As-pattern | `name @ pattern` | `whole @ Rect(w, h) if w == h => ...` |
 | Result propagation | postfix `?` | `repo.load(id)?` |
 | Binding | `=` | `state = fold(history, Order.empty, apply)` |
 | Strings | double quotes | `"Brisbane"` |
@@ -37,6 +41,10 @@ Everything else is conventional. Where a C-family or ML-family spelling exists, 
 | Type arguments on a call | square brackets before the parentheses | `json.decode[RoomEvent](payload)` |
 | Zero-argument lambda | `\-> body` | `\-> BookingId(uuid())` |
 | Type parameters | square brackets after a name | `record Pair[A, B](...)`, `fn swap[A, B](...)` |
+| Constraint | `T: Shape` inside the brackets, several as `T: Ord Show` | `fn sort[T: Ord](xs: Vector[T])` |
+| Shape over a type | `shape Name[T]` with members mentioning `T` | `shape Monoid[T]` |
+| Instance | `instance Shape[Type]` with the members as fns | `instance Monoid[Money]` |
+| Class call | `Shape.member(args)`, or `Shape.member[T]()` when no argument fixes `T` | `Monoid.combine(a, b)` |
 | Extern | `extern fn` with a required `!` clause and host bindings | `extern fn f(x: String) -> Int ! Nondet` |
 | Resource service | `resource service`, must define `release` | `resource service Conn(cfg: DbConfig)` |
 | Resource binding | `use name = expr`, released at block end | `use conn = Conn(cfg)` |
@@ -260,6 +268,47 @@ shape Clock
 ---
 
 ## 5. Expressions
+
+### Shapes over types
+
+```
+shape Monoid[T]
+  fn empty() -> T ! Pure
+  fn combine(a: T, b: T) -> T ! Pure
+
+instance Monoid[Money]
+  fn empty() -> Money
+    Money(0)
+  fn combine(a: Money, b: Money) -> Money
+    Money(a.cents + b.cents)
+
+fn concatAll[T: Monoid](xs: Vector[T]) -> T ! Pure
+  fold(xs, Monoid.empty[T](), \a, b -> Monoid.combine(a, b))
+```
+
+`Ord` is built in, with instances for Int, Float, String, Bool, and Instant; `instance Ord[Money]` adds one with a `compare`. On a parameter declared `T: Ord`, `<` and friends work, and `sort`, `minimum`, and `maximum` accept the vector. Equality and `toString` need no constraint: every type has them.
+
+### Patterns
+
+```
+fn describe(s: Shape) -> String ! Pure
+  match s
+    Circle(r) if r == 0 => "point"
+    whole @ Rect(w, h) if w == h => "square " + toString(area(whole))
+    Rect(w, h) => "rect"
+    _ => "circle"
+
+fn total(xs: Vector[Int]) -> Int ! Pure
+  match xs
+    [] => 0
+    [x, ...rest] => x + total(rest)
+
+fn swap[A, B](p: (A, B)) -> (B, A) ! Pure
+  (a, b) = p
+  (b, a)
+```
+
+A guarded arm never counts towards exhaustiveness. A match on a vector is exhaustive when some `[..., ...rest]` arm takes every length from k up and each shorter length has an exact arm. A binding line may be any pattern that cannot fail; one that can is an error that points at `match`.
 
 ### Collections
 
@@ -495,7 +544,7 @@ Note that a short record can be declared inline, `record OrderId(value: String)`
 9. Whether a service method may share a name with a top-level function, as in the bookings sample where the method `request` calls the handler `request` by qualification.
 10. Whether `\->` is the right spelling for a zero-argument lambda.
 11. Whether a service method may shadow a top-level function of the same name at all. The type checker caught a case where the shadow silently changed which function was called; forbidding it, or requiring qualification, may be better than the nearest-scope rule.
-12. Whether a variant pattern needs an as-binding (`e @ OrderPlaced(...)`) or named-field form (`OrderPlaced(lines: ls)`) in addition to positional destructuring.
+12. ~~Whether a variant pattern needs an as-binding~~: `e @ OrderPlaced(...)` exists (§5). Named-field patterns remain open.
 
 ---
 

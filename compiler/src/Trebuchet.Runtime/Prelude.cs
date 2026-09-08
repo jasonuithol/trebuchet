@@ -72,6 +72,21 @@ public static class Prelude
     public static Vector<T> drop<T>(Vector<T> v, long n) => Vector<T>.From(v.Skip((int)Math.Max(0, Math.Min(n, v.Count))));
     public static Option<T> at<T>(Vector<T> v, long i) => i >= 0 && i < v.Count ? Option<T>.Some(v.Get((int)i)) : Option<T>.None;
     public static Vector<T> sortBy<T, K>(Vector<T> v, Func<T, K> key) => Vector<T>.From(v.OrderBy(key));
+    public static Vector<T> sort<T>(Vector<T> v, Ord<T> ord) => Vector<T>.From(v.OrderBy(x => x, Comparer<T>.Create((a, b) => Math.Sign(ord.compare(a, b)))));
+    public static Option<T> maximum<T>(Vector<T> v, Ord<T> ord)
+    {
+        if (v.IsEmpty) return Option<T>.None;
+        var best = v.Get(0);
+        foreach (var x in v) if (ord.compare(x, best) > 0) best = x;
+        return Option<T>.Some(best);
+    }
+    public static Option<T> minimum<T>(Vector<T> v, Ord<T> ord)
+    {
+        if (v.IsEmpty) return Option<T>.None;
+        var best = v.Get(0);
+        foreach (var x in v) if (ord.compare(x, best) < 0) best = x;
+        return Option<T>.Some(best);
+    }
     public static async ValueTask<Vector<T>> sortByAsync<T, K>(Vector<T> v, Func<T, ValueTask<K>> key)
     {
         var keyed = new List<(K Key, T Item)>();

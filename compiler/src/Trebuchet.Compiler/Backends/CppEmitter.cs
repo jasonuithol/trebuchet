@@ -135,6 +135,7 @@ public sealed class CppEmitter
                 "Instant" => "Instant", "Never" => "Unit", _ => "Unit",
             },
             AppT a => $"{a.Ctor}<{string.Join(", ", a.Args.Select(CppType))}>",
+            TupleT tt => $"std::tuple<{string.Join(", ", tt.Items.Select(CppType))}>",
             RecordT r when ReferenceEquals(r, BuiltinSignatures.Panic) => "PanicValue", // treb::Panic is the exception
             RecordT r => r.TypeArgs.Count == 0 ? r.Name : $"{r.Name}<{string.Join(", ", r.TypeArgs.Select(CppType))}>",
             UnionT u => u.TypeArgs.Count == 0 ? u.Name : $"{u.Name}<{string.Join(", ", u.TypeArgs.Select(CppType))}>",
@@ -168,8 +169,9 @@ public sealed class CppEmitter
             {
                 case RecordDecl r: EmitRecord(sb, hashes, r, m, ns); break;
                 case UnionDecl u: EmitUnion(sb, hashes, u, ns); break;
-                case ShapeDecl sh: EmitShape(sb, sh); break;
+                case ShapeDecl sh when !_checker.ShapeTypeOf(sh).IsClass: EmitShape(sb, sh); break;
                 case ServiceDecl s: EmitServiceDecl(sb, s); break;
+                case InstanceDecl inst: EmitInstanceDecl(sb, inst); break;
             }
         }
         sb.AppendLine("}");
@@ -182,11 +184,11 @@ public sealed class CppEmitter
             if (d is FnDecl fn)
             {
                 var type = (FnT)((ValueSym)_checker.ScopeOf(m).LookupLocalValue(fn.Signature.Name)!).Type;
-                sb.AppendLine($"    {Template(fn.Signature.TypeParams)}{Ret(type)} {Id(fn.Signature.Name)}({Params(fn.Signature.Params, type)});");
+                sb.AppendLine($"    {TemplateFor(type, fn.Signature.TypeParams)}{Ret(type)} {Id(fn.Signature.Name)}({DictParams(type, Params(fn.Signature.Params, type))});");
                 if (_checker.PolyParamsOf(type).Count > 0)
                 {
                     _polyAsync = true;
-                    sb.AppendLine($"    {Template(fn.Signature.TypeParams)}Task<{CppType(type.Return)}> {Id(fn.Signature.Name)}Async({Params(fn.Signature.Params, type)});");
+                    sb.AppendLine($"    {TemplateFor(type, fn.Signature.TypeParams)}Task<{CppType(type.Return)}> {Id(fn.Signature.Name)}Async({DictParams(type, Params(fn.Signature.Params, type))});");
                     _polyAsync = false;
                 }
             }
@@ -198,6 +200,7 @@ public sealed class CppEmitter
             switch (d)
             {
                 case ServiceDecl s: EmitServiceMethods(sb, s, m); break;
+                case InstanceDecl inst: EmitInstanceMethods(sb, inst, m); break;
                 case FnDecl fn: EmitFunction(sb, fn, m, null); break;
                 case RootDecl root: EmitRoot(sb, root, m); break;
             }
@@ -230,6 +233,62 @@ public sealed class CppEmitter
     }
 
     private string FieldType(RecordT owner, (string Name, TType Type) f) => IsBoxed(owner, f.Name) ? $"Box<{CppType(f.Type)}>" : CppType(f.Type);
+
+    /// <summary>Template parameters for a function: its type parameters plus one dictionary type per constraint.</summary>
+    private static string TemplateFor(FnT type, IReadOnlyList<string> typeParams)
+    {
+        var ps = typeParams.Select(p => "class " + p).ToList();
+        foreach (var param in type.TypeParams)
+            if (type.Constraints.TryGetValue(param, out var shapes))
+                foreach (var shape in shapes) ps.Add($"class {shape}_{param}");
+        return ps.Count == 0 ? "" : $"template <{string.Join(", ", ps)}> ";
+    }
+
+    private static string DictParams(FnT type, string declared)
+    {
+        var parts = new List<string>();
+        foreach (var param in type.TypeParams)
+            if (type.Constraints.TryGetValue(param, out var shapes))
+                foreach (var shape in shapes) parts.Add($"{shape}_{param} __{shape}_{param}");
+        if (parts.Count == 0) return declared;
+        return declared.Length == 0 ? string.Join(", ", parts) : declared + ", " + string.Join(", ", parts);
+    }
+
+    /// <summary>The dictionary value for a shape at a type: a hidden parameter, a built-in instance, or a generated one.</summary>
+    private string DictExpr(string shape, TType t)
+    {
+        t = Prune(t);
+        if (t is ParamT p) return $"__{shape}_{p.Name}";
+        if (BuiltinSignatures.HasBuiltinInstance(shape, t)) return $"Ord_{((PrimT)t).Name}{{}}";
+        return $"{shape}_{TypeChecker.TypeKey(t)}{{}}";
+    }
+
+    private void EmitInstanceDecl(StringBuilder sb, InstanceDecl inst)
+    {
+        var name = $"{inst.Shape}_{TypeChecker.TypeKey(_checker.InstanceTargets[inst])}";
+        sb.AppendLine($"    struct {name} {{");
+        foreach (var method in inst.Methods)
+        {
+            var mt = _checker.InstanceMemberTypes[(inst, method.Signature.Name)];
+            sb.AppendLine($"        {Ret(mt)} {Id(method.Signature.Name)}({Params(method.Signature.Params, mt)}) const;");
+        }
+        sb.AppendLine("    };");
+    }
+
+    private void EmitInstanceMethods(StringBuilder sb, InstanceDecl inst, Module m)
+    {
+        var name = $"{inst.Shape}_{TypeChecker.TypeKey(_checker.InstanceTargets[inst])}";
+        foreach (var method in inst.Methods)
+        {
+            var mt = _checker.InstanceMemberTypes[(inst, method.Signature.Name)];
+            sb.AppendLine($"    {Ret(mt)} {name}::{Id(method.Signature.Name)}({Params(method.Signature.Params, mt)}) const");
+            sb.AppendLine("    {");
+            var fe = new FnEmitter(this, m, mt.Return, 2, inMethod: true, coroutine: Suspends(mt));
+            fe.EmitBlockInto(method.Body, FnEmitter.Target.Return, mt.Return);
+            sb.Append(fe.Text);
+            sb.AppendLine("    }");
+        }
+    }
 
     private static string Template(IReadOnlyList<string> typeParams) => typeParams.Count == 0 ? "" : $"template <{string.Join(", ", typeParams.Select(p => "class " + p))}> ";
     private static string TArgs(IReadOnlyList<string> typeParams) => typeParams.Count == 0 ? "" : $"<{string.Join(", ", typeParams)}>";
@@ -356,7 +415,7 @@ public sealed class CppEmitter
         _polyAsync = polyAsync;
         var coroutine = Suspends(type) || polyAsync;
         var ret = coroutine ? $"Task<{CppType(type.Return)}>" : CppType(type.Return);
-        sb.AppendLine($"    {Template(fn.Signature.TypeParams)}{ret} {Id(name)}({Params(fn.Signature.Params, type)})");
+        sb.AppendLine($"    {TemplateFor(type, fn.Signature.TypeParams)}{ret} {Id(name)}({DictParams(type, Params(fn.Signature.Params, type))})");
         sb.AppendLine("    {");
         var fe = new FnEmitter(this, m, type.Return, 2, inMethod: false, coroutine: coroutine);
         fe.EmitBlockInto(fn.Body, FnEmitter.Target.Return, type.Return);
@@ -530,6 +589,16 @@ public sealed class CppEmitter
                         if (last) EmitTarget(target, "unit");
                         break;
                     }
+                    case DestructureStmt ds:
+                    {
+                        var t = TypeOf(ds.Value);
+                        var tmp = Tmp("d");
+                        Line($"auto {tmp} = {EmitExpr(ds.Value, t)};");
+                        var (_, bindings) = Pattern(ds.Pattern, t, tmp);
+                        foreach (var b in bindings) Line(b);
+                        if (last) EmitTarget(target, "unit");
+                        break;
+                    }
                     case UseStmt u:
                     {
                         var t = TypeOf(u.Value);
@@ -587,21 +656,34 @@ public sealed class CppEmitter
                 {
                     var st = TypeOf(mx.Scrutinee);
                     var sv = Tmp("m");
+                    var done = Tmp("matched");
                     Line($"auto {sv} = {EmitExpr(mx.Scrutinee, null)};");
-                    var first = true;
+                    Line($"bool {done} = false;");
                     foreach (var arm in mx.Arms)
                     {
                         var (cond, bindings) = Pattern(arm.Pattern, st, sv);
-                        Line($"{(first ? "if" : "else if")} ({cond})");
+                        Line($"if (!{done} && ({cond}))");
                         Line("{");
                         _indent++;
                         foreach (var b in bindings) Line(b);
+                        if (arm.Guard is not null)
+                        {
+                            // bindings are in scope for the guard; a false guard falls through to the next arm
+                            Line($"if ({EmitExpr(arm.Guard, PrimT.Bool)})");
+                            Line("{");
+                            _indent++;
+                        }
+                        Line($"{done} = true;");
                         EmitBlockInto(arm.Body, target, expected);
+                        if (arm.Guard is not null)
+                        {
+                            _indent--;
+                            Line("}");
+                        }
                         _indent--;
                         Line("}");
-                        first = false;
                     }
-                    Line("else throw treb::Panic(\"no match arm\");");
+                    Line(target.Kind == "return" ? "throw treb::Panic(\"no match arm\");" : $"if (!{done}) throw treb::Panic(\"no match arm\");");
                     break;
                 }
                 default:
@@ -627,6 +709,36 @@ public sealed class CppEmitter
                     return ("true", bindings);
                 case LiteralPattern lit:
                     return ($"({access} == {EmitExpr(lit.Literal, type)})", bindings);
+                case AsPattern ap:
+                {
+                    bindings.Add($"auto {Id(ap.Name)} = {access};");
+                    var (c, bs) = Pattern(ap.Inner, type, access);
+                    bindings.AddRange(bs);
+                    return (c, bindings);
+                }
+                case TuplePattern tp when type is TupleT tt:
+                {
+                    var conds = new List<string>();
+                    for (var i = 0; i < tp.Items.Count; i++)
+                    {
+                        var (c, bs) = Pattern(tp.Items[i], tt.Items[i], $"std::get<{i}>({access})");
+                        if (c != "true") conds.Add(c);
+                        bindings.AddRange(bs);
+                    }
+                    return (conds.Count == 0 ? "true" : string.Join(" && ", conds), bindings);
+                }
+                case ListPattern lp when type is AppT { Ctor: "Vector" } vec:
+                {
+                    var conds = new List<string> { lp.Rest is null ? $"{access}.size() == {lp.Items.Count}" : $"{access}.size() >= {lp.Items.Count}" };
+                    for (var i = 0; i < lp.Items.Count; i++)
+                    {
+                        var (c, bs) = Pattern(lp.Items[i], vec.Args[0], $"{access}.get({i})");
+                        if (c != "true") conds.Add(c);
+                        bindings.AddRange(bs);
+                    }
+                    if (lp.Rest is BindPattern rb) bindings.Add($"auto {Id(rb.Name)} = drop({access}, {lp.Items.Count});");
+                    return (string.Join(" && ", conds), bindings);
+                }
                 case VariantPattern vp:
                 {
                     var conds = new List<string>();
@@ -684,7 +796,19 @@ public sealed class CppEmitter
                 case BoolLit b: return b.Value ? "true" : "false";
                 case NameExpr n: return Id(n.Name);
                 case TypeNameExpr tn:
-                    return Prune(TypeOf(tn)) is UnionT u ? $"{_e.CppType(u)}{{{tn.Name}{GenericArgs(u.TypeArgs)}{{}}}}" : tn.Name;
+                {
+                    var t = Prune(expected ?? TypeOf(tn));
+                    if (t is UnionT u) return $"{_e.CppType(u)}{{{tn.Name}{GenericArgs(u.TypeArgs)}{{}}}}";
+                    // a None whose Option type is known is spelled out, so template deduction sees an Option, not a NoneValue
+                    if (tn.Name == "None" && t is AppT { Ctor: "Option" } o && Prune(o.Args[0]) is not VarT) return $"{_e.CppType(o)}::None()";
+                    return tn.Name;
+                }
+                case TupleLit tl:
+                {
+                    var tt = Prune(TypeOf(tl)) as TupleT;
+                    var items = tl.Items.Select((x, i) => EmitExpr(x, tt?.Items[i]));
+                    return $"{(tt is null ? "std::make_tuple" : _e.CppType(tt))}{{{string.Join(", ", items)}}}";
+                }
                 case ListLit l:
                 {
                     var t = Prune(expected ?? TypeOf(l));
@@ -707,6 +831,8 @@ public sealed class CppEmitter
                 case BinaryExpr b:
                 {
                     var op = b.Op switch { "and" => "&&", "or" => "||", _ => b.Op };
+                    if (_e._checker.OrdComparisons.TryGetValue(b, out var ordParam))
+                        return $"(__Ord_{ordParam}.compare({EmitExpr(b.Left, null)}, {EmitExpr(b.Right, TypeOf(b.Left))}) {op} 0)";
                     var lt = TypeOf(b.Left);
                     return $"({EmitExpr(b.Left, null)} {op} {EmitExpr(b.Right, lt)})";
                 }
@@ -788,6 +914,8 @@ public sealed class CppEmitter
                     if (label is "sys" or "env" or "json") return $"treb::{label}::{mem.Name}";
                     return Prune(TypeOf(mem)) is UnionT u ? $"{_e.CppType(u)}{{{mem.Name}{GenericArgs(u.TypeArgs)}{{}}}}" : mem.Name;
                 }
+                case TypeChecker.MemberKind.Field when Prune(TypeOf(mem.Target)) is TupleT && int.TryParse(mem.Name, out var tupleIndex):
+                    return $"std::get<{tupleIndex}>({EmitExpr(mem.Target, null)})";
                 case TypeChecker.MemberKind.Field:
                 {
                     var access = $"{EmitExpr(mem.Target, null)}.{Id(mem.Name)}";
@@ -832,7 +960,12 @@ public sealed class CppEmitter
 
             var argTexts = new List<string>();
             string head;
-            if (c.Callee is MemberExpr mem)
+            if (_e._checker.ClassCalls.TryGetValue(c, out var classCall))
+            {
+                head = $"{_e.DictExpr(classCall.Shape, classCall.Type)}.{Id(classCall.Member)}";
+                typeArgs = "";
+            }
+            else if (c.Callee is MemberExpr mem)
             {
                 var kind = _e._checker.MemberKinds.GetValueOrDefault(mem, TypeChecker.MemberKind.Sugar);
                 if (kind == TypeChecker.MemberKind.Sugar)
@@ -877,6 +1010,8 @@ public sealed class CppEmitter
                     if (anySuspends) { head += "Async"; suspends = true; }
                 }
             }
+            if (_e._checker.CallDictionaries.TryGetValue(c, out var dictionaries))
+                foreach (var (shape, dictType) in dictionaries) argTexts.Add(_e.DictExpr(shape, dictType));
             var text = $"{head}{typeArgs}({string.Join(", ", argTexts)})";
             return suspends ? $"(co_await {text})" : text;
         }

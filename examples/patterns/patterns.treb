@@ -1,0 +1,55 @@
+module patterns
+
+// Guards, list patterns, as-patterns, tuples, and destructuring bindings.
+
+union Shape
+  Circle(r: Int)
+  Rect(w: Int, h: Int)
+
+fn area(s: Shape) -> Int ! Pure
+  match s
+    Circle(r) => 3 * r * r
+    Rect(w, h) => w * h
+
+fn describe(s: Shape) -> String ! Pure
+  match s
+    Circle(r) if r == 0 => "point"
+    Circle(r) => "circle " + toString(r)
+    whole @ Rect(w, h) if w == h => "square " + toString(w) + " area " + toString(area(whole))
+    Rect(w, h) => "rect " + toString(w) + "x" + toString(h)
+
+fn total(xs: Vector[Int]) -> Int ! Pure
+  match xs
+    [] => 0
+    [x, ...rest] => x + total(rest)
+
+fn firstTwo(xs: Vector[Int]) -> String ! Pure
+  match xs
+    [a, b, ..._] => toString(a) + "," + toString(b)
+    [a] => toString(a)
+    [] => "none"
+
+fn minMax(xs: Vector[Int]) -> (Int, Int) ! Pure
+  fold(xs, (999, -999), \acc, x -> (if x < acc.0 then x else acc.0, if x > acc.1 then x else acc.1))
+
+fn swap[A, B](p: (A, B)) -> (B, A) ! Pure
+  (a, b) = p
+  (b, a)
+
+fn classify(p: (Int, Int)) -> String ! Pure
+  match p
+    (0, 0) => "origin"
+    (x, 0) => "x-axis " + toString(x)
+    (0, y) => "y-axis " + toString(y)
+    (x, y) if x == y => "diagonal"
+    _ => "plane"
+
+fn demo() -> String ! Pure
+  shapes = [Circle(0), Circle(2), Rect(3, 3), Rect(2, 5)]
+  (lo, hi) = minMax([4, 9, 1, 7])
+  swapped = swap(("a", 1))
+  described = fold(map(shapes, describe), "", \acc, d -> acc + d + "; ")
+  lists = toString(total([1, 2, 3, 4])) + " " + firstTwo([7, 8, 9]) + " " + firstTwo([5]) + " " + firstTwo([])
+  tuples = toString(lo) + ".." + toString(hi) + " " + toString(swapped.0) + swapped.1
+  points = classify((0, 0)) + " " + classify((3, 0)) + " " + classify((0, 4)) + " " + classify((2, 2)) + " " + classify((1, 2))
+  described + lists + " " + tuples + " " + points

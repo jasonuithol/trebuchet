@@ -29,6 +29,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -955,6 +956,32 @@ template <class T, class F> auto traverseAsync(Vector<T> v, F f)
     }
     co_return OkValue<Vector<typename R::value_type>>{acc};
 }
+// The built-in Ord instances. A generated instance is a struct with the same shape.
+struct Ord_Int { std::int64_t compare(std::int64_t a, std::int64_t b) const { return a < b ? -1 : (a > b ? 1 : 0); } };
+struct Ord_Float { std::int64_t compare(double a, double b) const { return a < b ? -1 : (a > b ? 1 : 0); } };
+struct Ord_String { std::int64_t compare(const std::string& a, const std::string& b) const { return a < b ? -1 : (a > b ? 1 : 0); } };
+struct Ord_Bool { std::int64_t compare(bool a, bool b) const { return a == b ? 0 : (a ? 1 : -1); } };
+struct Ord_Instant { std::int64_t compare(const Instant& a, const Instant& b) const { return a < b ? -1 : (a > b ? 1 : 0); } };
+template <class T, class O> Vector<T> sort(const Vector<T>& v, O ord) {
+    std::vector<T> items;
+    for (const auto& x : v) items.push_back(x);
+    std::stable_sort(items.begin(), items.end(), [&](const T& a, const T& b) { return ord.compare(a, b) < 0; });
+    Vector<T> r;
+    for (auto& x : items) r = r.append(x);
+    return r;
+}
+template <class T, class O> Option<T> maximum(const Vector<T>& v, O ord) {
+    if (v.empty()) return Option<T>::None();
+    T best = v.get(0);
+    for (const auto& x : v) if (ord.compare(x, best) > 0) best = x;
+    return Option<T>::Some(best);
+}
+template <class T, class O> Option<T> minimum(const Vector<T>& v, O ord) {
+    if (v.empty()) return Option<T>::None();
+    T best = v.get(0);
+    for (const auto& x : v) if (ord.compare(x, best) < 0) best = x;
+    return Option<T>::Some(best);
+}
 template <class T> Vector<T> reverse(const Vector<T>& v) { Vector<T> r; for (int i = v.size() - 1; i >= 0; i--) r = r.append(v.get(i)); return r; }
 template <class T> bool contains(const Vector<T>& v, const T& item) { for (const auto& x : v) if (x == item) return true; return false; }
 template <class K, class V> bool contains(const Map<K, V>& m, const K& key) { return m.containsKey(key); }
@@ -1048,6 +1075,12 @@ inline std::string toString(double v) { std::ostringstream o; o << v; return o.s
 inline std::string toString(bool b) { return b ? "true" : "false"; }
 inline std::string toString(const Instant& i) { return i.toString(); }
 inline std::string toString(Unit) { return "unit"; }
+template <class... Ts> std::string toString(const std::tuple<Ts...>& t) {
+    std::string s = "(";
+    bool firstItem = true;
+    std::apply([&](const auto&... xs) { ((s += (firstItem ? "" : ", ") + toString(xs), firstItem = false), ...); }, t);
+    return s + ")";
+}
 template <class T> std::string toString(const Vector<T>& v) {
     std::string s = "[";
     bool firstItem = true;
@@ -1077,6 +1110,13 @@ template <> struct std::hash<treb::Unit> { std::size_t operator()(const treb::Un
 template <> struct std::hash<treb::Instant> { std::size_t operator()(const treb::Instant& i) const { return std::hash<std::int64_t>{}(i.millis); } };
 template <class T> struct std::hash<treb::Vector<T>> {
     std::size_t operator()(const treb::Vector<T>& v) const { std::size_t h = 17; for (const auto& x : v) h = treb::hashCombine(h, x); return h; }
+};
+template <class... Ts> struct std::hash<std::tuple<Ts...>> {
+    std::size_t operator()(const std::tuple<Ts...>& t) const {
+        std::size_t h = 31;
+        std::apply([&](const auto&... xs) { ((h = treb::hashCombine(h, xs)), ...); }, t);
+        return h;
+    }
 };
 template <class T> struct std::hash<treb::Box<T>> {
     std::size_t operator()(const treb::Box<T>& b) const { return std::hash<T>{}(*b); }

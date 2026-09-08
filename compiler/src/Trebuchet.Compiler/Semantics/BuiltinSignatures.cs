@@ -12,6 +12,16 @@ public static class BuiltinSignatures
     public static readonly RecordT ArgumentError = new("ArgumentError", false) { Fields = { ("message", PrimT.String) } };
     /// <summary>What <c>supervise</c> yields as the error of a caught panic.</summary>
     public static readonly RecordT Panic = new("Panic", false) { Fields = { ("message", PrimT.String) } };
+    /// <summary>The built-in shape over a type: ordering. Int, Float, String, Bool, and Instant have built-in instances.</summary>
+    public static readonly ShapeT Ord = MakeOrd();
+    private static ShapeT MakeOrd()
+    {
+        var ord = new ShapeT("Ord") { TypeParams = new[] { "T" } };
+        ord.Members["compare"] = Parse("[T](T, T) -> Int ! Pure");
+        return ord;
+    }
+    public static bool HasBuiltinInstance(string shape, TType t) =>
+        shape == "Ord" && Unifier.Prune(t) is PrimT { Name: "Int" or "Float" or "String" or "Bool" or "Instant" };
 
     public static Scope CreateBuiltinScope()
     {
@@ -20,6 +30,7 @@ public static class BuiltinSignatures
             g.DefineType(p.Name, p);
         g.DefineType("ArgumentError", ArgumentError);
         g.DefineType("Panic", Panic);
+        g.DefineType("Ord", Ord);
 
         void Def(string name, params string[] sigs)
         {
@@ -64,6 +75,9 @@ public static class BuiltinSignatures
         Def("drop", "[T](Vector[T], Int) -> Vector[T] ! Pure");
         Def("at", "[T](Vector[T], Int) -> Option[T] ! Pure");
         Def("sortBy", "[T, K](Vector[T], fn(T) -> K) -> Vector[T]");
+        Def("sort", "[T: Ord](Vector[T]) -> Vector[T] ! Pure");
+        Def("maximum", "[T: Ord](Vector[T]) -> Option[T] ! Pure");
+        Def("minimum", "[T: Ord](Vector[T]) -> Option[T] ! Pure");
         Def("traverse", "[T, U, E](Vector[T], fn(T) -> Result[U, E]) -> Result[Vector[U], E]");
 
         Def("get", "[T](Cell[T]) -> T ! Nondet", "[K, V](Map[K, V], K) -> Option[V] ! Pure");
@@ -117,6 +131,7 @@ public static class BuiltinSignatures
         private readonly List<Token> _t;
         private int _i;
         private readonly List<string> _typeParams = new();
+        private readonly Dictionary<string, IReadOnlyList<string>> _constraints = new();
         public SigParser(List<Token> t) => _t = t;
 
         private Token Cur => _t[_i];
@@ -135,13 +150,21 @@ public static class BuiltinSignatures
                 Next();
                 while (!At(TokenKind.RBracket))
                 {
-                    _typeParams.Add(Expect(TokenKind.TypeName).Text);
+                    var name = Expect(TokenKind.TypeName).Text;
+                    _typeParams.Add(name);
+                    if (At(TokenKind.Colon))
+                    {
+                        Next();
+                        var shapes = new List<string>();
+                        while (At(TokenKind.TypeName)) shapes.Add(Next().Text);
+                        _constraints[name] = shapes;
+                    }
                     if (At(TokenKind.Comma)) Next();
                 }
                 Next();
             }
             var fn = FnRest();
-            return new FnT(fn.Params, fn.Return, fn.Effects, null, false, _typeParams.ToList());
+            return new FnT(fn.Params, fn.Return, fn.Effects, null, false, _typeParams.ToList(), constraints: _constraints.Count > 0 ? _constraints : null);
         }
 
         private FnT FnRest()

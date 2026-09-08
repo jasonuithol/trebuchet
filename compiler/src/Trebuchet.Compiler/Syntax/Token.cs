@@ -18,11 +18,11 @@ public enum TokenKind
     // keywords
     KwModule, KwUse, KwRecord, KwEntity, KwUnion, KwFn, KwHandler, KwService, KwScoped,
     KwShape, KwRoot, KwMatch, KwWith, KwIf, KwThen, KwElse, KwInit, KwAnd, KwOr, KwNot,
-    KwTrue, KwFalse, KwPrivate, KwExtern, KwResource, KwSupervise,
+    KwTrue, KwFalse, KwPrivate, KwExtern, KwResource, KwSupervise, KwInstance,
 
     // punctuation
     LParen, RParen, LBracket, RBracket, LBrace, RBrace,
-    Comma, Colon, Dot, Backslash, Bang, Question, Dash,
+    Comma, Colon, Dot, Backslash, Bang, Question, Dash, At, Ellipsis,
     Arrow,        // ->
     FatArrow,     // =>
     Assign,       // =

@@ -64,7 +64,7 @@
         },
         {
           "comment": "type-introducing declarations: record Order, union OrderEvent, entity Session, shape Clock, service OrderService",
-          "match": "^\\s*((?:(?:scoped|resource)\\s+)*(?:record|entity|union|shape|service))\\s+([A-Z][A-Za-z0-9]*)",
+          "match": "^\\s*((?:(?:scoped|resource)\\s+)*(?:record|entity|union|shape|service|instance))\\s+([A-Z][A-Za-z0-9]*)",
           "captures": {
             "1": {
               "name": "keyword.declaration.type.trebuchet"
@@ -181,7 +181,7 @@
     "operator": {
       "patterns": [
         {
-          "match": "->|=>",
+          "match": "->|=>|@|\\.\\.\\.",
           "name": "keyword.operator.arrow.trebuchet"
         },
         {

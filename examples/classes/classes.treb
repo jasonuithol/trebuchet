@@ -1,0 +1,54 @@
+module classes
+
+// Shapes over types. A shape with a type parameter is a type class: an instance supplies its
+// members for one type, and a constrained parameter [T: Monoid] admits only types with an
+// instance. Calls go through the shape, Monoid.combine(a, b), and are resolved at compile
+// time. Ord is built in for Int, Float, String, Bool, and Instant; on a parameter declared
+// [T: Ord] the comparison operators work, and so do sort, minimum, and maximum.
+
+shape Monoid[T]
+  fn empty() -> T ! Pure
+  fn combine(a: T, b: T) -> T ! Pure
+
+record Money(cents: Int)
+
+instance Monoid[Money]
+  fn empty() -> Money
+    Money(0)
+  fn combine(a: Money, b: Money) -> Money
+    Money(a.cents + b.cents)
+
+instance Monoid[String]
+  fn empty() -> String
+    ""
+  fn combine(a: String, b: String) -> String
+    a + b
+
+instance Ord[Money]
+  fn compare(a: Money, b: Money) -> Int
+    a.cents - b.cents
+
+fn concatAll[T: Monoid](xs: Vector[T]) -> T ! Pure
+  fold(xs, Monoid.empty[T](), \a, b -> Monoid.combine(a, b))
+
+fn keepLarger[T: Ord](acc: Option[T], x: T) -> Option[T] ! Pure
+  match acc
+    None => Some(x)
+    Some(m) => if x > m then Some(x) else acc
+
+fn largest[T: Ord](xs: Vector[T]) -> Option[T] ! Pure
+  fold(xs, None, \acc, x -> keepLarger(acc, x))
+
+fn describe(m: Money) -> String ! Pure
+  toString(m.cents) + "c"
+
+fn demo() -> String ! Pure
+  total = concatAll([Money(150), Money(250)])
+  words = concatAll(["a", "b", "c"])
+  sorted = sort([Money(30), Money(10), Money(20)])
+  top = match largest([Money(5), Money(50), Money(7)])
+    Some(m) => describe(m)
+    None => "none"
+  names = fold(map(sorted, describe), "", \acc, s -> acc + s + " ")
+  fruit = fold(sort(["pear", "apple", "fig"]), "", \acc, s -> acc + s + ",")
+  describe(total) + " " + words + " " + names + top + " " + toString(getOr(maximum([3, 9, 4]), 0)) + " " + fruit

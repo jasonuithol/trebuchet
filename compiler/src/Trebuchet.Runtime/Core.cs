@@ -17,6 +17,14 @@ public sealed class TrebPanic : Exception
 }
 
 public sealed record ArgumentError(string message);
+/// <summary>The built-in shape over a type for ordering. Generated instances implement it; primitives have the instances below.</summary>
+public interface Ord<T> { long compare(T a, T b); }
+public sealed class Ord_Int : Ord<long> { public static readonly Ord_Int Instance = new(); public long compare(long a, long b) => a.CompareTo(b); }
+public sealed class Ord_Float : Ord<double> { public static readonly Ord_Float Instance = new(); public long compare(double a, double b) => a.CompareTo(b); }
+public sealed class Ord_String : Ord<string> { public static readonly Ord_String Instance = new(); public long compare(string a, string b) => string.CompareOrdinal(a, b); }
+public sealed class Ord_Bool : Ord<bool> { public static readonly Ord_Bool Instance = new(); public long compare(bool a, bool b) => a.CompareTo(b); }
+public sealed class Ord_Instant : Ord<DateTimeOffset> { public static readonly Ord_Instant Instance = new(); public long compare(DateTimeOffset a, DateTimeOffset b) => a.CompareTo(b); }
+
 /// <summary>The error a <c>supervise</c> expression yields for a caught panic.</summary>
 public sealed record Panic(string message);
 

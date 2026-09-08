@@ -38,6 +38,7 @@ public sealed class Lexer
         ["extern"] = TokenKind.KwExtern,
         ["resource"] = TokenKind.KwResource,
         ["supervise"] = TokenKind.KwSupervise,
+        ["instance"] = TokenKind.KwInstance,
     };
 
     private readonly string _src;
@@ -234,9 +235,16 @@ public sealed class Lexer
             return;
         }
 
+        if (c == '.' && _pos + 2 < _src.Length && _src[_pos + 1] == '.' && _src[_pos + 2] == '.')
+        {
+            Advance(); Advance(); Advance();
+            Emit(TokenKind.Ellipsis, "...", start);
+            return;
+        }
         TokenKind kind1 = c switch
         {
             '(' => TokenKind.LParen,
+            '@' => TokenKind.At,
             ')' => TokenKind.RParen,
             '[' => TokenKind.LBracket,
             ']' => TokenKind.RBracket,

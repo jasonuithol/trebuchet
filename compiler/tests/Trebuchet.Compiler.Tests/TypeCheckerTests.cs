@@ -41,6 +41,49 @@ public class TypeCheckerTests
     }
 
     [Fact]
+    public void ConstraintsAreCheckedAtCallSitesAndComparisons()
+    {
+        var modules = ModuleSet.Load(new[] { ("t.treb", """
+            record Point(x: Int, y: Int)
+            fn bigger[T](a: T, b: T) -> Bool ! Pure
+              a > b
+            fn sorted() -> Vector[Point] ! Pure
+              sort([Point(1, 2)])
+            fn fine[T: Ord](a: T, b: T) -> Bool ! Pure
+              a > b
+            fn numbers() -> Vector[Int] ! Pure
+              sort([3, 1, 2])
+            """) });
+        var checker = TypeChecker.CheckWithEffects(modules);
+        var messages = checker.Diagnostics.Select(d => d.Message).ToList();
+        Assert.Contains(messages, m => m.Contains("'>' on T needs 'T: Ord'"));
+        Assert.Contains(messages, m => m.Contains("no instance of Ord for Point"));
+        Assert.Equal(2, messages.Count);
+    }
+
+    [Fact]
+    public void GuardedArmsDoNotCountTowardsExhaustiveness()
+    {
+        var modules = ModuleSet.Load(new[] { ("t.treb", """
+            fn sign(n: Option[Int]) -> String ! Pure
+              match n
+                Some(x) if x > 0 => "positive"
+                None => "none"
+            fn pair(p: (Int, String)) -> String ! Pure
+              (n, s) = p
+              s + toString(n)
+            fn bad(xs: Vector[Int]) -> Int ! Pure
+              [x, ...rest] = xs
+              x
+            """) });
+        var checker = TypeChecker.CheckWithEffects(modules);
+        var messages = checker.Diagnostics.Select(d => d.Message).ToList();
+        Assert.Contains(messages, m => m.Contains("not exhaustive; missing Some"));
+        Assert.Contains(messages, m => m.Contains("this pattern can fail to match"));
+        Assert.Equal(2, messages.Count);
+    }
+
+    [Fact]
     public void SuperviseIsRejectedInAFn()
     {
         var modules = ModuleSet.Load(new[] { ("t.treb", """

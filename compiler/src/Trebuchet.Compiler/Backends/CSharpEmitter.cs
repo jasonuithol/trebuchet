@@ -261,6 +261,7 @@ public sealed class CSharpEmitter
                 "Instant" => "DateTimeOffset", "Never" => "Unit", _ => "object",
             },
             AppT a => $"{a.Ctor}<{string.Join(", ", a.Args.Select(CsType))}>",
+            TupleT tt => $"({string.Join(", ", tt.Items.Select(CsType))})",
             RecordT r => r.TypeArgs.Count == 0 ? r.Name : $"{r.Name}<{string.Join(", ", r.TypeArgs.Select(CsType))}>",
             UnionT u => u.TypeArgs.Count == 0 ? u.Name : $"{u.Name}<{string.Join(", ", u.TypeArgs.Select(CsType))}>",
             ParamT p => p.Name,
@@ -295,6 +296,7 @@ public sealed class CSharpEmitter
                 case RecordDecl r: EmitRecord(sb, r, m); break;
                 case UnionDecl u: EmitUnion(sb, u); break;
                 case ShapeDecl sh: EmitShape(sb, sh); break;
+                case InstanceDecl inst: EmitInstance(sb, inst, m); break;
                 case ServiceDecl s: EmitService(sb, s, m); break;
                 case FnDecl fn: EmitFunction(fns, fn, m, 1, isMethod: false); break;
                 case ExternDecl ex: EmitExtern(fns, ex, m); break;
@@ -365,10 +367,46 @@ public sealed class CSharpEmitter
         sb.AppendLine();
     }
 
+    /// <summary>The expression that produces the dictionary for a shape at a type.</summary>
+    private string DictExpr(string shape, TType t)
+    {
+        t = Prune(t);
+        if (t is ParamT p) return $"__{shape}_{p.Name}";
+        if (BuiltinSignatures.HasBuiltinInstance(shape, t)) return $"Ord_{((PrimT)t).Name}.Instance";
+        return $"{shape}_{TypeChecker.TypeKey(t)}.Instance";
+    }
+
+    /// <summary>Hidden parameters a constrained function takes: one dictionary per (parameter, shape), after the declared parameters.</summary>
+    private string DictParams(FnT type, string declared)
+    {
+        var parts = new List<string>();
+        foreach (var param in type.TypeParams)
+            if (type.Constraints.TryGetValue(param, out var shapes))
+                foreach (var shape in shapes) parts.Add($"{shape}<{param}> __{shape}_{param}");
+        if (parts.Count == 0) return declared;
+        return declared.Length == 0 ? string.Join(", ", parts) : declared + ", " + string.Join(", ", parts);
+    }
+
+    private void EmitInstance(StringBuilder sb, InstanceDecl inst, Module m)
+    {
+        var target = _checker.InstanceTargets[inst];
+        var name = $"{inst.Shape}_{TypeChecker.TypeKey(target)}";
+        sb.AppendLine($"public sealed class {name} : {inst.Shape}<{CsType(target)}>");
+        sb.AppendLine("{");
+        sb.AppendLine($"    public static readonly {name} Instance = new();");
+        foreach (var method in inst.Methods)
+        {
+            var mt = _checker.InstanceMemberTypes[(inst, method.Signature.Name)];
+            EmitFunctionVariant(sb, method, m, mt, "    ", isMethod: true, method.Signature.Name, polyAsync: false);
+        }
+        sb.AppendLine("}");
+        sb.AppendLine();
+    }
+
     private void EmitShape(StringBuilder sb, ShapeDecl sh)
     {
         var ht = _checker.ShapeTypeOf(sh);
-        sb.AppendLine($"public interface {sh.Name}");
+        sb.AppendLine($"public interface {sh.Name}{Generic(ht.TypeParams)}");
         sb.AppendLine("{");
         foreach (var member in sh.Members)
         {
@@ -430,7 +468,7 @@ public sealed class CSharpEmitter
         _polyAsync = polyAsync;
         var isAsync = Suspends(type) || polyAsync;
         var ret = isAsync ? $"ValueTask<{CsType(type.Return)}>" : CsType(type.Return);
-        sb.AppendLine($"{pad}public {(isMethod ? "" : "static ")}{(isAsync ? "async " : "")}{ret} {Id(name)}{Generic(fn.Signature.TypeParams)}({Params(fn.Signature.Params, type)})");
+        sb.AppendLine($"{pad}public {(isMethod ? "" : "static ")}{(isAsync ? "async " : "")}{ret} {Id(name)}{Generic(fn.Signature.TypeParams)}({DictParams(type, Params(fn.Signature.Params, type))})");
         sb.AppendLine($"{pad}{{");
         var fe = new FnEmitter(this, m, type.Return, pad.Length / 4 + 1);
         fe.EmitBlockInto(fn.Body, FnEmitter.Target.Return, type.Return);
@@ -608,6 +646,15 @@ public sealed class CSharpEmitter
                         if (last) EmitTarget(target, "Unit.Value", PrimT.Unit);
                         break;
                     }
+                    case DestructureStmt ds:
+                    {
+                        var t = TypeOf(ds.Value);
+                        var tmp = Tmp("d");
+                        Line($"var {tmp} = {EmitExpr(ds.Value, t)};");
+                        Destructure(ds.Pattern, t, tmp);
+                        if (last) EmitTarget(target, "Unit.Value", PrimT.Unit);
+                        break;
+                    }
                     case UseStmt u:
                     {
                         var t = TypeOf(u.Value);
@@ -686,8 +733,16 @@ public sealed class CSharpEmitter
                     _indent++;
                     foreach (var arm in mx.Arms)
                     {
-                        Line($"case {Pattern(arm.Pattern, scrutineeType)}:");
+                        _patternGuards.Clear();
+                        _patternPrelude.Clear();
+                        var pattern = Pattern(arm.Pattern, scrutineeType);
+                        if (pattern == "_") pattern = "var _"; // a bare discard is not a valid switch-statement label
+                        var guards = new List<string>(_patternGuards);
+                        var prelude = new List<string>(_patternPrelude);
+                        if (arm.Guard is not null) guards.Add(EmitExpr(arm.Guard, PrimT.Bool));
+                        Line($"case {pattern}{(guards.Count > 0 ? " when " + string.Join(" && ", guards) : "")}:");
                         Line("{");
+                        foreach (var pre in prelude) Line("    " + pre);
                         _indent++;
                         EmitBlockInto(arm.Body, target, expected);
                         if (target.Kind != "return") Line("break;");
@@ -710,6 +765,31 @@ public sealed class CSharpEmitter
 
         // ---- patterns
 
+        /// <summary>Extra <c>when</c> conditions a pattern needs that C# patterns cannot express (an as-pattern over a literal).</summary>
+        private readonly List<string> _patternGuards = new();
+        /// <summary>Statements to run at the start of an arm body: names an as-pattern over a bare name binds twice.</summary>
+        private readonly List<string> _patternPrelude = new();
+
+        /// <summary>Bindings for an irrefutable pattern over a value already held in <paramref name="access"/>.</summary>
+        private void Destructure(Syntax.Pattern p, TType t, string access)
+        {
+            t = Prune(t);
+            switch (p)
+            {
+                case WildcardPattern: break;
+                case BindPattern b: Line($"var {Id(b.Name)} = {access};"); break;
+                case AsPattern ap:
+                    Line($"var {Id(ap.Name)} = {access};");
+                    Destructure(ap.Inner, t, access);
+                    break;
+                case TuplePattern tp when t is TupleT tt:
+                    for (var i = 0; i < tp.Items.Count; i++) Destructure(tp.Items[i], tt.Items[i], $"{access}.Item{i + 1}");
+                    break;
+                case ListPattern { Items.Count: 0, Rest: { } rest }: Destructure(rest, t, access); break;
+                default: throw new InvalidOperationException($"refutable pattern {p.GetType().Name} in a binding");
+            }
+        }
+
         private string Pattern(Syntax.Pattern p, TType scrutinee)
         {
             scrutinee = Prune(scrutinee);
@@ -718,6 +798,25 @@ public sealed class CSharpEmitter
                 case WildcardPattern: return "_";
                 case BindPattern b: return $"var {Id(b.Name)}";
                 case LiteralPattern lit: return EmitExpr(lit.Literal, null);
+                case AsPattern ap:
+                {
+                    // a designation may follow a positional, property, or list pattern; anything else becomes var + guard
+                    var inner = Pattern(ap.Inner, scrutinee);
+                    if (ap.Inner is TuplePattern or ListPattern || (ap.Inner is VariantPattern vpi && vpi.Args.Count > 0))
+                        return $"{inner} {Id(ap.Name)}";
+                    if (ap.Inner is BindPattern ib) _patternPrelude.Add($"var {Id(ib.Name)} = {Id(ap.Name)};");
+                    else if (ap.Inner is not WildcardPattern) _patternGuards.Add($"{Id(ap.Name)} is {inner}");
+                    return $"var {Id(ap.Name)}";
+                }
+                case TuplePattern tp when scrutinee is TupleT tt:
+                    return $"({string.Join(", ", tp.Items.Select((item, i) => Pattern(item, tt.Items[i])))})";
+                case ListPattern lp when scrutinee is AppT { Ctor: "Vector" } vec:
+                {
+                    var parts = lp.Items.Select(item => Pattern(item, vec.Args[0])).ToList();
+                    if (lp.Rest is WildcardPattern) parts.Add("..");
+                    else if (lp.Rest is BindPattern rb) parts.Add($".. var {Id(rb.Name)}");
+                    return $"[{string.Join(", ", parts)}]";
+                }
                 case VariantPattern vp:
                 {
                     string typeName;
@@ -770,6 +869,11 @@ public sealed class CSharpEmitter
                     if (t is UnionT u) return $"(({_e.CsType(u)}){tn.Name}{GenericArgs(u.TypeArgs)}.Instance)";
                     return tn.Name;
                 }
+                case TupleLit tl:
+                {
+                    var tt = Prune(TypeOf(tl)) as TupleT;
+                    return $"({string.Join(", ", tl.Items.Select((x, i) => EmitExpr(x, tt?.Items[i])))})";
+                }
                 case ListLit l:
                 {
                     var t = Prune(expected ?? TypeOf(l));
@@ -793,6 +897,8 @@ public sealed class CSharpEmitter
                 {
                     var op = b.Op switch { "and" => "&&", "or" => "||", _ => b.Op };
                     var lt = TypeOf(b.Left);
+                    if (_e._checker.OrdComparisons.TryGetValue(b, out var ordParam))
+                        return $"(__Ord_{ordParam}.compare({EmitExpr(b.Left, null)}, {EmitExpr(b.Right, lt)}) {op} 0)";
                     // == on a collection or a boxed value must be structural; C# operators on classes are reference equality
                     if (b.Op is "==" or "!=" && Prune(lt) is not PrimT)
                         return $"({(b.Op == "!=" ? "!" : "")}Equals({EmitExpr(b.Left, null)}, {EmitExpr(b.Right, lt)}))";
@@ -886,6 +992,8 @@ public sealed class CSharpEmitter
                     // a union namespace: variant reference
                     return Prune(TypeOf(mem)) is UnionT u ? $"(({_e.CsType(u)}){mem.Name}{GenericArgs(u.TypeArgs)}.Instance)" : mem.Name;
                 }
+                case TypeChecker.MemberKind.Field when Prune(TypeOf(mem.Target)) is TupleT && int.TryParse(mem.Name, out var tupleIndex):
+                    return $"{EmitExpr(mem.Target, null)}.Item{tupleIndex + 1}";
                 case TypeChecker.MemberKind.Field:
                 case TypeChecker.MemberKind.Method:
                 case TypeChecker.MemberKind.ShapeMember:
@@ -922,7 +1030,13 @@ public sealed class CSharpEmitter
 
             var argTexts = new List<string>();
             string head;
-            if (c.Callee is MemberExpr mem)
+            if (_e._checker.ClassCalls.TryGetValue(c, out var classCall))
+            {
+                // Shape.member(args) goes through the resolved instance, which is an ordinary object
+                head = $"{_e.DictExpr(classCall.Shape, classCall.Type)}.{Id(classCall.Member)}";
+                typeArgs = "";
+            }
+            else if (c.Callee is MemberExpr mem)
             {
                 var kind = _e._checker.MemberKinds.GetValueOrDefault(mem, TypeChecker.MemberKind.Sugar);
                 if (kind == TypeChecker.MemberKind.Sugar)
@@ -965,6 +1079,8 @@ public sealed class CSharpEmitter
                     if (anySuspends) { head += "Async"; suspends = true; }
                 }
             }
+            if (_e._checker.CallDictionaries.TryGetValue(c, out var dictionaries))
+                foreach (var (shape, dictType) in dictionaries) argTexts.Add(_e.DictExpr(shape, dictType));
             var text = $"{head}{typeArgs}({string.Join(", ", argTexts)})";
             return suspends ? $"(await {text})" : text;
         }

@@ -275,4 +275,8 @@ The open questions in §10 were worked through in a follow-up session. Full reas
 
 **Added 2026-09-08, the demo grows:** attendees with a capacity check (`Set`), a waitlist with promotion on cancel, a generic `Page[T]`, cross-room stats (`Map`, `traverse`), an extern-backed info route, and `private` helpers; stdlib gains `take`, `drop`, `at`, `sortBy`, `traverse`; the dev server binds `csharp` externs by reflection. See `trebuchet-implementation-strategy.md` §7.19.
 
+**Added 2026-09-08, patterns:** guards on match arms, list patterns with `...rest`, tuples as types, values, and patterns with `.0` access, as-patterns, and destructuring bindings. See `trebuchet-implementation-strategy.md` §7.20.
+
+**Added 2026-09-08, shapes over types:** `shape Monoid[T]` is a type class, `instance Monoid[Money]` an instance, `[T: Monoid]` a constraint, `Monoid.combine(a, b)` a call resolved at compile time and lowered to dictionary passing on both targets. `Ord` is built in with comparison operators on constrained parameters and `sort`, `minimum`, `maximum`. See `trebuchet-implementation-strategy.md` §7.21.
+
 **Still open:** concrete syntax details (sketched in `trebuchet-syntax-sketch.md`), multi-threaded refcounting, parallelism primitives, and whether `mut` locals ever return.

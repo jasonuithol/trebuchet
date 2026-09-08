@@ -127,8 +127,19 @@ public sealed class Printer
                     }
                 });
                 break;
+            case InstanceDecl inst:
+                Line($"{prefix}instance {inst.Shape}[{Type(inst.Target)}]", inst.Pos);
+                Indented(() =>
+                {
+                    for (var i = 0; i < inst.Methods.Count; i++)
+                    {
+                        if (i > 0) Blank();
+                        FnDecl(inst.Methods[i], "");
+                    }
+                });
+                break;
             case ShapeDecl sh:
-                Line($"{prefix}shape {sh.Name}", sh.Pos);
+                Line($"{prefix}shape {sh.Name}{TypeParams(sh.TypeParams ?? Array.Empty<string>())}", sh.Pos);
                 Indented(() =>
                 {
                     foreach (var m in sh.Members) Line("fn " + Signature(m), m.Pos);
@@ -179,7 +190,10 @@ public sealed class Printer
     }
 
     private string Signature(FnSignature s) =>
-        $"{s.Name}{TypeParams(s.TypeParams)}({Params(s.Params)}) -> {Type(s.Return)}{Effects(s.Effects)}";
+        $"{s.Name}{TypeParams(s.TypeParams, s.TypeConstraints)}({Params(s.Params)}) -> {Type(s.Return)}{Effects(s.Effects)}";
+
+    private static string TypeParams(IReadOnlyList<string> ps, IReadOnlyDictionary<string, IReadOnlyList<string>>? constraints) =>
+        ps.Count == 0 ? "" : $"[{string.Join(", ", ps.Select(p => constraints is not null && constraints.TryGetValue(p, out var cs) ? $"{p}: {string.Join(" ", cs)}" : p))}]";
 
     private static string TypeParams(IReadOnlyList<string> ps) => ps.Count == 0 ? "" : $"[{string.Join(", ", ps)}]";
 
@@ -193,6 +207,7 @@ public sealed class Printer
     private string Type(TypeRef t) => t switch
     {
         NamedType n => n.Args.Count == 0 ? n.Name : $"{n.Name}[{string.Join(", ", n.Args.Select(Type))}]",
+        TupleType tt => $"({string.Join(", ", tt.Items.Select(Type))})",
         FnType f => $"fn({string.Join(", ", f.Params.Select(Type))}) -> {Type(f.Return)}{Effects(f.Effects)}",
         _ => throw new InvalidOperationException($"unknown type {t.GetType().Name}"),
     };
@@ -206,6 +221,7 @@ public sealed class Printer
             switch (s)
             {
                 case BindingStmt bind: ValueLine($"{bind.Name} = ", bind.Value); break;
+                case DestructureStmt ds: ValueLine($"{Pattern(ds.Pattern)} = ", ds.Value); break;
                 case UseStmt use: ValueLine($"use {use.Name} = ", use.Value); break;
                 case ExprStmt e: ExprLine("", e.Value); break;
                 default: throw new InvalidOperationException($"unknown statement {s.GetType().Name}");
@@ -276,10 +292,11 @@ public sealed class Printer
                 {
                     foreach (var arm in m.Arms)
                     {
-                        if (arm.Inline) ExprLine($"{Pattern(arm.Pattern)} => ", ((ExprStmt)arm.Body.Stmts[0]).Value);
+                        var head = arm.Guard is null ? Pattern(arm.Pattern) : $"{Pattern(arm.Pattern)} if {Inline(arm.Guard)}";
+                        if (arm.Inline) ExprLine($"{head} => ", ((ExprStmt)arm.Body.Stmts[0]).Value);
                         else
                         {
-                            Line($"{Pattern(arm.Pattern)} =>", arm.Pos);
+                            Line($"{head} =>", arm.Pos);
                             Indented(() => Block(arm.Body));
                         }
                     }
@@ -347,6 +364,7 @@ public sealed class Printer
         StringLit s => Quote(s.Value),
         BoolLit b => b.Value ? "true" : "false",
         ListLit l => $"[{string.Join(", ", l.Items.Select(Inline))}]",
+        TupleLit tl => $"({string.Join(", ", tl.Items.Select(Inline))})",
         MapLit m => m.Entries.Count == 0 ? "{}" : $"{{{string.Join(", ", m.Entries.Select(en => $"{Inline(en.Key)}: {Inline(en.Value)}"))}}}",
         MemberExpr mem => $"{Wrap(mem.Target, Prec(mem.Target) < PrecPostfix)}.{mem.Name}",
         CallExpr c => Call(c),
@@ -400,6 +418,9 @@ public sealed class Printer
         BindPattern b => b.Name,
         WildcardPattern => "_",
         LiteralPattern lit => Inline(lit.Literal),
+        ListPattern lp => "[" + string.Join(", ", lp.Items.Select(Pattern).Concat(lp.Rest is null ? Array.Empty<string>() : new[] { "..." + Pattern(lp.Rest) })) + "]",
+        TuplePattern tp => $"({string.Join(", ", tp.Items.Select(Pattern))})",
+        AsPattern ap => $"{ap.Name} @ {Pattern(ap.Inner)}",
         _ => throw new InvalidOperationException($"unknown pattern {p.GetType().Name}"),
     };
 

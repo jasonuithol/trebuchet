@@ -117,6 +117,14 @@ public sealed class UnionT : TType
     public override string Show() => TypeArgs.Count == 0 ? Name : $"{Name}[{string.Join(", ", TypeArgs.Select(a => a.Show()))}]";
 }
 
+/// <summary>A tuple type, two or more items. Structural: (A, B) unifies with (A, B) item by item.</summary>
+public sealed class TupleT : TType
+{
+    public IReadOnlyList<TType> Items { get; }
+    public TupleT(IReadOnlyList<TType> items) => Items = items;
+    public override string Show() => $"({string.Join(", ", Items.Select(i => i.Show()))})";
+}
+
 public sealed class FnT : TType
 {
     public IReadOnlyList<TType> Params { get; }
@@ -134,10 +142,14 @@ public sealed class FnT : TType
     /// <summary>For an instantiated generic, the signature it was instantiated from.</summary>
     public FnT? Origin { get; internal set; }
 
+    /// <summary>Constraints on the type parameters: parameter name to the shapes over types it must satisfy.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> Constraints { get; }
+
     public FnT(IReadOnlyList<TType> parameters, TType ret, IReadOnlySet<string>? effects = null,
         IReadOnlyList<string?>? paramNames = null, bool isHandler = false, IReadOnlyList<string>? typeParams = null,
-        RecordT? constructs = null, ServiceT? constructsService = null)
+        RecordT? constructs = null, ServiceT? constructsService = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? constraints = null)
     {
+        Constraints = constraints ?? new Dictionary<string, IReadOnlyList<string>>();
         Params = parameters;
         Return = ret;
         Effects = effects;
@@ -193,6 +205,9 @@ public sealed class ShapeT : TType
 {
     public string Name { get; }
     public Dictionary<string, FnT> Members { get; } = new();
+    /// <summary>Non-empty for a shape over a type (a type class): the one parameter its members mention.</summary>
+    public IReadOnlyList<string> TypeParams { get; init; } = Array.Empty<string>();
+    public bool IsClass => TypeParams.Count > 0;
     public ShapeT(string name) => Name = name;
     public override string Show() => Name;
 }
@@ -346,6 +361,7 @@ public static class Unifier
             case (UnionT ua, UnionT ub): return ua.Name == ub.Name && UnifyAll(ua.TypeArgs, ub.TypeArgs, trail);
             case (RecordT rv, UnionT u): return rv.Union is not null && rv.Union.Name == u.Name && UnifyAll(rv.TypeArgs, u.TypeArgs, trail);
             case (UnionT u, RecordT rv): return rv.Union is not null && rv.Union.Name == u.Name && UnifyAll(u.TypeArgs, rv.TypeArgs, trail);
+            case (TupleT ta, TupleT tb): return ta.Items.Count == tb.Items.Count && UnifyAll(ta.Items, tb.Items, trail);
             case (ServiceT sa, ServiceT sb): return sa.Name == sb.Name;
             case (ShapeT ha, ShapeT hb): return ha.Name == hb.Name;
             case (FnT fa, FnT fb):
@@ -381,6 +397,7 @@ public static class Unifier
         {
             VarT w => ReferenceEquals(v, w),
             AppT a => a.Args.Any(x => Occurs(v, x)),
+            TupleT tt => tt.Items.Any(x => Occurs(v, x)),
             FnT f => f.Params.Any(p => Occurs(v, p)) || Occurs(v, f.Return),
             RecordT r => r.TypeArgs.Any(x => Occurs(v, x)),
             UnionT u => u.TypeArgs.Any(x => Occurs(v, x)),
@@ -418,6 +435,7 @@ public static class Unifier
         {
             case ParamT p: return map.TryGetValue(p.Name, out var r) ? r : p;
             case AppT a: return new AppT(a.Ctor, a.Args.Select(x => Subst(x, map)).ToList());
+            case TupleT tt: return new TupleT(tt.Items.Select(x => Subst(x, map)).ToList());
             case FnT f: return new FnT(f.Params.Select(x => Subst(x, map)).ToList(), Subst(f.Return, map), f.Effects, f.ParamNames, f.IsHandler, f.TypeParams, f.Constructs, f.ConstructsService) { Origin = f.Origin ?? f };
             case UnionT u when u.TypeArgs.Count > 0 && Mentions(u, map):
                 return InstantiateUnion(u, u.TypeArgs.Select(x => Subst(x, map)).ToList());
@@ -437,6 +455,7 @@ public static class Unifier
             ParamT p => map.ContainsKey(p.Name),
             AppT a => a.Args.Any(x => Mentions(x, map)),
             FnT f => f.Params.Any(x => Mentions(x, map)) || Mentions(f.Return, map),
+            TupleT tt => tt.Items.Any(x => Mentions(x, map)),
             RecordT r => r.TypeArgs.Any(x => Mentions(x, map)),
             UnionT u => u.TypeArgs.Any(x => Mentions(x, map)),
             _ => false,
@@ -486,6 +505,7 @@ public static class Unifier
         {
             AppT a => new AppT(a.Ctor, a.Args.Select(Resolve).ToList()),
             FnT f => new FnT(f.Params.Select(Resolve).ToList(), Resolve(f.Return), f.Effects, f.ParamNames, f.IsHandler, f.TypeParams, f.Constructs, f.ConstructsService),
+            TupleT tt => new TupleT(tt.Items.Select(Resolve).ToList()),
             RecordT r when r.TypeArgs.Count > 0 => r.Union is { } o ? InstantiateUnion(o, r.TypeArgs.Select(Resolve).ToList()).Variant(r.Name)! : InstantiateRecord(r, r.TypeArgs.Select(Resolve).ToList()),
             UnionT u when u.TypeArgs.Count > 0 => InstantiateUnion(u, u.TypeArgs.Select(Resolve).ToList()),
             _ => t,

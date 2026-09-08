@@ -27,6 +27,9 @@ public abstract record TypeRef(Position Pos) : Node(Pos);
 
 public sealed record NamedType(Position Pos, string Name, IReadOnlyList<TypeRef> Args) : TypeRef(Pos);
 
+/// <summary>A tuple type, <c>(A, B)</c>. Always two or more items.</summary>
+public sealed record TupleType(Position Pos, IReadOnlyList<TypeRef> Items) : TypeRef(Pos);
+
 /// <summary>A function type. <see cref="Effects"/> null means unspecified; empty means Pure.</summary>
 public sealed record FnType(
     Position Pos,
@@ -80,7 +83,8 @@ public sealed record FnSignature(
     TypeRef Return,
     IReadOnlyList<string>? Effects,
     bool IsPure,
-    IReadOnlyList<string>? TypeParams = null) : Node(Pos)
+    IReadOnlyList<string>? TypeParams = null,
+    IReadOnlyDictionary<string, IReadOnlyList<string>>? TypeConstraints = null) : Node(Pos)
 {
     public IReadOnlyList<string> TypeParams { get; init; } = TypeParams ?? Array.Empty<string>();
 }
@@ -118,11 +122,25 @@ public sealed record ServiceDecl(
     IReadOnlyList<FnDecl> Methods,
     bool IsResource = false) : Decl(Pos, IsPrivate);
 
+/// <summary>
+/// A shape. Without type parameters it is a structural interface over services. With one,
+/// <c>shape Monoid[T]</c>, it is a shape over a type: a type class whose members mention T and
+/// whose instances are declared with <c>instance Monoid[Money]</c>.
+/// </summary>
 public sealed record ShapeDecl(
     Position Pos,
     bool IsPrivate,
     string Name,
-    IReadOnlyList<FnSignature> Members) : Decl(Pos, IsPrivate);
+    IReadOnlyList<FnSignature> Members,
+    IReadOnlyList<string>? TypeParams = null) : Decl(Pos, IsPrivate);
+
+/// <summary>An instance of a shape over a type: the shape's members implemented for <see cref="Target"/>.</summary>
+public sealed record InstanceDecl(
+    Position Pos,
+    bool IsPrivate,
+    string Shape,
+    TypeRef Target,
+    IReadOnlyList<FnDecl> Methods) : Decl(Pos, IsPrivate);
 
 public sealed record RootDecl(
     Position Pos,
@@ -137,6 +155,9 @@ public sealed record Block(Position Pos, IReadOnlyList<Stmt> Stmts) : Node(Pos);
 public abstract record Stmt(Position Pos) : Node(Pos);
 
 public sealed record BindingStmt(Position Pos, string Name, Expr Value) : Stmt(Pos);
+
+/// <summary>A binding through an irrefutable pattern: <c>(a, b) = pair</c>, <c>[...xs] = v</c>, <c>whole @ (a, _) = pair</c>.</summary>
+public sealed record DestructureStmt(Position Pos, Pattern Pattern, Expr Value) : Stmt(Pos);
 
 /// <summary>use x = expr: binds a fresh resource, released at the end of the enclosing block.</summary>
 public sealed record UseStmt(Position Pos, string Name, Expr Value) : Stmt(Pos);
@@ -164,6 +185,9 @@ public sealed record BoolLit(Position Pos, bool Value) : Expr(Pos);
 
 /// <summary>[a, b] inline, or a block of "- item" lines when <see cref="IsBlock"/>.</summary>
 public sealed record ListLit(Position Pos, IReadOnlyList<Expr> Items, bool IsBlock) : Expr(Pos);
+
+/// <summary>A tuple literal, <c>(a, b)</c>. Always two or more items; one item in parentheses is just grouping.</summary>
+public sealed record TupleLit(Position Pos, IReadOnlyList<Expr> Items) : Expr(Pos);
 
 public sealed record MapEntry(Position Pos, Expr Key, Expr Value) : Node(Pos);
 
@@ -221,7 +245,17 @@ public sealed record WildcardPattern(Position Pos) : Pattern(Pos);
 
 public sealed record LiteralPattern(Position Pos, Expr Literal) : Pattern(Pos);
 
-public sealed record MatchArm(Position Pos, Pattern Pattern, Block Body, bool Inline) : Node(Pos);
+/// <summary>A vector pattern: fixed items, then optionally <c>...rest</c> binding (or <c>..._</c> ignoring) the remainder.</summary>
+public sealed record ListPattern(Position Pos, IReadOnlyList<Pattern> Items, Pattern? Rest) : Pattern(Pos);
+
+/// <summary>A tuple pattern, <c>(a, b)</c>.</summary>
+public sealed record TuplePattern(Position Pos, IReadOnlyList<Pattern> Items) : Pattern(Pos);
+
+/// <summary>An as-pattern, <c>name @ pattern</c>: binds the whole value and matches the inner pattern.</summary>
+public sealed record AsPattern(Position Pos, string Name, Pattern Inner) : Pattern(Pos);
+
+/// <summary>A match arm. <see cref="Guard"/> is the optional <c>if</c> condition between the pattern and <c>=&gt;</c>.</summary>
+public sealed record MatchArm(Position Pos, Pattern Pattern, Block Body, bool Inline, Expr? Guard = null) : Node(Pos);
 
 public sealed record MatchExpr(Position Pos, Expr Scrutinee, IReadOnlyList<MatchArm> Arms) : Expr(Pos);
 

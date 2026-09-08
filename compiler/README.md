@@ -218,6 +218,30 @@ unions cannot hold resources. In C# a resource implements `IDisposable` (or
 the destructor calls `release`. A singleton depending on a `scoped` service is a compile
 error. `examples/resources/` is the sample.
 
+## Shapes over types
+
+A shape with one type parameter is a type class. `instance Shape[Type]` supplies its members
+for a record, union, or primitive; `[T: Shape]` constrains a type parameter; `Shape.member(args)`
+calls through the shape, with `Shape.member[T]()` when no argument fixes `T`. The checker
+resolves every constrained call to an instance after all bodies are checked, and both emitters
+pass the instance as a hidden trailing argument: on C# an interface `Shape<T>`, a class
+`Shape_Type` with a singleton, and a `Shape<T> __Shape_T` parameter; on C++ a struct and an extra
+deduced template parameter. `Ord` is built in (`compare`), with instances for the primitives;
+comparison operators on a `T: Ord` parameter lower to it, as do `sort`, `minimum`, and
+`maximum`. The interpreter runs the checker at construction to read the same resolution.
+`examples/classes/` is the sample. Not yet: multi-parameter classes, superclasses, instances for
+generic types, passing a constrained function as a bare value.
+
+## Patterns
+
+Match arms take guards (`Some(x) if x > 0 =>`), list patterns (`[]`, `[a, b]`, `[first,
+...rest]`, `[a, ..._]`), tuple patterns, and as-patterns (`whole @ Rect(w, h)`). Tuples are
+`(A, B)` types with `(a, b)` values and `p.0` access. A binding line may be an irrefutable
+pattern: `(lo, hi) = minMax(xs)`. Guarded arms do not count for exhaustiveness; a vector match
+is exhaustive when a rest arm covers every length from some k and each shorter length has an
+exact arm. `examples/patterns/` is the sample. C# lowers to switch patterns with `when`; C++ to
+a matched flag per arm so guards can see bindings.
+
 ## Visibility
 
 A declaration marked `private` is not exported: another module cannot name it, unqualified or

@@ -132,6 +132,15 @@ public sealed class RecordValue : Value
     }
 }
 
+public sealed class TupleValue : Value
+{
+    public ImmutableArray<Value> Items { get; }
+    public TupleValue(ImmutableArray<Value> items) => Items = items;
+    public override string Show() => "(" + string.Join(", ", Items.Select(i => i.Show())) + ")";
+    public override bool Equals(object? o) => o is TupleValue t && t.Items.SequenceEqual(Items);
+    public override int GetHashCode() { var h = new HashCode(); foreach (var i in Items) h.Add(i); return h.ToHashCode(); }
+}
+
 public sealed class ListValue : Value
 {
     public static readonly ListValue Empty = new(Vector<Value>.Empty);
