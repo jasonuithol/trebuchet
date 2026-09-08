@@ -465,6 +465,12 @@ Discussing parallelism produced two findings and one decision.
 - **Parallelism is inferable, and rarely pays.** The effect system already proves which computations may run in parallel: anything `! Pure` has no observable behaviour but its result and its time. What it cannot know is whether forking is worth it, which is a question of granularity that only a runtime cost model can answer, and it is the question the pure-functional world has mostly failed to answer well. Explicit combinators such as `parMap` would move that decision into source code, so a tuning change would be a code change; that was rejected.
 - **Decision.** No parallelism primitives enter the language. If a workload ever needs cores, the path is: the emitter lowers `map`, `filter`, and a `Monoid`-constrained fold over a `! Pure` function to a maybe-parallel runtime routine with an adaptive threshold, nothing else changes in the source, and `race` is the one explicit combinator because its meaning differs. `Nondet` bodies stay sequential. Panics in a parallel run report the earliest element, so failure looks like the sequential run. None of it is built, because no sample needs it, and the design is recorded here so that it is not designed twice. The C++ atomic-refcount question stays open and is only worth answering when that day comes.
 
+### 7.26 Atomic refcounts behind a switch
+
+The last C++ question is answered the cheap way. Compiling a translation unit with `-DTREB_THREADS` makes `Rc`'s count a `std::atomic` (relaxed increments, acquire-release decrements, the usual) and puts a mutex in every `Cell`, whose operations then run under it with the update function applied exactly once, as on .NET. Nothing else in the runtime or the generated code changes: immutable values may then be shared between threads freely, and `Cell` is the only thing that needed a lock, which is the property the language was designed to have. Without the flag the header is exactly what it was, a plain integer count for the one-loop-per-thread prototype.
+
+The runtime test program now compiles and runs both ways; with the flag it adds checks that hammer a shared vector's nodes from eight threads and update a cell from sixteen. The event loop is unchanged and still one per thread; `post` was already the one thread-safe entry. Whether to run more than one loop, and what the emitter would parallelise, remains the §7.25 design, unbuilt until a workload needs it. This closes the last item in §9 that was about the runtime; what remains open is language design.
+
 ---
 
 ## 8. Revised milestones
@@ -488,7 +494,7 @@ Milestones from the brief, with the decisions above folded in.
 ## 9. Deliberately open
 
 - **Concrete syntax.** Sketched in `trebuchet-syntax-sketch.md`; open choices listed there.
-- **Multi-threaded refcounting on C++.** Atomic behind a compile-time switch is the likely answer; decide only if a workload needs cores (§7.25). Parallelism itself is decided: inferred from purity if ever built, no primitives in the language.
+- **Parallel execution on C++.** The runtime supports it (`-DTREB_THREADS`, §7.26); running more than one loop and having the emitter parallelise pure work is the §7.25 design, unbuilt until a workload needs it.
 - **Whether `mut` locals ever return.** Revisit only with evidence from real code after milestone 4.
 
 ---

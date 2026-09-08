@@ -8,12 +8,18 @@ namespace Trebuchet.Compiler.Tests;
 public class CppRuntimeTests
 {
     [Fact]
-    public void RuntimeChecksPass()
+    public void RuntimeChecksPass() => Run("");
+
+    /// <summary>The same program with atomic refcounts and locked cells, plus the multi-threaded checks that flag enables.</summary>
+    [Fact]
+    public void RuntimeChecksPassWithThreads() => Run("-DTREB_THREADS -pthread");
+
+    private static void Run(string extraFlags)
     {
         var runtime = CppEmitter.FindRuntimeDir();
         var source = Path.Combine(runtime, "tests", "runtime_tests.cpp");
         var exe = Path.Combine(Path.GetTempPath(), "treb-rt-" + Guid.NewGuid().ToString("N")[..8]);
-        var build = Process.Start(new ProcessStartInfo("g++", $"-std=c++20 -O0 -Wall -Wno-unused -I\"{runtime}\" \"{source}\" -o \"{exe}\"") { RedirectStandardOutput = true, RedirectStandardError = true })!;
+        var build = Process.Start(new ProcessStartInfo("g++", $"-std=c++20 -O0 -Wall -Wno-unused {extraFlags} -I\"{runtime}\" \"{source}\" -o \"{exe}\"") { RedirectStandardOutput = true, RedirectStandardError = true })!;
         var log = build.StandardOutput.ReadToEnd() + build.StandardError.ReadToEnd();
         build.WaitForExit();
         Assert.True(build.ExitCode == 0, "g++ failed:\n" + log);

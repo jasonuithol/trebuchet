@@ -683,6 +683,10 @@ a{color:var(--accent-ink)}
 <li><strong>Decision.</strong> No parallelism primitives enter the language. If a workload ever needs cores, the path is: the emitter lowers <code>map</code>, <code>filter</code>, and a <code>Monoid</code>-constrained fold over a <code>! Pure</code> function to a maybe-parallel runtime routine with an adaptive threshold, nothing else changes in the source, and <code>race</code> is the one explicit combinator because its meaning differs. <span class="flag">Nondet</span> bodies stay sequential. Panics in a parallel run report the earliest element, so failure looks like the sequential run. None of it is built, because no sample needs it, and the design is recorded here so that it is not designed twice. The C++ atomic-refcount question stays open and is only worth answering when that day comes.</li>
 </ul>
 
+<h3>7.26 Atomic refcounts behind a switch</h3>
+<p>The last C++ question is answered the cheap way. Compiling a translation unit with <code>-DTREB_THREADS</code> makes <code>Rc</code>'s count a <code>std::atomic</code> (relaxed increments, acquire-release decrements, the usual) and puts a mutex in every <code>Cell</code>, whose operations then run under it with the update function applied exactly once, as on .NET. Nothing else in the runtime or the generated code changes: immutable values may then be shared between threads freely, and <code>Cell</code> is the only thing that needed a lock, which is the property the language was designed to have. Without the flag the header is exactly what it was, a plain integer count for the one-loop-per-thread prototype.</p>
+<p>The runtime test program now compiles and runs both ways; with the flag it adds checks that hammer a shared vector's nodes from eight threads and update a cell from sixteen. The event loop is unchanged and still one per thread; <code>post</code> was already the one thread-safe entry. Whether to run more than one loop, and what the emitter would parallelise, remains the section 7.25 design, unbuilt until a workload needs it. This closes the last item in section 9 that was about the runtime; what remains open is language design.</p>
+
 <h2 id="milestones"><span class="n">8</span>Revised milestones</h2>
 <p>Milestones from the brief, with the decisions above folded in.</p>
 <ol class="milestones">
@@ -701,7 +705,7 @@ a{color:var(--accent-ink)}
 <div class="open-note"><span class="label">Not yet decided</span>
 <ul style="margin-bottom:0">
 <li><strong>Concrete syntax.</strong> Sketched separately; open choices listed there.</li>
-<li><strong>Multi-threaded refcounting on C++.</strong> Atomic behind a compile-time switch is the likely answer; decide only if a workload needs cores (section 7.25). Parallelism itself is decided: inferred from purity if ever built, no primitives in the language.</li>
+<li><strong>Parallel execution on C++.</strong> The runtime supports it (<code>-DTREB_THREADS</code>, section 7.26); running more than one loop and having the emitter parallelise pure work is the section 7.25 design, unbuilt until a workload needs it.</li>
 <li><strong>Whether <code>mut</code> locals ever return.</strong> Revisit only with evidence from real code after milestone 4.</li>
 </ul>
 </div>

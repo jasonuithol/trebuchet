@@ -222,8 +222,9 @@ error. `examples/resources/` is the sample.
 
 `Cell` is atomic on .NET and in the interpreter: every operation runs under a lock and an
 update's function runs under it once, because ASP.NET and the dev server run requests on
-parallel threads. Immutable values need nothing. The C++ `Cell` is plain: that target runs
-on one event-loop thread. There are no parallelism primitives; see strategy §7.25.
+parallel threads. Immutable values need nothing. The C++ `Cell` is plain unless the header is
+compiled with `-DTREB_THREADS`, which also makes refcounts atomic. There are no parallelism
+primitives; see strategy §7.25.
 
 ## Local functions
 
@@ -364,9 +365,10 @@ is lowered as blocking, which is what milestone 4 specified.
 
 The runtime is one C++20 header, standard library only: a persistent vector trie, a hash
 array mapped trie for maps and sets, `Option`, `Result`, `Cell`, `Instant`, and the Prelude
-as templates. Sharing is through `treb::Rc`, a non-atomic reference-counted pointer with a
-converting constructor from derived to base, which is what the single-threaded prototype
-needs. `Suspend` lowers to `treb::Task<T>`, a lazy coroutine with symmetric transfer: a
+as templates. Sharing is through `treb::Rc`, a reference-counted pointer with a converting
+constructor from derived to base. Its count is a plain integer by default, for the one-loop-
+per-thread prototype; compile with `-DTREB_THREADS` and it becomes atomic and every `Cell`
+gets a mutex, and values may then be shared between threads freely. `Suspend` lowers to `treb::Task<T>`, a lazy coroutine with symmetric transfer: a
 function whose effects include `Suspend` returns `Task` and is `co_await`ed, exactly the C#
 rule. Tasks run on `treb::EventLoop`, one per thread, with a ready queue, a timer heap, and a
 thread-safe `post` queue that is the only way work enters from another thread (which is what

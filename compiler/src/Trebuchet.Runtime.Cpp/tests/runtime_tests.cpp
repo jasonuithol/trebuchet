@@ -114,6 +114,37 @@ int main() {
         auto p = propagate().get();
         CHECK(p.ok && *p.value == 6);
     }
+#ifdef TREB_THREADS
+    // ---- threads: shared structure hammered from many threads, cells updated concurrently
+    {
+        Vector<int> base;
+        for (int i = 0; i < 100; i++) base = base.append(i);
+        std::vector<std::thread> workers;
+        std::atomic<int> sums{0};
+        for (int t = 0; t < 8; t++) workers.emplace_back([base, &sums] {
+            for (int round = 0; round < 200; round++) {
+                Vector<int> mine = base;                 // shares every node of base
+                for (int i = 0; i < 40; i++) mine = mine.append(i);   // copies paths, releases old ones
+                int s = 0;
+                for (int i = 0; i < 100; i++) s += mine.get(i);
+                sums += s;
+            }
+        });
+        for (auto& w : workers) w.join();
+        CHECK(sums == 8 * 200 * 4950);
+        CHECK(base.size() == 100);
+
+        Cell<long> counter(0);
+        Cell<Vector<int>> log(Vector<int>{});
+        std::vector<std::thread> updaters;
+        for (int t = 0; t < 16; t++) updaters.emplace_back([counter, log, t] {
+            for (int i = 0; i < 500; i++) { counter.update([](long n) { return n + 1; }); log.update([t](Vector<int> v) { return v.append(t); }); }
+        });
+        for (auto& u : updaters) u.join();
+        CHECK(counter.get() == 16 * 500);
+        CHECK(log.get().size() == 16 * 500);
+    }
+#endif
     // ---- EventLoop: timers, spawn, completions from another thread, nesting, deadlock
     {
         std::vector<int> order;

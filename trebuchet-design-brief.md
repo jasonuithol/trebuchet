@@ -287,4 +287,6 @@ The open questions in §10 were worked through in a follow-up session. Full reas
 
 **Added 2026-09-08, parallelism:** `Cell` is atomic on .NET and in the interpreter, fixing a race under parallel requests. No parallelism primitives: if ever needed, the emitter parallelises pure `map` and folds with a runtime cost model, and `race` is the only explicit combinator. See `trebuchet-implementation-strategy.md` §7.25.
 
-**Still open:** concrete syntax details (sketched in `trebuchet-syntax-sketch.md`), multi-threaded refcounting on C++ if cores are ever needed, and whether `mut` locals ever return.
+**Added 2026-09-08, atomic refcounts:** `-DTREB_THREADS` makes the C++ runtime's counts atomic and its `Cell` locked; nothing else changes. See `trebuchet-implementation-strategy.md` §7.26.
+
+**Still open:** concrete syntax details (sketched in `trebuchet-syntax-sketch.md`) and whether `mut` locals ever return.

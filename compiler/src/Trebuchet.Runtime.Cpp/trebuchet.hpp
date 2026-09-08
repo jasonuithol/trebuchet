@@ -1,10 +1,12 @@
 // Trebuchet C++ runtime: single header, C++20, standard library only.
 //
 // Memory model: every value is immutable and shared by reference count. Persistent
-// collections share structure through treb::Rc, a non-atomic reference-counted pointer:
-// the prototype runs on one thread, as the strategy document specifies, so counting needs
-// no atomics. Records are plain structs that copy cheaply because their members are Rc
-// pointers, strings, or small scalars. Suspend lowers to treb::Task, a lazy coroutine
+// collections share structure through treb::Rc, a reference-counted pointer whose count is
+// a plain integer by default, because the prototype runs on one loop thread, and an atomic
+// when the translation unit is compiled with -DTREB_THREADS, which also puts a mutex in
+// every Cell. Nothing else changes: with the switch on, values may be shared between
+// threads freely, and only Cell needs a lock. Records are plain structs that copy cheaply
+// because their members are Rc pointers, strings, or small scalars. Suspend lowers to treb::Task, a lazy coroutine
 // scheduled by treb::EventLoop, a single-threaded loop with timers and a thread-safe post
 // queue that is the only way work enters from another thread.
 #pragma once
@@ -61,7 +63,11 @@ struct PanicValue {
 // ---------------------------------------------------------------- Rc: non-atomic reference counting
 
 struct RcControl {
+#ifdef TREB_THREADS
+    std::atomic<long> count;
+#else
     long count;
+#endif
     void (*destroy)(void*);
     void* object;
 };
@@ -72,9 +78,15 @@ class Rc {
     template <class U> friend class Rc;
     T* ptr_ = nullptr;
     RcControl* ctrl_ = nullptr;
+#ifdef TREB_THREADS
+    void retain() const { if (ctrl_) ctrl_->count.fetch_add(1, std::memory_order_relaxed); }
+    void release() {
+        if (ctrl_ && ctrl_->count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+#else
     void retain() const { if (ctrl_) ++ctrl_->count; }
     void release() {
         if (ctrl_ && --ctrl_->count == 0) {
+#endif
             ctrl_->destroy(ctrl_->object);
             delete ctrl_;
         }
@@ -96,7 +108,11 @@ public:
     T& operator*() const { return *ptr_; }
     T* operator->() const { return ptr_; }
     explicit operator bool() const { return ptr_ != nullptr; }
+#ifdef TREB_THREADS
+    long useCount() const { return ctrl_ ? ctrl_->count.load(std::memory_order_relaxed) : 0; }
+#else
     long useCount() const { return ctrl_ ? ctrl_->count : 0; }
+#endif
     bool operator==(const Rc& o) const { return ptr_ == o.ptr_; }
 };
 
@@ -522,13 +538,32 @@ T fail(const P& payload) {
 // ---------------------------------------------------------------- Cell
 
 template <class T>
+struct CellBox {
+    T value;
+#ifdef TREB_THREADS
+    std::mutex gate;
+    explicit CellBox(T v) : value(std::move(v)) {}
+#endif
+};
+
+/// The one mutable primitive. With TREB_THREADS every operation runs under the cell's mutex
+/// and an update's function runs under it exactly once, as on .NET.
+template <class T>
 struct Cell {
-    Rc<T> box;
-    explicit Cell(T initial) : box(makeRc<T>(std::move(initial))) {}
-    T get() const { return *box; }
-    Unit set(T v) const { *box = std::move(v); return unit; }
-    template <class F> Unit update(F f) const { *box = f(*box); return unit; }
-    template <class F> T getAndUpdate(F f) const { T old = *box; *box = f(old); return old; }
+    Rc<CellBox<T>> box;
+#ifdef TREB_THREADS
+    explicit Cell(T initial) : box(makeRc<CellBox<T>>(std::move(initial))) {}
+    T get() const { std::lock_guard<std::mutex> lock(box->gate); return box->value; }
+    Unit set(T v) const { std::lock_guard<std::mutex> lock(box->gate); box->value = std::move(v); return unit; }
+    template <class F> Unit update(F f) const { std::lock_guard<std::mutex> lock(box->gate); box->value = f(box->value); return unit; }
+    template <class F> T getAndUpdate(F f) const { std::lock_guard<std::mutex> lock(box->gate); T old = box->value; box->value = f(old); return old; }
+#else
+    explicit Cell(T initial) : box(makeRc<CellBox<T>>(CellBox<T>{std::move(initial)})) {}
+    T get() const { return box->value; }
+    Unit set(T v) const { box->value = std::move(v); return unit; }
+    template <class F> Unit update(F f) const { box->value = f(box->value); return unit; }
+    template <class F> T getAndUpdate(F f) const { T old = box->value; box->value = f(old); return old; }
+#endif
     bool operator==(const Cell& o) const { return box == o.box; }
 };
 template <class T> Cell<T> cellCreate(T v) { return Cell<T>(std::move(v)); }
