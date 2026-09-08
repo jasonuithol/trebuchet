@@ -41,6 +41,31 @@ public class TypeCheckerTests
     }
 
     [Fact]
+    public void NamedFieldPatternsAreCheckedByName()
+    {
+        var modules = ModuleSet.Load(new[] { ("t.treb", """
+            union Ev
+              Held(id: String, guest: String, slot: Int)
+              Gone(id: String)
+            fn f(e: Ev) -> String ! Pure
+              match e
+                Held(guest: g, ...) => g
+                Gone(id, ...) => id
+            fn g(e: Ev) -> String ! Pure
+              match e
+                Held(id, guest: id) => id
+                Held(room: r) => r
+                Gone(id, guest) => id
+            """) });
+        var checker = TypeChecker.CheckWithEffects(modules);
+        var messages = checker.Diagnostics.Select(d => d.Message).ToList();
+        Assert.Contains(messages, m => m.Contains("has no field 'room'"));
+        Assert.Contains(messages, m => m.Contains("has 2 binder(s) but the variant has 1 field(s)"));
+        Assert.DoesNotContain(messages, m => m.Contains("guest: g"));
+        Assert.Contains(messages, m => m.Contains("not exhaustive"));
+    }
+
+    [Fact]
     public void LazyCombinatorsRejectSuspendingFunctions()
     {
         var modules = ModuleSet.Load(new[] { ("t.treb", """

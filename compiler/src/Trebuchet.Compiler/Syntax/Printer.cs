@@ -414,7 +414,9 @@ public sealed class Printer
 
     private string Pattern(Pattern p) => p switch
     {
-        VariantPattern v => v.Args.Count == 0 ? v.Name : $"{v.Name}({string.Join(", ", v.Args.Select(Pattern))})",
+        VariantPattern v => v.Args.Count == 0 && v.NamedArgs.Count == 0 && !v.Rest
+            ? v.Name
+            : $"{v.Name}({string.Join(", ", v.Args.Select(Pattern).Concat(v.NamedArgs.Select(n => $"{n.Field}: {Pattern(n.Pattern)}")).Concat(v.Rest ? new[] { "..." } : Array.Empty<string>()))})",
         BindPattern b => b.Name,
         WildcardPattern => "_",
         LiteralPattern lit => Inline(lit.Literal),

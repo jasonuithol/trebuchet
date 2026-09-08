@@ -44,6 +44,16 @@ fn classify(p: (Int, Int)) -> String ! Pure
     (x, y) if x == y => "diagonal"
     _ => "plane"
 
+// Named fields pick what a pattern wants, ... ignores the rest, and a record is matchable too.
+record Point(x: Int, y: Int)
+
+fn quadrant(p: Point) -> String ! Pure
+  match p
+    Point(x: 0, y: 0) => "origin"
+    Point(x: x, ...) if x < 0 => "left"
+    Point(y: y, ...) if y < 0 => "lower"
+    _ => "upper"
+
 // ? works on Option too: None leaves the function with None.
 fn secondOfFirst(xs: Vector[Vector[Int]]) -> Option[Int] ! Pure
   first = at(xs, 0)?
@@ -58,4 +68,5 @@ fn demo() -> String ! Pure
   tuples = toString(lo) + ".." + toString(hi) + " " + toString(swapped.0) + swapped.1
   points = classify((0, 0)) + " " + classify((3, 0)) + " " + classify((0, 4)) + " " + classify((2, 2)) + " " + classify((1, 2))
   options = toString(getOr(secondOfFirst([[1, 2], [3]]), -1)) + " " + toString(getOr(secondOfFirst([]), -1))
-  described + lists + " " + tuples + " " + points + " " + options
+  named = quadrant(Point(0, 0)) + " " + quadrant(Point(-1, 5)) + " " + quadrant(Point(3, -2)) + " " + quadrant(Point(3, 4))
+  described + lists + " " + tuples + " " + points + " " + options + " " + named

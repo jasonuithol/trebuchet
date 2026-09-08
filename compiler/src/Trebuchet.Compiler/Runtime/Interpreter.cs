@@ -501,11 +501,15 @@ public sealed class Interpreter
             case VariantPattern vp:
             {
                 if (v is not RecordValue r || r.TypeName != vp.Name) return false;
-                if (vp.Args.Count == 0) return true;
-                if (vp.Args.Count != r.FieldValues.Length)
+                if (vp.Args.Count > r.FieldValues.Length)
                     throw new TrebPanic($"{vp.Pos}: pattern {vp.Name} has {vp.Args.Count} binder(s) but the variant has {r.FieldValues.Length} field(s)");
                 for (var i = 0; i < vp.Args.Count; i++)
                     if (!TryMatch(vp.Args[i], r.FieldValues[i], env)) return false;
+                foreach (var (field, sub) in vp.NamedArgs)
+                {
+                    var value = r.Get(field) ?? throw new TrebPanic($"{sub.Pos}: {vp.Name} has no field '{field}'");
+                    if (!TryMatch(sub, value, env)) return false;
+                }
                 return true;
             }
             default:

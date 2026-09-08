@@ -237,7 +237,16 @@ public sealed record IfExpr(
 
 public abstract record Pattern(Position Pos) : Node(Pos);
 
-public sealed record VariantPattern(Position Pos, string Name, IReadOnlyList<Pattern> Args) : Pattern(Pos);
+/// <summary>
+/// A constructor pattern over a variant or a record. <see cref="Args"/> are positional and
+/// must cover every field unless <see cref="Rest"/> (<c>...</c>) ignores the remainder;
+/// <see cref="Named"/> entries, <c>field: pattern</c>, pick fields by name and may omit any.
+/// </summary>
+public sealed record VariantPattern(Position Pos, string Name, IReadOnlyList<Pattern> Args,
+    IReadOnlyList<(string Field, Pattern Pattern)>? Named = null, bool Rest = false) : Pattern(Pos)
+{
+    public IReadOnlyList<(string Field, Pattern Pattern)> NamedArgs => Named ?? Array.Empty<(string, Pattern)>();
+}
 
 public sealed record BindPattern(Position Pos, string Name) : Pattern(Pos);
 

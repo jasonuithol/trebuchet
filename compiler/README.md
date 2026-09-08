@@ -245,7 +245,8 @@ generic types, passing a constrained function as a bare value.
 
 ## Patterns
 
-Match arms take guards (`Some(x) if x > 0 =>`), list patterns (`[]`, `[a, b]`, `[first,
+Constructor patterns take named fields and a trailing `...`: `Held(guest: g, ...)`,
+`BookingCancelled(id, ...)`; records match too, `Point(x: 0, y: 0)`. Match arms take guards (`Some(x) if x > 0 =>`), list patterns (`[]`, `[a, b]`, `[first,
 ...rest]`, `[a, ..._]`), tuple patterns, and as-patterns (`whole @ Rect(w, h)`). Tuples are
 `(A, B)` types with `(a, b)` values and `p.0` access. A binding line may be an irrefutable
 pattern: `(lo, hi) = minMax(xs)`. Guarded arms do not count for exhaustiveness; a vector match

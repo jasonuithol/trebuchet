@@ -35,7 +35,7 @@ fn mirror[T](t: Tree[T]) -> Tree[T] ! Pure
 fn leftmost[T](t: Tree[T]) -> T ! Pure
   match t
     Leaf(v) => v
-    Node(l, _) => leftmost(l)
+    Node(left: l) => leftmost(l)
 
 fn chainLength[T](c: Chain[T]) -> Int ! Pure
   match c.next

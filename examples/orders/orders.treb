@@ -36,12 +36,12 @@ record PlaceOrder
 
 fn apply(state: Order, ev: OrderEvent) -> Order ! Pure
   match ev
-    OrderPlaced(_, customer, lines) =>
+    OrderPlaced(customer: customer, lines: lines) =>
       state with
         customer: customer
         lines: lines
         status: OrderStatus.Placed
-    OrderCancelled(_, _) =>
+    OrderCancelled(...) =>
       state with
         status: OrderStatus.Cancelled
 

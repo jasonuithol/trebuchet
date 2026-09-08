@@ -765,20 +765,26 @@ public sealed class CppEmitter
                             inner = $"std::get<{vname}>({access})";
                             break;
                         }
+                        case RecordT rec:
+                            fields = rec.Fields;
+                            inner = access;
+                            break;
                         default:
                             return ("true", bindings);
                     }
                     var variantRecord = type is UnionT vu ? vu.Variant(vp.Name) : (type as RecordT);
-                    for (var i = 0; i < vp.Args.Count; i++)
+                    void MatchField(int i, Syntax.Pattern sub)
                     {
                         var (f, ft) = fields[i];
-                        var sub = fields.Count == 1 && (type is AppT) ? inner : $"{inner}.{Id(f)}";
-                        if (variantRecord is not null && type is not AppT && IsBoxed(variantRecord, f)) sub = $"(*{sub})";
-                        var (c, bs) = Pattern(vp.Args[i], ft, sub);
+                        var subAccess = fields.Count == 1 && (type is AppT) ? inner : $"{inner}.{Id(f)}";
+                        if (variantRecord is not null && type is not AppT && IsBoxed(variantRecord, f)) subAccess = $"(*{subAccess})";
+                        var (c, bs) = Pattern(sub, ft, subAccess);
                         if (c != "true") conds.Add(c);
                         bindings.AddRange(bs);
                     }
-                    return (string.Join(" && ", conds), bindings);
+                    for (var i = 0; i < vp.Args.Count; i++) MatchField(i, vp.Args[i]);
+                    foreach (var (field, sub) in vp.NamedArgs) MatchField(fields.ToList().FindIndex(f => f.Name == field), sub);
+                    return (conds.Count == 0 ? "true" : string.Join(" && ", conds), bindings);
                 }
                 default: throw new InvalidOperationException(p.GetType().Name);
             }

@@ -1288,17 +1288,19 @@ public sealed class TypeChecker
         return Prune(result);
     }
 
-    private static List<(string Name, IReadOnlyList<TType> Fields)>? VariantsOf(TType t) => t switch
+    private static List<(string Name, IReadOnlyList<(string Name, TType Type)> Fields)>? VariantsOf(TType t) => t switch
     {
-        UnionT u => u.Variants.Select(v => (v.Name, (IReadOnlyList<TType>)v.Fields.Select(f => f.Type).ToList())).ToList(),
+        UnionT u => u.Variants.Select(v => (v.Name, (IReadOnlyList<(string, TType)>)v.Fields.ToList())).ToList(),
         RecordT { Union: { } u } => VariantsOf(u),
-        AppT { Ctor: "Option" } o => new() { ("None", Array.Empty<TType>()), ("Some", new[] { o.Args[0] }) },
-        AppT { Ctor: "Result" } r => new() { ("Ok", new[] { r.Args[0] }), ("Error", new[] { r.Args[1] }) },
+        // a record is a one-variant type for matching: Room(capacity: c) is a pattern
+        RecordT { IsEntity: false } r => new() { (r.Name, (IReadOnlyList<(string, TType)>)r.Fields.ToList()) },
+        AppT { Ctor: "Option" } o => new() { ("None", Array.Empty<(string, TType)>()), ("Some", new[] { ("value", o.Args[0]) }) },
+        AppT { Ctor: "Result" } r => new() { ("Ok", new[] { ("value", r.Args[0]) }), ("Error", new[] { ("error", r.Args[1]) }) },
         _ => null,
     };
 
     /// <summary>Checks a pattern against a type, binding names. Returns true when the pattern matches every value.</summary>
-    private bool Pattern(Pattern p, TType t, List<(string Name, IReadOnlyList<TType> Fields)>? variants, Scope scope, Ctx ctx, HashSet<string> covered)
+    private bool Pattern(Pattern p, TType t, List<(string Name, IReadOnlyList<(string Name, TType Type)> Fields)>? variants, Scope scope, Ctx ctx, HashSet<string> covered)
     {
         t = Prune(t);
         switch (p)
@@ -1367,16 +1369,31 @@ public sealed class TypeChecker
                     Error(ctx, vp.Pos, $"{Show(t)} has no variant '{vp.Name}'");
                     return false;
                 }
-                if (vp.Args.Count != 0 && vp.Args.Count != v.Fields.Count)
+                var partial = vp.Rest || vp.NamedArgs.Count > 0;
+                if (vp.Args.Count > v.Fields.Count || (!partial && vp.Args.Count != 0 && vp.Args.Count != v.Fields.Count))
                 {
-                    Error(ctx, vp.Pos, $"pattern {vp.Name} has {vp.Args.Count} binder(s) but the variant has {v.Fields.Count} field(s)");
+                    Error(ctx, vp.Pos, $"pattern {vp.Name} has {vp.Args.Count} binder(s) but the variant has {v.Fields.Count} field(s); name the fields you want, or end with '...'");
                     return false;
                 }
                 var subTotal = true;
                 for (var i = 0; i < vp.Args.Count; i++)
-                    if (!Pattern(vp.Args[i], v.Fields[i], VariantsOf(Prune(v.Fields[i])), scope, ctx, new())) subTotal = false;
+                    if (!Pattern(vp.Args[i], v.Fields[i].Type, VariantsOf(Prune(v.Fields[i].Type)), scope, ctx, new())) subTotal = false;
+                var seen = new HashSet<string>();
+                foreach (var (field, sub) in vp.NamedArgs)
+                {
+                    var idx = v.Fields.ToList().FindIndex(f => f.Name == field);
+                    if (idx < 0)
+                    {
+                        Error(ctx, sub.Pos, $"{vp.Name} has no field '{field}'; it has {string.Join(", ", v.Fields.Select(f => f.Name))}");
+                        continue;
+                    }
+                    if (idx < vp.Args.Count) Error(ctx, sub.Pos, $"field '{field}' of {vp.Name} is already matched positionally");
+                    if (!seen.Add(field)) Error(ctx, sub.Pos, $"field '{field}' of {vp.Name} is matched twice");
+                    if (!Pattern(sub, v.Fields[idx].Type, VariantsOf(Prune(v.Fields[idx].Type)), scope, ctx, new())) subTotal = false;
+                }
                 if (subTotal) covered.Add(vp.Name);
-                return false;
+                // a record has one constructor, so a pattern over it whose parts are total matches every value
+                return t is RecordT { Union: null } && subTotal;
             }
             default:
                 throw new InvalidOperationException(p.GetType().Name);

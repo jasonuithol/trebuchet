@@ -943,16 +943,35 @@ public sealed class Parser
             {
                 Next();
                 var args = new List<Pattern>();
+                var named = new List<(string, Pattern)>();
+                var rest = false;
                 if (Accept(TokenKind.LParen))
                 {
                     while (!At(TokenKind.RParen))
                     {
-                        args.Add(PatternExpr());
+                        if (Accept(TokenKind.Ellipsis))
+                        {
+                            // ... ignores the fields not named: only at the end
+                            rest = true;
+                            Accept(TokenKind.Comma);
+                            break;
+                        }
+                        if (At(TokenKind.Identifier) && KindAt(1) == TokenKind.Colon)
+                        {
+                            var field = Next().Text;
+                            Next();
+                            named.Add((field, PatternExpr()));
+                        }
+                        else
+                        {
+                            if (named.Count > 0) throw Error("positional patterns must come before named ones");
+                            args.Add(PatternExpr());
+                        }
                         if (!Accept(TokenKind.Comma)) break;
                     }
                     Expect(TokenKind.RParen);
                 }
-                return new VariantPattern(t.Start, t.Text, args);
+                return new VariantPattern(t.Start, t.Text, args, named.Count > 0 ? named : null, rest);
             }
             case TokenKind.Identifier:
                 Next();

@@ -281,4 +281,6 @@ The open questions in §10 were worked through in a follow-up session. Full reas
 
 **Added 2026-09-08, the rest of the Haskell list:** `?` on `Option`; lazy `Seq[T]` next to strict `Vector[T]`, with functions given to lazy combinators forbidden to `Suspend`; `treb test` runs `prop*` functions with generated, shrunk arguments. See `trebuchet-implementation-strategy.md` §7.22.
 
+**Added 2026-09-08, named-field patterns:** `Held(guest: g, ...)` picks fields by name and `...` ignores the rest; records are matchable. No punning. See `trebuchet-implementation-strategy.md` §7.23.
+
 **Still open:** concrete syntax details (sketched in `trebuchet-syntax-sketch.md`), multi-threaded refcounting, parallelism primitives, and whether `mut` locals ever return.

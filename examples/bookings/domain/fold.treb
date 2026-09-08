@@ -17,7 +17,7 @@ fn apply(room: Room, ev: RoomEvent) -> Room ! Pure
     BookingConfirmed(id) =>
       room with
         bookings: setStatus(room.bookings, id, BookingStatus.Confirmed)
-    BookingCancelled(id, _) =>
+    BookingCancelled(id, ...) =>
       room with
         bookings: setStatus(room.bookings, id, BookingStatus.Cancelled)
     BookingPromoted(id) =>

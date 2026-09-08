@@ -30,6 +30,7 @@ Everything else is conventional. Where a C-family or ML-family spelling exists, 
 | Lambda | `\params -> body` | `\acc, line -> acc + line.total` |
 | Match arm | `pattern => body` | `OrderPlaced(id, _, _) => ...` |
 | Guard | `pattern if cond => body` | `Some(x) if x > 0 => ...` |
+| Named-field pattern | `Ctor(field: pattern, ...)`; positional first; `...` ignores the rest | `BookingHeld(id: id, slot: s)`, `BookingCancelled(id, ...)` |
 | List pattern | `[]`, `[a, b]`, `[first, ...rest]`, `[a, ..._]` | `[x, ...rest] => x + total(rest)` |
 | Tuple | `(A, B)` type, `(a, b)` value or pattern, `p.0` item | `(lo, hi) = minMax(xs)` |
 | As-pattern | `name @ pattern` | `whole @ Rect(w, h) if w == h => ...` |
@@ -310,6 +311,8 @@ fn swap[A, B](p: (A, B)) -> (B, A) ! Pure
   (b, a)
 ```
 
+A constructor pattern may name its fields, `Held(guest: g, ...)`, and may end with `...` to ignore the rest; positional entries come first and, without `...`, cover every field. Records match the same way: `Point(x: 0, y: 0)`. There is no punning: `Room(capacity)` is a positional bind, not a field.
+
 A guarded arm never counts towards exhaustiveness. A match on a vector is exhaustive when some `[..., ...rest]` arm takes every length from k up and each shorter length has an exact arm. A binding line may be any pattern that cannot fail; one that can is an error that points at `match`.
 
 ### Collections
@@ -548,7 +551,7 @@ Note that a short record can be declared inline, `record OrderId(value: String)`
 9. Whether a service method may share a name with a top-level function, as in the bookings sample where the method `request` calls the handler `request` by qualification.
 10. Whether `\->` is the right spelling for a zero-argument lambda.
 11. Whether a service method may shadow a top-level function of the same name at all. The type checker caught a case where the shadow silently changed which function was called; forbidding it, or requiring qualification, may be better than the nearest-scope rule.
-12. ~~Whether a variant pattern needs an as-binding~~: `e @ OrderPlaced(...)` exists (§5). Named-field patterns remain open.
+12. ~~Whether a variant pattern needs an as-binding or named-field form~~: both exist (§5).
 
 ---
 

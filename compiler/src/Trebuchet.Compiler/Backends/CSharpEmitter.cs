@@ -802,7 +802,7 @@ public sealed class CSharpEmitter
                 {
                     // a designation may follow a positional, property, or list pattern; anything else becomes var + guard
                     var inner = Pattern(ap.Inner, scrutinee);
-                    if (ap.Inner is TuplePattern or ListPattern || (ap.Inner is VariantPattern vpi && vpi.Args.Count > 0))
+                    if (ap.Inner is TuplePattern or ListPattern || (ap.Inner is VariantPattern vpi && (vpi.Args.Count > 0 || vpi.NamedArgs.Count > 0)))
                         return $"{inner} {Id(ap.Name)}";
                     if (ap.Inner is BindPattern ib) _patternPrelude.Add($"var {Id(ib.Name)} = {Id(ap.Name)};");
                     else if (ap.Inner is not WildcardPattern) _patternGuards.Add($"{Id(ap.Name)} is {inner}");
@@ -839,13 +839,22 @@ public sealed class CSharpEmitter
                             typeName = vp.Name + GenericArgs(u2.TypeArgs);
                             fields = u2.Variant(vp.Name)?.Fields.ToList() ?? new List<(string, TType)>();
                             break;
+                        case RecordT rec:
+                            typeName = rec.Name + GenericArgs(rec.TypeArgs);
+                            fields = rec.Fields;
+                            break;
                         default:
                             typeName = vp.Name;
                             fields = Array.Empty<(string, TType)>();
                             break;
                     }
-                    if (vp.Args.Count == 0) return typeName;
-                    var parts = vp.Args.Select((a, i) => $"{Id(fields[i].Name)}: {Pattern(a, fields[i].Type)}");
+                    if (vp.Args.Count == 0 && vp.NamedArgs.Count == 0) return typeName;
+                    var parts = vp.Args.Select((a, i) => $"{Id(fields[i].Name)}: {Pattern(a, fields[i].Type)}").ToList();
+                    foreach (var (field, sub) in vp.NamedArgs)
+                    {
+                        var ft = fields.First(f => f.Name == field).Type;
+                        parts.Add($"{Id(field)}: {Pattern(sub, ft)}");
+                    }
                     return $"{typeName} {{ {string.Join(", ", parts)} }}";
                 }
                 default: throw new InvalidOperationException(p.GetType().Name);

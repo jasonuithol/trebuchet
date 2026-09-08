@@ -443,6 +443,12 @@ The pitch "Haskell for .NET" needs one thing above all: generic code that can as
 
 Running the properties over the sample found a bug in the type-class work of §7.21: the built-in `Ord` shape's members were not registered as class members, so `Ord.compare(a, b)` on a concrete type was not resolved and the interpreter tried to evaluate `Ord` as a value. The first property that compared two `Money` values caught it on its first case.
 
+### 7.23 Named-field patterns and `...`
+
+Positional patterns stopped scaling the moment variants grew past two fields: adding `attendees` to `BookingHeld` broke every pattern on it, and `BookingCancelled(_, _)` says nothing. A constructor pattern now takes named entries, `BookingHeld(id: id, slot: s)`, which may omit any field, and a trailing `...` that ignores the fields not mentioned, `BookingCancelled(id, ...)`. Positional entries still come first and, without `...`, still cover every field. A record is matchable the same way, `Point(x: 0, y: 0)`, since it is a one-constructor type; a record pattern whose parts are total is itself total.
+
+Punning, `Room(capacity)` binding a variable named after the field, was considered and dropped: `Room(capacity)` already means a positional bind of the first field, and no spelling for the pun read well next to the `name: value` shape construction and `with` use. `...` covers the common case in fewer keystrokes anyway. C# property patterns are named by nature, so the lowering got simpler rather than harder; C++ indexes struct members either way. The samples that padded with underscores now name their fields.
+
 ---
 
 ## 8. Revised milestones
