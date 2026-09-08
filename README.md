@@ -57,3 +57,7 @@ singleton, scoped, and resource lifetimes, handlers with `supervise` as the supe
 and a C# host whose DI container supplies leaf dependencies. Open by decision: multi-threaded
 execution on C++ and parallelism primitives. Everything else that is open is listed in §9 of the
 strategy document.
+
+## License
+
+MIT. See `LICENSE`.
