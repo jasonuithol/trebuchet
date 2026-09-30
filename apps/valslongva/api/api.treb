@@ -28,6 +28,8 @@ record Status
   loaderPresent: Bool
   loaderDetected: Option[String]
   loaderLatest: Option[String]
+  // the pack's icon on Thunderstore, so the UI can show it without a copy in this repository
+  loaderIcon: Option[String]
   installed: Int
   catalogueFetchedAt: Option[Instant]
   cataloguePackages: Int
@@ -56,13 +58,21 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
       Some(c) => length(c.packages)
       None => 0
 
-  private fn loaderLatest() -> Option[String]
+  private fn loaderVersion() -> Option[ListingVersion]
     match catalogue.loaded()
       None => None
       Some(c) =>
         match lookup(c, loaderName())
           None => None
-          Some(l) => map(latest(l), \v -> v.versionNumber)
+          Some(l) => latest(l)
+
+  private fn loaderLatest() -> Option[String]
+    map(loaderVersion(), \v -> v.versionNumber)
+
+  private fn loaderIcon() -> Option[String]
+    match loaderVersion()
+      Some(v) => if length(v.icon) == 0 then None else Some(v.icon)
+      None => None
 
   private fn libraryOrEmpty() -> Library
     match installer.library()
@@ -72,11 +82,11 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
   fn getStatus() -> Result[Status, AppError]
     match locator.gameDir()
       Error(e) =>
-        ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), 0, catalogueStamp(), cataloguePackages()))
+        ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), 0, catalogueStamp(), cataloguePackages()))
       Ok(dir) =>
         lib = installer.library()?
         core = dir + "/BepInEx/core/BepInEx.dll"
-        ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), length(lib.mods), catalogueStamp(), cataloguePackages()))
+        ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), length(lib.mods), catalogueStamp(), cataloguePackages()))
 
   fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
     cat = catalogue.current()?
