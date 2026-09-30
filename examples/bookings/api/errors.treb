@@ -5,13 +5,13 @@ use bookings.api.contracts
 
 // A panic caught at the request boundary is a 500, never a domain error.
 fn crashed(p: Panic) -> ApiError ! Pure
-  ApiError.Internal(p.message)
+        ApiError.Internal(p.message)
 
 fn toApiError(e: BookingError) -> ApiError
-  match e
-    RoomNotFound(room) => ApiError.NotFound("room " + room.value)
-    BookingNotFound(id) => ApiError.NotFound("booking " + id.value)
-    SlotTaken(...) => ApiError.Conflict("slot already booked")
-    SlotInPast(...) => ApiError.BadRequest("slot is in the past")
-    OverCapacity(requested: requested, capacity: capacity) => ApiError.BadRequest("room holds " + toString(capacity) + ", " + toString(requested) + " requested")
-    AlreadyCancelled(...) => ApiError.Conflict("booking already cancelled")
+        match e
+                RoomNotFound(room) => ApiError.NotFound("room " + room.value)
+                BookingNotFound(id) => ApiError.NotFound("booking " + id.value)
+                SlotTaken(...) => ApiError.Conflict("slot already booked")
+                SlotInPast(...) => ApiError.BadRequest("slot is in the past")
+                OverCapacity(requested: requested, capacity: capacity) => ApiError.BadRequest("room holds " + toString(capacity) + ", " + toString(requested) + " requested")
+                AlreadyCancelled(...) => ApiError.Conflict("booking already cancelled")

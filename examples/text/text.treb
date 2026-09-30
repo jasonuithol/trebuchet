@@ -2,39 +2,38 @@ module text
 
 // String builtins: split, join, replace, substring, indexOf, endsWith, parseInt, parseFloat,
 // lines, padLeft, alongside trim, toUpper, toLower, startsWith, contains, length.
-
 record Dependency(namespace: String, name: String, version: Vector[Int])
 
 // Thunderstore spells a dependency as Namespace-Name-1.2.3.
 fn parseDependency(text: String) -> Option[Dependency] ! Pure
-  fn number(p: String) -> Result[Int, String]
-    match parseInt(p)
-      Some(n) => ok(n)
-      None => error("not a number: " + p)
-  parts = split(text, "-")
-  match parts
-    [ns, name, ...rest] if length(rest) > 0 =>
-      match traverse(split(join(rest, "-"), "."), number)
-        Ok(v) => Some(Dependency(ns, name, v))
-        Error(_) => None
-    _ => None
+        fn number(p: String) -> Result[Int, String]
+                match parseInt(p)
+                        Some(n) => ok(n)
+                        None => error("not a number: " + p)
+        parts = split(text, "-")
+        match parts
+                [ns, name, ...rest] if length(rest) > 0 =>
+                        match traverse(split(join(rest, "-"), "."), number)
+                                Ok(v) => Some(Dependency(ns, name, v))
+                                Error(_) => None
+                _ => None
 
 fn show(d: Dependency) -> String ! Pure
-  d.namespace + "/" + d.name + " v" + join(map(d.version, \n -> toString(n)), ".")
+        d.namespace + "/" + d.name + " v" + join(map(d.version, \n -> toString(n)), ".")
 
 fn demo() -> String ! Pure
-  dep = match parseDependency("denikson-BepInExPack_Valheim-5.4.2333")
-    Some(d) => show(d)
-    None => "unparsed"
-  bad = match parseDependency("nonsense")
-    Some(d) => show(d)
-    None => "unparsed"
-  path = replace("BepInEx\\core\\BepInEx.dll", "\\", "/")
-  at = match indexOf(path, "core")
-    Some(i) => toString(i)
-    None => "-1"
-  tail = substring(path, 7, 100)
-  ends = if endsWith(path, ".dll") then "dll" else "other"
-  count = toString(length(lines("a\nb\r\nc")))
-  padded = padLeft("7", 3, "0")
-  dep + " | " + bad + " | " + path + " " + at + " " + tail + " " + ends + " " + count + " " + padded + " " + toString(getOr(parseFloat("2.5"), 0.0))
+        dep = match parseDependency("denikson-BepInExPack_Valheim-5.4.2333")
+                Some(d) => show(d)
+                None => "unparsed"
+        bad = match parseDependency("nonsense")
+                Some(d) => show(d)
+                None => "unparsed"
+        path = replace("BepInEx\\core\\BepInEx.dll", "\\", "/")
+        at = match indexOf(path, "core")
+                Some(i) => toString(i)
+                None => "-1"
+        tail = substring(path, 7, 100)
+        ends = if endsWith(path, ".dll") then "dll" else "other"
+        count = toString(length(lines("a\nb\r\nc")))
+        padded = padLeft("7", 3, "0")
+        dep + " | " + bad + " | " + path + " " + at + " " + tail + " " + ends + " " + count + " " + padded + " " + toString(getOr(parseFloat("2.5"), 0.0))

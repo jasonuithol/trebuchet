@@ -11,13 +11,13 @@ namespace Trebuchet.Compiler.Syntax;
 public sealed class Printer
 {
     /// <summary>Spaces per level. The lexer accepts any width; this is only what the printer writes.</summary>
-    private string IndentUnit = "  ";
+    private string IndentUnit = "        ";
     private readonly StringBuilder _sb = new();
     private int _indent;
     private IReadOnlyList<Comment> _comments = Array.Empty<Comment>();
     private int _nextComment;
 
-    public static string Print(SourceFile file, int indent = 2)
+    public static string Print(SourceFile file, int indent = 8)
     {
         if (indent < 1) throw new ArgumentOutOfRangeException(nameof(indent), "indent must be at least 1");
         var p = new Printer { _comments = file.Comments, IndentUnit = new string(' ', indent) };

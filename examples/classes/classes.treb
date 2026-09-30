@@ -5,51 +5,52 @@ module classes
 // instance. Calls go through the shape, Monoid.combine(a, b), and are resolved at compile
 // time. Ord is built in for Int, Float, String, Bool, and Instant; on a parameter declared
 // [T: Ord] the comparison operators work, and so do sort, minimum, and maximum.
-
 shape Monoid[T]
-  fn empty() -> T ! Pure
-  fn combine(a: T, b: T) -> T ! Pure
+        fn empty() -> T ! Pure
+        fn combine(a: T, b: T) -> T ! Pure
 
 record Money(cents: Int)
 
 instance Monoid[Money]
-  fn empty() -> Money
-    Money(0)
-  fn combine(a: Money, b: Money) -> Money
-    Money(a.cents + b.cents)
+        fn empty() -> Money
+                Money(0)
+
+        fn combine(a: Money, b: Money) -> Money
+                Money(a.cents + b.cents)
 
 instance Monoid[String]
-  fn empty() -> String
-    ""
-  fn combine(a: String, b: String) -> String
-    a + b
+        fn empty() -> String
+                ""
+
+        fn combine(a: String, b: String) -> String
+                a + b
 
 instance Ord[Money]
-  fn compare(a: Money, b: Money) -> Int
-    a.cents - b.cents
+        fn compare(a: Money, b: Money) -> Int
+                a.cents - b.cents
 
 fn concatAll[T: Monoid](xs: Vector[T]) -> T ! Pure
-  fold(xs, Monoid.empty[T](), \a, b -> Monoid.combine(a, b))
+        fold(xs, Monoid.empty[T](), \a, b -> Monoid.combine(a, b))
 
 // A local function sees the enclosing parameters and constraints: keep may compare x > m
 // because largest declared T: Ord.
 fn largest[T: Ord](xs: Vector[T]) -> Option[T] ! Pure
-  fn keep(acc: Option[T], x: T) -> Option[T]
-    match acc
-      None => Some(x)
-      Some(m) => if x > m then Some(x) else acc
-  fold(xs, None, \acc, x -> keep(acc, x))
+        fn keep(acc: Option[T], x: T) -> Option[T]
+                match acc
+                        None => Some(x)
+                        Some(m) => if x > m then Some(x) else acc
+        fold(xs, None, \acc, x -> keep(acc, x))
 
 fn describe(m: Money) -> String ! Pure
-  toString(m.cents) + "c"
+        toString(m.cents) + "c"
 
 fn demo() -> String ! Pure
-  total = concatAll([Money(150), Money(250)])
-  words = concatAll(["a", "b", "c"])
-  sorted = sort([Money(30), Money(10), Money(20)])
-  top = match largest([Money(5), Money(50), Money(7)])
-    Some(m) => describe(m)
-    None => "none"
-  names = fold(map(sorted, describe), "", \acc, s -> acc + s + " ")
-  fruit = fold(sort(["pear", "apple", "fig"]), "", \acc, s -> acc + s + ",")
-  describe(total) + " " + words + " " + names + top + " " + toString(getOr(maximum([3, 9, 4]), 0)) + " " + fruit
+        total = concatAll([Money(150), Money(250)])
+        words = concatAll(["a", "b", "c"])
+        sorted = sort([Money(30), Money(10), Money(20)])
+        top = match largest([Money(5), Money(50), Money(7)])
+                Some(m) => describe(m)
+                None => "none"
+        names = fold(map(sorted, describe), "", \acc, s -> acc + s + " ")
+        fruit = fold(sort(["pear", "apple", "fig"]), "", \acc, s -> acc + s + ",")
+        describe(total) + " " + words + " " + names + top + " " + toString(getOr(maximum([3, 9, 4]), 0)) + " " + fruit

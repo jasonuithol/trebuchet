@@ -1,76 +1,75 @@
 module patterns
 
 // Guards, list patterns, as-patterns, tuples, and destructuring bindings.
-
 union Shape
-  Circle(r: Int)
-  Rect(w: Int, h: Int)
+        Circle(r: Int)
+        Rect(w: Int, h: Int)
 
 fn area(s: Shape) -> Int ! Pure
-  match s
-    Circle(r) => 3 * r * r
-    Rect(w, h) => w * h
+        match s
+                Circle(r) => 3 * r * r
+                Rect(w, h) => w * h
 
 fn describe(s: Shape) -> String ! Pure
-  match s
-    Circle(r) if r == 0 => "point"
-    Circle(r) => "circle " + toString(r)
-    whole @ Rect(w, h) if w == h => "square " + toString(w) + " area " + toString(area(whole))
-    Rect(w, h) => "rect " + toString(w) + "x" + toString(h)
+        match s
+                Circle(r) if r == 0 => "point"
+                Circle(r) => "circle " + toString(r)
+                whole @ Rect(w, h) if w == h => "square " + toString(w) + " area " + toString(area(whole))
+                Rect(w, h) => "rect " + toString(w) + "x" + toString(h)
 
 fn total(xs: Vector[Int]) -> Int ! Pure
-  match xs
-    [] => 0
-    [x, ...rest] => x + total(rest)
+        match xs
+                [] => 0
+                [x, ...rest] => x + total(rest)
 
 fn firstTwo(xs: Vector[Int]) -> String ! Pure
-  match xs
-    [a, b, ..._] => toString(a) + "," + toString(b)
-    [a] => toString(a)
-    [] => "none"
+        match xs
+                [a, b, ..._] => toString(a) + "," + toString(b)
+                [a] => toString(a)
+                [] => "none"
 
 fn minMax(xs: Vector[Int]) -> (Int, Int) ! Pure
-  fold(xs, (999, -999), \acc, x -> (if x < acc.0 then x else acc.0, if x > acc.1 then x else acc.1))
+        fold(xs, (999, -999), \acc, x -> (if x < acc.0 then x else acc.0, if x > acc.1 then x else acc.1))
 
 fn swap[A, B](p: (A, B)) -> (B, A) ! Pure
-  (a, b) = p
-  (b, a)
+        (a, b) = p
+        (b, a)
 
 fn classify(p: (Int, Int)) -> String ! Pure
-  match p
-    (0, 0) => "origin"
-    (x, 0) => "x-axis " + toString(x)
-    (0, y) => "y-axis " + toString(y)
-    (x, y) if x == y => "diagonal"
-    _ => "plane"
+        match p
+                (0, 0) => "origin"
+                (x, 0) => "x-axis " + toString(x)
+                (0, y) => "y-axis " + toString(y)
+                (x, y) if x == y => "diagonal"
+                _ => "plane"
 
 // Named fields pick what a pattern wants, ... ignores the rest, and a record is matchable too.
 record Point(x: Int, y: Int)
 
 fn quadrant(p: Point) -> String ! Pure
-  match p
-    Point(x: 0, y: 0) => "origin"
-    Point(x: x, ...) if x < 0 => "left"
-    Point(y: y, ...) if y < 0 => "lower"
-    _ => "upper"
+        match p
+                Point(x: 0, y: 0) => "origin"
+                Point(x: x, ...) if x < 0 => "left"
+                Point(y: y, ...) if y < 0 => "lower"
+                _ => "upper"
 
 // ? works on Option too: None leaves the function with None.
 fn secondOfFirst(xs: Vector[Vector[Int]]) -> Option[Int] ! Pure
-  first = at(xs, 0)?
-  at(first, 1)
+        first = at(xs, 0)?
+        at(first, 1)
 
 fn demo() -> String ! Pure
-  shapes = [Circle(0), Circle(2), Rect(3, 3), Rect(2, 5)]
-  (lo, hi) = minMax([4, 9, 1, 7])
-  swapped = swap(("a", 1))
-  described = fold(map(shapes, describe), "", \acc, d -> acc + d + "; ")
-  lists = toString(total([1, 2, 3, 4])) + " " + firstTwo([7, 8, 9]) + " " + firstTwo([5]) + " " + firstTwo([])
-  tuples = toString(lo) + ".." + toString(hi) + " " + toString(swapped.0) + swapped.1
-  points = classify((0, 0)) + " " + classify((3, 0)) + " " + classify((0, 4)) + " " + classify((2, 2)) + " " + classify((1, 2))
-  options = toString(getOr(secondOfFirst([[1, 2], [3]]), -1)) + " " + toString(getOr(secondOfFirst([]), -1))
-  named = quadrant(Point(0, 0)) + " " + quadrant(Point(-1, 5)) + " " + quadrant(Point(3, -2)) + " " + quadrant(Point(3, 4))
-  base = 10
-  // a local function may recurse and may use the locals above it
-  fn digits(n: Int, acc: Int) -> Int
-    if n == 0 then acc else digits(n / base, acc + 1)
-  described + lists + " " + tuples + " " + points + " " + options + " " + named + " " + toString(digits(12345, 0))
+        shapes = [Circle(0), Circle(2), Rect(3, 3), Rect(2, 5)]
+        (lo, hi) = minMax([4, 9, 1, 7])
+        swapped = swap(("a", 1))
+        described = fold(map(shapes, describe), "", \acc, d -> acc + d + "; ")
+        lists = toString(total([1, 2, 3, 4])) + " " + firstTwo([7, 8, 9]) + " " + firstTwo([5]) + " " + firstTwo([])
+        tuples = toString(lo) + ".." + toString(hi) + " " + toString(swapped.0) + swapped.1
+        points = classify((0, 0)) + " " + classify((3, 0)) + " " + classify((0, 4)) + " " + classify((2, 2)) + " " + classify((1, 2))
+        options = toString(getOr(secondOfFirst([[1, 2], [3]]), -1)) + " " + toString(getOr(secondOfFirst([]), -1))
+        named = quadrant(Point(0, 0)) + " " + quadrant(Point(-1, 5)) + " " + quadrant(Point(3, -2)) + " " + quadrant(Point(3, 4))
+        base = 10
+        // a local function may recurse and may use the locals above it
+        fn digits(n: Int, acc: Int) -> Int
+                if n == 0 then acc else digits(n / base, acc + 1)
+        described + lists + " " + tuples + " " + points + " " + options + " " + named + " " + toString(digits(12345, 0))

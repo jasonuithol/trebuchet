@@ -11,18 +11,18 @@ use valslongva.infrastructure.host
 use valslongva.api.api
 
 root main
-  platform: HostPlatform
-  clock: SystemClock
-  fs: HostFileSystem
-  http: HostHttp
-  archive: HostArchive
-  processes: HostProcesses
-  client: HostSteam
-  cache: emptyCache()
-  settings: SettingsStore
-  locator: Locator
-  catalogue: CatalogueService
-  installer: Installer
-  steam: SteamStatus
-  launcher: Launcher
-  api: Api
+        platform: HostPlatform
+        clock: SystemClock
+        fs: HostFileSystem
+        http: HostHttp
+        archive: HostArchive
+        processes: HostProcesses
+        client: HostSteam
+        cache: emptyCache()
+        settings: SettingsStore
+        locator: Locator
+        catalogue: CatalogueService
+        installer: Installer
+        steam: SteamStatus
+        launcher: Launcher
+        api: Api

@@ -20,202 +20,202 @@ use valslongva.application.launcher
 use valslongva.application.steamStatus
 
 record Status
-  os: String
-  version: String
-  gameDir: Option[String]
-  gameProblem: Option[String]
-  candidates: Vector[String]
-  // BepInEx: the version valslöngva installed, whether its core dll is there at all, the dll's
-  // own file version when it is, and the newest pack Thunderstore has
-  loader: Option[String]
-  loaderPresent: Bool
-  loaderDetected: Option[String]
-  loaderLatest: Option[String]
-  // the pack's icon on Thunderstore, so the UI can show it without a copy in this repository
-  loaderIcon: Option[String]
-  steam: SteamState
-  installed: Int
-  // this request's scan of the plugins folder: adopted just now, and what is there unmanaged
-  adopted: Vector[String]
-  unmanaged: Vector[UnmanagedView]
-  catalogueFetchedAt: Option[Instant]
-  cataloguePackages: Int
+        os: String
+        version: String
+        gameDir: Option[String]
+        gameProblem: Option[String]
+        candidates: Vector[String]
+        // BepInEx: the version valslöngva installed, whether its core dll is there at all, the dll's
+        // own file version when it is, and the newest pack Thunderstore has
+        loader: Option[String]
+        loaderPresent: Bool
+        loaderDetected: Option[String]
+        loaderLatest: Option[String]
+        // the pack's icon on Thunderstore, so the UI can show it without a copy in this repository
+        loaderIcon: Option[String]
+        steam: SteamState
+        installed: Int
+        // this request's scan of the plugins folder: adopted just now, and what is there unmanaged
+        adopted: Vector[String]
+        unmanaged: Vector[UnmanagedView]
+        catalogueFetchedAt: Option[Instant]
+        cataloguePackages: Int
 
 record UnmanagedView
-  entry: String
-  isFolder: Bool
-  pluginName: Option[String]
-  pluginVersion: Option[String]
-  guid: Option[String]
-  suggestion: Option[String]
-  // the plugin's own version is one Thunderstore has for the suggested package; when it is not,
-  // this is a local build and replacing it loses something Thunderstore cannot give back
-  onThunderstore: Bool
-  suggestedVersion: Option[String]
+        entry: String
+        isFolder: Bool
+        pluginName: Option[String]
+        pluginVersion: Option[String]
+        guid: Option[String]
+        suggestion: Option[String]
+        // the plugin's own version is one Thunderstore has for the suggested package; when it is not,
+        // this is a local build and replacing it loses something Thunderstore cannot give back
+        onThunderstore: Bool
+        suggestedVersion: Option[String]
 
 record InstalledView
-  pkg: String
-  version: String
-  enabled: Bool
-  latestVersion: Option[String]
-  installedAt: Instant
-  adopted: Bool
-  // what the catalogue knows about the package it came from, once the catalogue is loaded
-  summary: Option[ListingSummary]
+        pkg: String
+        version: String
+        enabled: Bool
+        latestVersion: Option[String]
+        installedAt: Instant
+        adopted: Bool
+        // what the catalogue knows about the package it came from, once the catalogue is loaded
+        summary: Option[ListingSummary]
 
 record PackageDetail
-  summary: ListingSummary
-  versions: Vector[String]
-  packageUrl: String
+        summary: ListingSummary
+        versions: Vector[String]
+        packageUrl: String
 
 fn appVersion() -> String ! Pure
-  "0.1.0"
+        "0.1.0"
 
 service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem, steam: SteamStatus)
-  private fn catalogueStamp() -> Option[Instant]
-    map(catalogue.loaded(), \c -> c.fetchedAt)
+        private fn catalogueStamp() -> Option[Instant]
+                map(catalogue.loaded(), \c -> c.fetchedAt)
 
-  private fn cataloguePackages() -> Int
-    match catalogue.loaded()
-      Some(c) => length(c.packages)
-      None => 0
+        private fn cataloguePackages() -> Int
+                match catalogue.loaded()
+                        Some(c) => length(c.packages)
+                        None => 0
 
-  private fn loaderVersion() -> Option[ListingVersion]
-    match catalogue.loaded()
-      None => None
-      Some(c) =>
-        match lookup(c, loaderName())
-          None => None
-          Some(l) => latest(l)
+        private fn loaderVersion() -> Option[ListingVersion]
+                match catalogue.loaded()
+                        None => None
+                        Some(c) =>
+                                match lookup(c, loaderName())
+                                        None => None
+                                        Some(l) => latest(l)
 
-  private fn loaderLatest() -> Option[String]
-    map(loaderVersion(), \v -> v.versionNumber)
+        private fn loaderLatest() -> Option[String]
+                map(loaderVersion(), \v -> v.versionNumber)
 
-  private fn loaderIcon() -> Option[String]
-    match loaderVersion()
-      Some(v) => if length(v.icon) == 0 then None else Some(v.icon)
-      None => None
+        private fn loaderIcon() -> Option[String]
+                match loaderVersion()
+                        Some(v) => if length(v.icon) == 0 then None else Some(v.icon)
+                        None => None
 
-  // A catalogue package for an unmanaged plugin. Names are loose evidence (the plugin DayNight4010
-  // ships in the package Ezvay-DayNight, and an older Ezvay-DayNight4010 exists), so among the
-  // packages whose name is the plugin's or a prefix of it, one that has the plugin's exact version
-  // wins; only then does an exact name count on its own.
-  private fn suggestionFor(u: Unmanaged) -> Option[String]
-    fn key(s: String) -> String
-      toLower(replace(replace(s, "_", ""), " ", ""))
-    wanted = match u.pluginName
-      Some(n) => key(n)
-      None => key(replace(u.entry, ".dll", ""))
-    fn related(l: Listing) -> Bool
-      k = key(l.name)
-      length(k) > 0 and (k == wanted or startsWith(wanted, k))
-    fn hasVersion(l: Listing) -> Bool
-      match u.pluginVersion
-        Some(v) => any(l.versions, \lv -> lv.versionNumber == v)
-        None => false
-    match catalogue.loaded()
-      None => None
-      Some(c) =>
-        candidates = filter(c.packages, related)
-        match find(candidates, hasVersion)
-          Some(l) => Some(l.fullName)
-          None =>
-            match find(candidates, \l -> key(l.name) == wanted)
-              Some(l) => Some(l.fullName)
-              None => None
+        // A catalogue package for an unmanaged plugin. Names are loose evidence (the plugin DayNight4010
+        // ships in the package Ezvay-DayNight, and an older Ezvay-DayNight4010 exists), so among the
+        // packages whose name is the plugin's or a prefix of it, one that has the plugin's exact version
+        // wins; only then does an exact name count on its own.
+        private fn suggestionFor(u: Unmanaged) -> Option[String]
+                fn key(s: String) -> String
+                        toLower(replace(replace(s, "_", ""), " ", ""))
+                wanted = match u.pluginName
+                        Some(n) => key(n)
+                        None => key(replace(u.entry, ".dll", ""))
+                fn related(l: Listing) -> Bool
+                        k = key(l.name)
+                        length(k) > 0 and (k == wanted or startsWith(wanted, k))
+                fn hasVersion(l: Listing) -> Bool
+                        match u.pluginVersion
+                                Some(v) => any(l.versions, \lv -> lv.versionNumber == v)
+                                None => false
+                match catalogue.loaded()
+                        None => None
+                        Some(c) =>
+                                candidates = filter(c.packages, related)
+                                match find(candidates, hasVersion)
+                                        Some(l) => Some(l.fullName)
+                                        None =>
+                                                match find(candidates, \l -> key(l.name) == wanted)
+                                                        Some(l) => Some(l.fullName)
+                                                        None => None
 
-  private fn view(u: Unmanaged) -> UnmanagedView
-    suggestion = suggestionFor(u)
-    listing = match (suggestion, catalogue.loaded())
-      (Some(name), Some(c)) => lookup(c, name)
-      _ => None
-    known = match (listing, u.pluginVersion)
-      (Some(l), Some(v)) => any(l.versions, \lv -> lv.versionNumber == v)
-      _ => false
-    newest = match listing
-      Some(l) => map(latest(l), \lv -> lv.versionNumber)
-      None => None
-    UnmanagedView(u.entry, u.isFolder, u.pluginName, u.pluginVersion, u.guid, suggestion, known, newest)
+        private fn view(u: Unmanaged) -> UnmanagedView
+                suggestion = suggestionFor(u)
+                listing = match (suggestion, catalogue.loaded())
+                        (Some(name), Some(c)) => lookup(c, name)
+                        _ => None
+                known = match (listing, u.pluginVersion)
+                        (Some(l), Some(v)) => any(l.versions, \lv -> lv.versionNumber == v)
+                        _ => false
+                newest = match listing
+                        Some(l) => map(latest(l), \lv -> lv.versionNumber)
+                        None => None
+                UnmanagedView(u.entry, u.isFolder, u.pluginName, u.pluginVersion, u.guid, suggestion, known, newest)
 
-  private fn libraryOrEmpty() -> Library
-    match installer.library()
-      Ok(lib) => lib
-      Error(_) => emptyLibrary()
+        private fn libraryOrEmpty() -> Library
+                match installer.library()
+                        Ok(lib) => lib
+                        Error(_) => emptyLibrary()
 
-  fn getStatus() -> Result[Status, AppError]
-    match locator.gameDir()
-      Error(e) =>
-        ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages()))
-      Ok(dir) =>
-        scanned = installer.scan()?
-        lib = installer.library()?
-        core = dir + "/BepInEx/core/BepInEx.dll"
-        ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages()))
+        fn getStatus() -> Result[Status, AppError]
+                match locator.gameDir()
+                        Error(e) =>
+                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages()))
+                        Ok(dir) =>
+                                scanned = installer.scan()?
+                                lib = installer.library()?
+                                core = dir + "/BepInEx/core/BepInEx.dll"
+                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages()))
 
-  fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
-    cat = catalogue.current()?
-    ok(searchCatalogue(cat, libraryOrEmpty(), query, sort, deprecated, offset, if limit > 200 then 200 else limit))
+        fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
+                cat = catalogue.current()?
+                ok(searchCatalogue(cat, libraryOrEmpty(), query, sort, deprecated, offset, if limit > 200 then 200 else limit))
 
-  fn getPackage(name: String) -> Result[PackageDetail, AppError]
-    cat = catalogue.current()?
-    match lookup(cat, name)
-      None => error(AppError.NotFound("no package named " + name))
-      Some(l) =>
-        match summarise(l, libraryOrEmpty())
-          None => error(AppError.Conflict(name + " has no versions"))
-          Some(s) => ok(PackageDetail(s, map(l.versions, \v -> v.versionNumber), l.packageUrl))
+        fn getPackage(name: String) -> Result[PackageDetail, AppError]
+                cat = catalogue.current()?
+                match lookup(cat, name)
+                        None => error(AppError.NotFound("no package named " + name))
+                        Some(l) =>
+                                match summarise(l, libraryOrEmpty())
+                                        None => error(AppError.Conflict(name + " has no versions"))
+                                        Some(s) => ok(PackageDetail(s, map(l.versions, \v -> v.versionNumber), l.packageUrl))
 
-  fn getInstalled() -> Result[Vector[InstalledView], AppError]
-    installer.scan()?
-    lib = installer.library()?
-    cat = catalogue.loaded()
-    fn listingOf(pkg: String) -> Option[Listing]
-      match cat
-        None => None
-        Some(c) => lookup(c, pkg)
-    fn latestOf(pkg: String) -> Option[String]
-      match listingOf(pkg)
-        None => None
-        Some(l) => map(latest(l), \v -> v.versionNumber)
-    fn summaryOf(pkg: String) -> Option[ListingSummary]
-      match listingOf(pkg)
-        None => None
-        Some(l) => summarise(l, lib)
-    ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt, m.adopted, summaryOf(m.pkg))))
+        fn getInstalled() -> Result[Vector[InstalledView], AppError]
+                installer.scan()?
+                lib = installer.library()?
+                cat = catalogue.loaded()
+                fn listingOf(pkg: String) -> Option[Listing]
+                        match cat
+                                None => None
+                                Some(c) => lookup(c, pkg)
+                fn latestOf(pkg: String) -> Option[String]
+                        match listingOf(pkg)
+                                None => None
+                                Some(l) => map(latest(l), \v -> v.versionNumber)
+                fn summaryOf(pkg: String) -> Option[ListingSummary]
+                        match listingOf(pkg)
+                                None => None
+                                Some(l) => summarise(l, lib)
+                ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt, m.adopted, summaryOf(m.pkg))))
 
-  fn postInstall(name: String) -> Result[Vector[String], AppError]
-    outcome = supervise installer.install(name)
-    outcome.mapError(crashed)?
+        fn postInstall(name: String) -> Result[Vector[String], AppError]
+                outcome = supervise installer.install(name)
+                outcome.mapError(crashed)?
 
-  fn postReinstall(name: String) -> Result[Vector[String], AppError]
-    outcome = supervise installer.reinstall(name)
-    outcome.mapError(crashed)?
+        fn postReinstall(name: String) -> Result[Vector[String], AppError]
+                outcome = supervise installer.reinstall(name)
+                outcome.mapError(crashed)?
 
-  fn postLoader() -> Result[Vector[String], AppError]
-    outcome = supervise installer.installLoader()
-    outcome.mapError(crashed)?
+        fn postLoader() -> Result[Vector[String], AppError]
+                outcome = supervise installer.installLoader()
+                outcome.mapError(crashed)?
 
-  fn postAdopt(entry: String, name: String) -> Result[Unit, AppError]
-    installer.adopt(entry, name)
+        fn postAdopt(entry: String, name: String) -> Result[Unit, AppError]
+                installer.adopt(entry, name)
 
-  fn postUninstall(name: String) -> Result[Unit, AppError]
-    installer.uninstall(name)
+        fn postUninstall(name: String) -> Result[Unit, AppError]
+                installer.uninstall(name)
 
-  fn postEnable(name: String) -> Result[Unit, AppError]
-    installer.setEnabled(name, true)
+        fn postEnable(name: String) -> Result[Unit, AppError]
+                installer.setEnabled(name, true)
 
-  fn postDisable(name: String) -> Result[Unit, AppError]
-    installer.setEnabled(name, false)
+        fn postDisable(name: String) -> Result[Unit, AppError]
+                installer.setEnabled(name, false)
 
-  fn postLaunch(mode: String) -> Result[String, AppError]
-    outcome = supervise launcher.launch(mode)
-    outcome.mapError(crashed)?
+        fn postLaunch(mode: String) -> Result[String, AppError]
+                outcome = supervise launcher.launch(mode)
+                outcome.mapError(crashed)?
 
-  fn postGamePath(path: String) -> Result[Status, AppError]
-    chosen = if length(trim(path)) == 0 then None else Some(replace(trim(path), "\\", "/"))
-    settings.save(Settings(chosen))?
-    getStatus()
+        fn postGamePath(path: String) -> Result[Status, AppError]
+                chosen = if length(trim(path)) == 0 then None else Some(replace(trim(path), "\\", "/"))
+                settings.save(Settings(chosen))?
+                getStatus()
 
-  fn postRefresh() -> Result[Status, AppError]
-    catalogue.refresh()?
-    getStatus()
+        fn postRefresh() -> Result[Status, AppError]
+                catalogue.refresh()?
+                getStatus()

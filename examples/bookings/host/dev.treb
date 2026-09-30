@@ -1,7 +1,6 @@
 module bookings.host.dev
 
 // Composition root for local development: real clock, in-memory store, random ids.
-
 use bookings.domain.ids
 use bookings.domain.booking
 use bookings.application.bookingService
@@ -11,12 +10,12 @@ use bookings.infrastructure.ids
 use bookings.api.bookingApi
 
 root dev
-  clock: SystemClock
-  rooms:
-    - RoomId("boardroom"): Room(RoomId("boardroom"), "Boardroom", 12, [])
-    - RoomId("huddle"): Room(RoomId("huddle"), "Huddle", 4, [])
-  log: emptyLog()
-  store: InMemoryRoomStore
-  ids: uuidBookingId
-  bookings: BookingService
-  api: BookingApi
+        clock: SystemClock
+        rooms:
+                - RoomId("boardroom"): Room(RoomId("boardroom"), "Boardroom", 12, [])
+                - RoomId("huddle"): Room(RoomId("huddle"), "Huddle", 4, [])
+        log: emptyLog()
+        store: InMemoryRoomStore
+        ids: uuidBookingId
+        bookings: BookingService
+        api: BookingApi

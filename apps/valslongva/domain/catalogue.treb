@@ -7,65 +7,65 @@ use valslongva.domain.version
 use valslongva.domain.packages
 
 record ListingVersion
-  name: String
-  fullName: String
-  versionNumber: String
-  dependencies: Vector[String]
-  description: String
-  downloadUrl: String
-  downloads: Int
-  fileSize: Int
-  websiteUrl: String
-  icon: String
-  dateCreated: String
+        name: String
+        fullName: String
+        versionNumber: String
+        dependencies: Vector[String]
+        description: String
+        downloadUrl: String
+        downloads: Int
+        fileSize: Int
+        websiteUrl: String
+        icon: String
+        dateCreated: String
 
 record Listing
-  name: String
-  owner: String
-  fullName: String
-  packageUrl: String
-  categories: Vector[String]
-  isDeprecated: Bool
-  isPinned: Bool
-  ratingScore: Int
-  dateUpdated: String
-  versions: Vector[ListingVersion]
+        name: String
+        owner: String
+        fullName: String
+        packageUrl: String
+        categories: Vector[String]
+        isDeprecated: Bool
+        isPinned: Bool
+        ratingScore: Int
+        dateUpdated: String
+        versions: Vector[ListingVersion]
 
 record Catalogue
-  packages: Vector[Listing]
-  byName: Map[String, Listing]
-  fetchedAt: Instant
+        packages: Vector[Listing]
+        byName: Map[String, Listing]
+        fetchedAt: Instant
 
 fn index(packages: Vector[Listing], fetchedAt: Instant) -> Catalogue ! Pure
-  Catalogue(packages, fold(packages, {}, \m, p -> m.set(p.fullName, p)), fetchedAt)
+        Catalogue(packages, fold(packages, {}, \m, p -> m.set(p.fullName, p)), fetchedAt)
 
 fn lookup(cat: Catalogue, name: String) -> Option[Listing] ! Pure
-  cat.byName.get(name)
+        cat.byName.get(name)
 
 // The newest version, by number rather than by position, since the listing is data we did not write.
 fn latest(l: Listing) -> Option[ListingVersion] ! Pure
-  fn newer(acc: Option[ListingVersion], v: ListingVersion) -> Option[ListingVersion]
-    match (acc, parseVersion(v.versionNumber))
-      (None, _) => Some(v)
-      (Some(best), Some(pv)) =>
-        match parseVersion(best.versionNumber)
-          Some(bv) => if pv > bv then Some(v) else acc
-          None => Some(v)
-      _ => acc
-  fold(l.versions, None, newer)
+        fn newer(acc: Option[ListingVersion], v: ListingVersion) -> Option[ListingVersion]
+                match (acc, parseVersion(v.versionNumber))
+                        (None, _) => Some(v)
+                        (Some(best), Some(pv)) =>
+                                match parseVersion(best.versionNumber)
+                                        Some(bv) => if pv > bv then Some(v) else acc
+                                        None => Some(v)
+                        _ => acc
+        fold(l.versions, None, newer)
 
 fn totalDownloads(l: Listing) -> Int ! Pure
-  fold(l.versions, 0, \n, v -> n + v.downloads)
+        fold(l.versions, 0, \n, v -> n + v.downloads)
 
 fn prop_latestIsMaximal(l: Listing) -> Bool ! Pure
-  match latest(l)
-    None => isEmpty(l.versions)
-    Some(best) =>
-      match parseVersion(best.versionNumber)
-        None => true
-        Some(bv) =>
-          fn notNewer(v: ListingVersion) -> Bool
-            match parseVersion(v.versionNumber)
-              Some(pv) => pv <= bv
-              None => true
-          all(l.versions, notNewer)
+        match latest(l)
+                None => isEmpty(l.versions)
+                Some(best) =>
+                        match parseVersion(best.versionNumber)
+                                None => true
+                                Some(bv) =>
+                                        fn notNewer(v: ListingVersion) -> Bool
+                                                match parseVersion(v.versionNumber)
+                                                        Some(pv) => pv <= bv
+                                                        None => true
+                                        all(l.versions, notNewer)

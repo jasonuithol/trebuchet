@@ -5,37 +5,37 @@ use valslongva.application.ports
 use valslongva.domain.plan
 
 union AppError
-  NotFound(message: String)
-  BadRequest(message: String)
-  Conflict(message: String)
-  Io(message: String)
-  Network(message: String)
-  Internal(message: String)
+        NotFound(message: String)
+        BadRequest(message: String)
+        Conflict(message: String)
+        Io(message: String)
+        Network(message: String)
+        Internal(message: String)
 
 fn io(e: IoError) -> AppError ! Pure
-  match e
-    Failed(message) => AppError.Io(message)
+        match e
+                Failed(message) => AppError.Io(message)
 
 fn net(e: HttpError) -> AppError ! Pure
-  match e
-    Unreachable(message) => AppError.Network(message)
+        match e
+                Unreachable(message) => AppError.Network(message)
 
 fn planning(e: PlanError) -> AppError ! Pure
-  match e
-    UnknownPackage(name) => AppError.NotFound("no package named " + name)
-    NoVersions(name) => AppError.Conflict(name + " has no versions")
-    BadDependency(text) => AppError.Conflict("cannot read dependency " + text)
-    DependencyCycle(name) => AppError.Conflict("dependency cycle at " + name)
+        match e
+                UnknownPackage(name) => AppError.NotFound("no package named " + name)
+                NoVersions(name) => AppError.Conflict(name + " has no versions")
+                BadDependency(text) => AppError.Conflict("cannot read dependency " + text)
+                DependencyCycle(name) => AppError.Conflict("dependency cycle at " + name)
 
 // A panic caught at the edge is an Internal error, never a dead server.
 fn crashed(p: Panic) -> AppError ! Pure
-  AppError.Internal(p.message)
+        AppError.Internal(p.message)
 
 fn messageOf(e: AppError) -> String ! Pure
-  match e
-    NotFound(m) => m
-    BadRequest(m) => m
-    Conflict(m) => m
-    Io(m) => m
-    Network(m) => m
-    Internal(m) => m
+        match e
+                NotFound(m) => m
+                BadRequest(m) => m
+                Conflict(m) => m
+                Io(m) => m
+                Network(m) => m
+                Internal(m) => m

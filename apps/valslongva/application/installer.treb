@@ -14,168 +14,168 @@ use valslongva.application.catalogueService
 use valslongva.application.locator
 
 service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platform, clock: Clock, catalogue: CatalogueService, locator: Locator)
-  private fn logPath(game: String) -> String
-    game + "/valslongva/library.jsonl"
+        private fn logPath(game: String) -> String
+                game + "/valslongva/library.jsonl"
 
-  fn library() -> Result[Library, AppError]
-    game = locator.gameDir()?
-    libraryAt(game)
+        fn library() -> Result[Library, AppError]
+                game = locator.gameDir()?
+                libraryAt(game)
 
-  // What the plugins folder holds that the log does not: adopt what is certain, report the rest,
-  // and note what has gone. Idempotent, so every status request may run it.
-  fn scan() -> Result[Scan, AppError]
-    game = locator.gameDir()?
-    lib = libraryAt(game)?
-    entries = pluginEntries(game)?
-    result = scanPlugins(lib, entries, clock.now())
-    traverse(result.events, \e -> note(game, e))?
-    ok(result)
+        // What the plugins folder holds that the log does not: adopt what is certain, report the rest,
+        // and note what has gone. Idempotent, so every status request may run it.
+        fn scan() -> Result[Scan, AppError]
+                game = locator.gameDir()?
+                lib = libraryAt(game)?
+                entries = pluginEntries(game)?
+                result = scanPlugins(lib, entries, clock.now())
+                traverse(result.events, \e -> note(game, e))?
+                ok(result)
 
-  // The user says an unmanaged entry is a catalogue package; from now on it is managed.
-  fn adopt(entry: String, pkg: String) -> Result[Unit, AppError]
-    game = locator.gameDir()?
-    entries = pluginEntries(game)?
-    match find(entries, \e -> e.name == entry)
-      None => error(AppError.NotFound("nothing named " + entry + " in the plugins folder"))
-      Some(e) =>
-        version = match e.plugin
-          Some(p) => p.version
-          None => "0.0.0"
-        note(game, LibraryEvent.ModAdopted(pkg, version, e.files, clock.now()))
+        // The user says an unmanaged entry is a catalogue package; from now on it is managed.
+        fn adopt(entry: String, pkg: String) -> Result[Unit, AppError]
+                game = locator.gameDir()?
+                entries = pluginEntries(game)?
+                match find(entries, \e -> e.name == entry)
+                        None => error(AppError.NotFound("nothing named " + entry + " in the plugins folder"))
+                        Some(e) =>
+                                version = match e.plugin
+                                        Some(p) => p.version
+                                        None => "0.0.0"
+                                note(game, LibraryEvent.ModAdopted(pkg, version, e.files, clock.now()))
 
-  private fn pluginEntries(game: String) -> Result[Vector[PluginEntry], AppError]
-    dir = game + "/BepInEx/plugins"
-    listed = if fs.exists(dir) then fs.listFiles(dir).mapError(io) else ok([])
-    all = listed?
-    fn top(f: String) -> String
-      match indexOf(f, "/")
-        Some(i) => substring(f, 0, i)
-        None => f
-    names = sort(items(toSet(map(all, top))))
-    traverse(names, \n -> entryFor(dir, n, all))
+        private fn pluginEntries(game: String) -> Result[Vector[PluginEntry], AppError]
+                dir = game + "/BepInEx/plugins"
+                listed = if fs.exists(dir) then fs.listFiles(dir).mapError(io) else ok([])
+                all = listed?
+                fn top(f: String) -> String
+                        match indexOf(f, "/")
+                                Some(i) => substring(f, 0, i)
+                                None => f
+                names = sort(items(toSet(map(all, top))))
+                traverse(names, \n -> entryFor(dir, n, all))
 
-  private fn entryFor(dir: String, name: String, all: Vector[String]) -> Result[PluginEntry, AppError]
-    own = filter(all, \f -> f == name or startsWith(f, name + "/"))
-    isFolder = any(own, \f -> startsWith(f, name + "/"))
-    manifest = if isFolder and contains(own, name + "/manifest.json") then readManifest(dir + "/" + name + "/manifest.json") else None
-    info = match find(own, \f -> endsWith(toLower(f), ".dll"))
-      Some(d) => fs.pluginInfo(dir + "/" + d)
-      None => None
-    ok(PluginEntry(name, isFolder, manifest, map(own, \f -> "BepInEx/plugins/" + f), info))
+        private fn entryFor(dir: String, name: String, all: Vector[String]) -> Result[PluginEntry, AppError]
+                own = filter(all, \f -> f == name or startsWith(f, name + "/"))
+                isFolder = any(own, \f -> startsWith(f, name + "/"))
+                manifest = if isFolder and contains(own, name + "/manifest.json") then readManifest(dir + "/" + name + "/manifest.json") else None
+                info = match find(own, \f -> endsWith(toLower(f), ".dll"))
+                        Some(d) => fs.pluginInfo(dir + "/" + d)
+                        None => None
+                ok(PluginEntry(name, isFolder, manifest, map(own, \f -> "BepInEx/plugins/" + f), info))
 
-  // A manifest we cannot read is no manifest; the folder is then merely unmanaged.
-  private fn readManifest(path: String) -> Option[Manifest]
-    match fs.readText(path)
-      Error(_) => None
-      Ok(text) =>
-        decoded = supervise json.decode[Manifest](text)
-        match decoded
-          Ok(m) => Some(m)
-          Error(_) => None
+        // A manifest we cannot read is no manifest; the folder is then merely unmanaged.
+        private fn readManifest(path: String) -> Option[Manifest]
+                match fs.readText(path)
+                        Error(_) => None
+                        Ok(text) =>
+                                decoded = supervise json.decode[Manifest](text)
+                                match decoded
+                                        Ok(m) => Some(m)
+                                        Error(_) => None
 
-  private fn libraryAt(game: String) -> Result[Library, AppError]
-    if fs.exists(logPath(game)) then
-      text = fs.readText(logPath(game)).mapError(io)?
-      events = traverse(filter(lines(text), \l -> length(trim(l)) > 0), \l -> decodeEvent(l))?
-      ok(replayLibrary(events))
-    else
-      ok(emptyLibrary())
+        private fn libraryAt(game: String) -> Result[Library, AppError]
+                if fs.exists(logPath(game)) then
+                        text = fs.readText(logPath(game)).mapError(io)?
+                        events = traverse(filter(lines(text), \l -> length(trim(l)) > 0), \l -> decodeEvent(l))?
+                        ok(replayLibrary(events))
+                else
+                        ok(emptyLibrary())
 
-  // A line we cannot read is a corrupt log, reported rather than skipped.
-  private fn decodeEvent(line: String) -> Result[LibraryEvent, AppError]
-    decoded = supervise json.decode[LibraryEvent](line)
-    decoded.mapError(crashed)
+        // A line we cannot read is a corrupt log, reported rather than skipped.
+        private fn decodeEvent(line: String) -> Result[LibraryEvent, AppError]
+                decoded = supervise json.decode[LibraryEvent](line)
+                decoded.mapError(crashed)
 
-  private fn note(game: String, ev: LibraryEvent) -> Result[Unit, AppError]
-    fs.ensureDir(game + "/valslongva").mapError(io)?
-    fs.appendText(logPath(game), json.encode(ev) + "\n").mapError(io)
+        private fn note(game: String, ev: LibraryEvent) -> Result[Unit, AppError]
+                fs.ensureDir(game + "/valslongva").mapError(io)?
+                fs.appendText(logPath(game), json.encode(ev) + "\n").mapError(io)
 
-  // Everything the package needs, newest versions, in dependency order. Returns what was done.
-  fn install(name: String) -> Result[Vector[String], AppError]
-    game = locator.gameDir()?
-    cat = catalogue.current()?
-    lib = libraryAt(game)?
-    steps = planInstall(cat, lib, name).mapError(planning)?
-    traverse(steps, \s -> perform(game, lib, s))?
-    ok(stepNames(steps))
+        // Everything the package needs, newest versions, in dependency order. Returns what was done.
+        fn install(name: String) -> Result[Vector[String], AppError]
+                game = locator.gameDir()?
+                cat = catalogue.current()?
+                lib = libraryAt(game)?
+                steps = planInstall(cat, lib, name).mapError(planning)?
+                traverse(steps, \s -> perform(game, lib, s))?
+                ok(stepNames(steps))
 
-  // The Thunderstore package in place of whatever is there, whatever the versions say.
-  fn reinstall(name: String) -> Result[Vector[String], AppError]
-    game = locator.gameDir()?
-    cat = catalogue.current()?
-    lib = libraryAt(game)?
-    fresh = lib with { mods: remove(lib.mods, name) }
-    steps = planInstall(cat, fresh, name).mapError(planning)?
-    traverse(steps, \s -> perform(game, lib, s))?
-    ok(stepNames(steps))
+        // The Thunderstore package in place of whatever is there, whatever the versions say.
+        fn reinstall(name: String) -> Result[Vector[String], AppError]
+                game = locator.gameDir()?
+                cat = catalogue.current()?
+                lib = libraryAt(game)?
+                fresh = lib with { mods: remove(lib.mods, name) }
+                steps = planInstall(cat, fresh, name).mapError(planning)?
+                traverse(steps, \s -> perform(game, lib, s))?
+                ok(stepNames(steps))
 
-  fn installLoader() -> Result[Vector[String], AppError]
-    install(loaderName())
+        fn installLoader() -> Result[Vector[String], AppError]
+                install(loaderName())
 
-  private fn cached(step: InstallStep) -> Result[String, AppError]
-    zip = platform.dataDir() + "/cache/" + step.pkg + "-" + step.version.versionNumber + ".zip"
-    if fs.exists(zip) then
-      ok(zip)
-    else
-      fs.ensureDir(platform.dataDir() + "/cache").mapError(io)?
-      http.download(step.version.downloadUrl, zip).mapError(net)?
-      ok(zip)
+        private fn cached(step: InstallStep) -> Result[String, AppError]
+                zip = platform.dataDir() + "/cache/" + step.pkg + "-" + step.version.versionNumber + ".zip"
+                if fs.exists(zip) then
+                        ok(zip)
+                else
+                        fs.ensureDir(platform.dataDir() + "/cache").mapError(io)?
+                        http.download(step.version.downloadUrl, zip).mapError(net)?
+                        ok(zip)
 
-  private fn perform(game: String, lib: Library, step: InstallStep) -> Result[Unit, AppError]
-    zip = cached(step)?
-    tmp = platform.dataDir() + "/tmp/" + step.pkg
-    fs.deleteTree(tmp).mapError(io)?
-    fs.ensureDir(tmp).mapError(io)?
-    archive.extract(zip, tmp).mapError(io)?
-    files = fs.listFiles(tmp).mapError(io)?
-    placements = match step.kind
-      Loader => placeLoader(files)
-      Mod => placeMod(step.pkg, files)
-    // an update replaces the package folder wholesale and whatever the log recorded for it
-    // (an adopted loose dll, say); configs are merged, never removed
-    removed = match step.kind
-      Loader => ok(unit)
-      Mod => removeFiles(game, lib, step.pkg)
-    removed?
-    traverse(placements, \p -> fs.copyFile(tmp + "/" + p.source, game + "/" + p.target).mapError(io))?
-    fs.deleteTree(tmp).mapError(io)?
-    targets = map(placements, \p -> p.target)
-    ev = match step.kind
-      Loader => LibraryEvent.LoaderInstalled(step.version.versionNumber, targets, clock.now())
-      Mod => LibraryEvent.ModInstalled(step.pkg, step.version.versionNumber, targets, clock.now())
-    note(game, ev)
+        private fn perform(game: String, lib: Library, step: InstallStep) -> Result[Unit, AppError]
+                zip = cached(step)?
+                tmp = platform.dataDir() + "/tmp/" + step.pkg
+                fs.deleteTree(tmp).mapError(io)?
+                fs.ensureDir(tmp).mapError(io)?
+                archive.extract(zip, tmp).mapError(io)?
+                files = fs.listFiles(tmp).mapError(io)?
+                placements = match step.kind
+                        Loader => placeLoader(files)
+                        Mod => placeMod(step.pkg, files)
+                // an update replaces the package folder wholesale and whatever the log recorded for it
+                // (an adopted loose dll, say); configs are merged, never removed
+                removed = match step.kind
+                        Loader => ok(unit)
+                        Mod => removeFiles(game, lib, step.pkg)
+                removed?
+                traverse(placements, \p -> fs.copyFile(tmp + "/" + p.source, game + "/" + p.target).mapError(io))?
+                fs.deleteTree(tmp).mapError(io)?
+                targets = map(placements, \p -> p.target)
+                ev = match step.kind
+                        Loader => LibraryEvent.LoaderInstalled(step.version.versionNumber, targets, clock.now())
+                        Mod => LibraryEvent.ModInstalled(step.pkg, step.version.versionNumber, targets, clock.now())
+                note(game, ev)
 
-  // Nothing the user had is destroyed: the package's recorded files move to a dated folder
-  // under valslongva/backup before anything replaces them. Configs stay where they are.
-  private fn removeFiles(game: String, lib: Library, name: String) -> Result[Unit, AppError]
-    recorded = match lib.mods.get(name)
-      Some(m) => m.files
-      None => []
-    backup = game + "/valslongva/backup/" + name + "/" + replace(replace(toString(clock.now()), ":", "-"), ".", "-")
-    traverse(filter(recorded, \f -> not startsWith(f, "BepInEx/config/")), \f -> if fs.exists(game + "/" + f) then fs.moveTree(game + "/" + f, backup + "/" + f).mapError(io) else ok(unit))?
-    fs.deleteTree(game + "/" + modFolder(name)).mapError(io)?
-    fs.deleteTree(game + "/" + disabledFolder(name)).mapError(io)?
-    ok(unit)
+        // Nothing the user had is destroyed: the package's recorded files move to a dated folder
+        // under valslongva/backup before anything replaces them. Configs stay where they are.
+        private fn removeFiles(game: String, lib: Library, name: String) -> Result[Unit, AppError]
+                recorded = match lib.mods.get(name)
+                        Some(m) => m.files
+                        None => []
+                backup = game + "/valslongva/backup/" + name + "/" + replace(replace(toString(clock.now()), ":", "-"), ".", "-")
+                traverse(filter(recorded, \f -> not startsWith(f, "BepInEx/config/")), \f -> if fs.exists(game + "/" + f) then fs.moveTree(game + "/" + f, backup + "/" + f).mapError(io) else ok(unit))?
+                fs.deleteTree(game + "/" + modFolder(name)).mapError(io)?
+                fs.deleteTree(game + "/" + disabledFolder(name)).mapError(io)?
+                ok(unit)
 
-  fn uninstall(name: String) -> Result[Unit, AppError]
-    game = locator.gameDir()?
-    lib = libraryAt(game)?
-    match lib.mods.get(name)
-      None => error(AppError.NotFound(name + " is not installed"))
-      Some(_) =>
-        removeFiles(game, lib, name)?
-        note(game, LibraryEvent.ModRemoved(name, clock.now()))
+        fn uninstall(name: String) -> Result[Unit, AppError]
+                game = locator.gameDir()?
+                lib = libraryAt(game)?
+                match lib.mods.get(name)
+                        None => error(AppError.NotFound(name + " is not installed"))
+                        Some(_) =>
+                                removeFiles(game, lib, name)?
+                                note(game, LibraryEvent.ModRemoved(name, clock.now()))
 
-  fn setEnabled(name: String, enabled: Bool) -> Result[Unit, AppError]
-    game = locator.gameDir()?
-    lib = libraryAt(game)?
-    match lib.mods.get(name)
-      None => error(AppError.NotFound(name + " is not installed"))
-      Some(m) =>
-        if m.enabled == enabled then
-          ok(unit)
-        else
-          from = if enabled then disabledFolder(name) else modFolder(name)
-          to = if enabled then modFolder(name) else disabledFolder(name)
-          fs.moveTree(game + "/" + from, game + "/" + to).mapError(io)?
-          note(game, if enabled then LibraryEvent.ModEnabled(name, clock.now()) else LibraryEvent.ModDisabled(name, clock.now()))
+        fn setEnabled(name: String, enabled: Bool) -> Result[Unit, AppError]
+                game = locator.gameDir()?
+                lib = libraryAt(game)?
+                match lib.mods.get(name)
+                        None => error(AppError.NotFound(name + " is not installed"))
+                        Some(m) =>
+                                if m.enabled == enabled then
+                                        ok(unit)
+                                else
+                                        from = if enabled then disabledFolder(name) else modFolder(name)
+                                        to = if enabled then modFolder(name) else disabledFolder(name)
+                                        fs.moveTree(game + "/" + from, game + "/" + to).mapError(io)?
+                                        note(game, if enabled then LibraryEvent.ModEnabled(name, clock.now()) else LibraryEvent.ModDisabled(name, clock.now()))

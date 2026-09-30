@@ -1,24 +1,23 @@
 module bookings.api.contracts
 
 // Wire-level request and response records.
-
 record BookingRequest
-  room: String
-  guest: String
-  start: Instant
-  end: Instant
-  attendees: Vector[String]
-  waitlist: Bool
+        room: String
+        guest: String
+        start: Instant
+        end: Instant
+        attendees: Vector[String]
+        waitlist: Bool
 
 record BookingResponse(id: String)
 
 record ServerInfo
-  host: String
-  rooms: Int
-  version: String
+        host: String
+        rooms: Int
+        version: String
 
 union ApiError
-  BadRequest(message: String)
-  NotFound(message: String)
-  Conflict(message: String)
-  Internal(message: String)
+        BadRequest(message: String)
+        NotFound(message: String)
+        Conflict(message: String)
+        Internal(message: String)

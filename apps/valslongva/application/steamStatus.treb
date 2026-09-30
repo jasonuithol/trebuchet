@@ -1,19 +1,18 @@
 module valslongva.application.steamStatus
 
 // Is Steam up and signed in? The process says running; the tail of its connection log says connected.
-
 use valslongva.domain.steam
 use valslongva.application.ports
 use valslongva.application.locator
 
 service SteamStatus(client: SteamClient, fs: FileSystem, locator: Locator)
-  fn state() -> SteamState
-    if client.running() then
-      log = locator.steamRoot() + "/logs/connection_log.txt"
-      tail = if fs.exists(log) then fs.tailText(log, 65536) else ok("")
-      text = match tail
-        Ok(t) => Some(t)
-        Error(_) => None
-      steamState(true, text)
-    else
-      SteamState.NotRunning
+        fn state() -> SteamState
+                if client.running() then
+                        log = locator.steamRoot() + "/logs/connection_log.txt"
+                        tail = if fs.exists(log) then fs.tailText(log, 65536) else ok("")
+                        text = match tail
+                                Ok(t) => Some(t)
+                                Error(_) => None
+                        steamState(true, text)
+                else
+                        SteamState.NotRunning

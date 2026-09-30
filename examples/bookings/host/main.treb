@@ -1,7 +1,6 @@
 module bookings.host.main
 
 // Composition root for production. The only file that names infrastructure and application together.
-
 use bookings.application.bookingService
 use bookings.infrastructure.sql
 use bookings.infrastructure.postgres
@@ -10,10 +9,10 @@ use bookings.infrastructure.ids
 use bookings.api.bookingApi
 
 root main
-  clock: SystemClock
-  config: loadDbConfig()
-  db: PgConnection
-  store: PgRoomStore
-  ids: uuidBookingId
-  bookings: BookingService
-  api: BookingApi
+        clock: SystemClock
+        config: loadDbConfig()
+        db: PgConnection
+        store: PgRoomStore
+        ids: uuidBookingId
+        bookings: BookingService
+        api: BookingApi

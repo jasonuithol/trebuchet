@@ -5,43 +5,43 @@ use valslongva.domain.scan
 // What the application needs from the outside world, as shapes. Interfaces are structural:
 // the host adapters and the test fakes both satisfy them without saying so.
 union IoError
-  Failed(message: String)
+        Failed(message: String)
 
 union HttpError
-  Unreachable(message: String)
+        Unreachable(message: String)
 
 shape FileSystem
-  fn readText(path: String) -> Result[String, IoError] ! Nondet Suspend
-  fn tailText(path: String, bytes: Int) -> Result[String, IoError] ! Nondet Suspend
-  fn writeText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
-  fn appendText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
-  fn exists(path: String) -> Bool ! Nondet
-  fn fileVersion(path: String) -> Option[String] ! Nondet
-  fn pluginInfo(path: String) -> Option[PluginInfo] ! Nondet
-  fn listFiles(dir: String) -> Result[Vector[String], IoError] ! Nondet
-  fn copyFile(from: String, to: String) -> Result[Unit, IoError] ! Nondet Write
-  fn deleteTree(path: String) -> Result[Unit, IoError] ! Nondet Write
-  fn moveTree(from: String, to: String) -> Result[Unit, IoError] ! Nondet Write
-  fn ensureDir(path: String) -> Result[Unit, IoError] ! Nondet Write
+        fn readText(path: String) -> Result[String, IoError] ! Nondet Suspend
+        fn tailText(path: String, bytes: Int) -> Result[String, IoError] ! Nondet Suspend
+        fn writeText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
+        fn appendText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
+        fn exists(path: String) -> Bool ! Nondet
+        fn fileVersion(path: String) -> Option[String] ! Nondet
+        fn pluginInfo(path: String) -> Option[PluginInfo] ! Nondet
+        fn listFiles(dir: String) -> Result[Vector[String], IoError] ! Nondet
+        fn copyFile(from: String, to: String) -> Result[Unit, IoError] ! Nondet Write
+        fn deleteTree(path: String) -> Result[Unit, IoError] ! Nondet Write
+        fn moveTree(from: String, to: String) -> Result[Unit, IoError] ! Nondet Write
+        fn ensureDir(path: String) -> Result[Unit, IoError] ! Nondet Write
 
 shape Http
-  fn getText(url: String) -> Result[String, HttpError] ! Nondet Suspend
-  fn download(url: String, path: String) -> Result[Unit, HttpError] ! Nondet Write Suspend
+        fn getText(url: String) -> Result[String, HttpError] ! Nondet Suspend
+        fn download(url: String, path: String) -> Result[Unit, HttpError] ! Nondet Write Suspend
 
 shape Archive
-  fn extract(zip: String, dir: String) -> Result[Unit, IoError] ! Nondet Write Suspend
+        fn extract(zip: String, dir: String) -> Result[Unit, IoError] ! Nondet Write Suspend
 
 shape Processes
-  fn run(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
-  fn openUrl(url: String) -> Result[Unit, IoError] ! Nondet Write
+        fn run(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
+        fn openUrl(url: String) -> Result[Unit, IoError] ! Nondet Write
 
 shape SteamClient
-  fn running() -> Bool ! Nondet
+        fn running() -> Bool ! Nondet
 
 shape Platform
-  fn os() -> String ! Nondet
-  fn home() -> String ! Nondet
-  fn dataDir() -> String ! Nondet
+        fn os() -> String ! Nondet
+        fn home() -> String ! Nondet
+        fn dataDir() -> String ! Nondet
 
 shape Clock
-  fn now() -> Instant ! Nondet
+        fn now() -> Instant ! Nondet

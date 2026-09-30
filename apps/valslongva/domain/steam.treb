@@ -3,70 +3,70 @@ module valslongva.domain.steam
 // Where Steam keeps its games. libraryfolders.vdf lists every library; Valheim, app 892970,
 // sits under steamapps/common/Valheim in one of them.
 fn appId() -> String ! Pure
-  "892970"
+        "892970"
 
 fn libraryPaths(vdf: String) -> Vector[String] ! Pure
-  fn pathOf(line: String) -> Option[String]
-    match split(line, "\"")
-      [_, "path", _, value, ..._] => Some(replace(value, "\\\\", "\\"))
-      _ => None
-  fn keep(acc: Vector[String], line: String) -> Vector[String]
-    match pathOf(line)
-      Some(p) => append(acc, p)
-      None => acc
-  fold(lines(vdf), [], keep)
+        fn pathOf(line: String) -> Option[String]
+                match split(line, "\"")
+                        [_, "path", _, value, ..._] => Some(replace(value, "\\\\", "\\"))
+                        _ => None
+        fn keep(acc: Vector[String], line: String) -> Vector[String]
+                match pathOf(line)
+                        Some(p) => append(acc, p)
+                        None => acc
+        fold(lines(vdf), [], keep)
 
 fn gameCandidates(libraries: Vector[String]) -> Vector[String] ! Pure
-  map(libraries, \lib -> replace(lib, "\\", "/") + "/steamapps/common/Valheim")
+        map(libraries, \lib -> replace(lib, "\\", "/") + "/steamapps/common/Valheim")
 
 // Whether the client is signed in and talking to Steam. The client keeps logs/connection_log.txt,
 // each line prefixed with its connection state in brackets: the last such line is the truth.
 union SteamState
-  NotRunning
-  NotConnected
-  Connected
+        NotRunning
+        NotConnected
+        Connected
 
 fn logSaysConnected(log: String) -> Bool ! Pure
-  fn state(line: String) -> Option[String]
-    match split(line, "] [")
-      [_, rest, ..._] =>
-        match split(rest, ",")
-          [word, ..._] => Some(trim(word))
-          _ => None
-      _ => None
-  fn newest(acc: Option[String], line: String) -> Option[String]
-    match state(line)
-      Some(s) => Some(s)
-      None => acc
-  match fold(lines(log), None, newest)
-    Some(s) => s == "Logged On"
-    None => false
+        fn state(line: String) -> Option[String]
+                match split(line, "] [")
+                        [_, rest, ..._] =>
+                                match split(rest, ",")
+                                        [word, ..._] => Some(trim(word))
+                                        _ => None
+                        _ => None
+        fn newest(acc: Option[String], line: String) -> Option[String]
+                match state(line)
+                        Some(s) => Some(s)
+                        None => acc
+        match fold(lines(log), None, newest)
+                Some(s) => s == "Logged On"
+                None => false
 
 fn steamState(running: Bool, connectionLog: Option[String]) -> SteamState ! Pure
-  if not running then
-    SteamState.NotRunning
-  else
-    match connectionLog
-      Some(log) => if logSaysConnected(log) then SteamState.Connected else SteamState.NotConnected
-      None => SteamState.NotConnected
+        if not running then
+                SteamState.NotRunning
+        else
+                match connectionLog
+                        Some(log) => if logSaysConnected(log) then SteamState.Connected else SteamState.NotConnected
+                        None => SteamState.NotConnected
 
 fn steamStateName(s: SteamState) -> String ! Pure
-  match s
-    NotRunning => "not running"
-    NotConnected => "running, not connected"
-    Connected => "connected"
+        match s
+                NotRunning => "not running"
+                NotConnected => "running, not connected"
+                Connected => "connected"
 
 fn prop_notRunningWinsOverAnyLog(log: String) -> Bool ! Pure
-  steamState(false, Some(log)) == SteamState.NotRunning
+        steamState(false, Some(log)) == SteamState.NotRunning
 
 fn prop_lastStateLineDecides(noise: String) -> Bool ! Pure
-  clean = replace(replace(noise, "[", ""), "]", "")
-  on = "[2026-09-30 10:10:01] [Logged On, 4, 7] [U:1:1] " + clean
-  off = "[2026-09-30 10:10:02] [Disconnected, 0, 0] [U:1:1] " + clean
-  logSaysConnected(on + "\n" + off) == false and logSaysConnected(off + "\n" + on) == true
+        clean = replace(replace(noise, "[", ""), "]", "")
+        on = "[2026-09-30 10:10:01] [Logged On, 4, 7] [U:1:1] " + clean
+        off = "[2026-09-30 10:10:02] [Disconnected, 0, 0] [U:1:1] " + clean
+        logSaysConnected(on + "\n" + off) == false and logSaysConnected(off + "\n" + on) == true
 
 fn runUrl() -> String ! Pure
-  "steam://rungameid/" + appId()
+        "steam://rungameid/" + appId()
 
 fn prop_everyLibraryYieldsOneCandidate(libs: Vector[String]) -> Bool ! Pure
-  length(gameCandidates(libs)) == length(libs)
+        length(gameCandidates(libs)) == length(libs)

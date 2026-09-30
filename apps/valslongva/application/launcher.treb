@@ -10,37 +10,37 @@ use valslongva.application.installer
 use valslongva.application.steamStatus
 
 service Launcher(fs: FileSystem, processes: Processes, platform: Platform, locator: Locator, installer: Installer, steam: SteamStatus)
-  fn launch(modeName: String) -> Result[String, AppError]
-    mode = match parseMode(modeName)
-      Some(m) => ok(m)
-      None => error(AppError.BadRequest("mode must be modded or vanilla"))
-    chosen = mode?
-    game = locator.gameDir()?
-    // the game needs a signed-in Steam client whichever way it starts
-    ready = match steam.state()
-      NotRunning => error(AppError.Conflict("Steam is not running; start it and sign in first"))
-      NotConnected => error(AppError.Conflict("Steam is running but not connected; sign in first"))
-      Connected => ok(unit)
-    ready?
-    if chosen == Mode.Modded and not fs.exists(game + "/BepInEx/core/BepInEx.dll") then
-      error(AppError.Conflict("BepInEx is not installed; install the loader first"))
-    else
-      l = launchFor(platform.os(), game, chosen)
-      configured = match l.doorstop
-        Some(enabled) => setDoorstop(game, enabled)
-        None => ok(unit)
-      configured?
-      started = match l.command
-        Run(program, dir) => processes.run(program, dir).mapError(io)
-        Open(url) => processes.openUrl(url).mapError(io)
-      started?
-      ok(if chosen == Mode.Modded then "modded" else "vanilla")
+        fn launch(modeName: String) -> Result[String, AppError]
+                mode = match parseMode(modeName)
+                        Some(m) => ok(m)
+                        None => error(AppError.BadRequest("mode must be modded or vanilla"))
+                chosen = mode?
+                game = locator.gameDir()?
+                // the game needs a signed-in Steam client whichever way it starts
+                ready = match steam.state()
+                        NotRunning => error(AppError.Conflict("Steam is not running; start it and sign in first"))
+                        NotConnected => error(AppError.Conflict("Steam is running but not connected; sign in first"))
+                        Connected => ok(unit)
+                ready?
+                if chosen == Mode.Modded and not fs.exists(game + "/BepInEx/core/BepInEx.dll") then
+                        error(AppError.Conflict("BepInEx is not installed; install the loader first"))
+                else
+                        l = launchFor(platform.os(), game, chosen)
+                        configured = match l.doorstop
+                                Some(enabled) => setDoorstop(game, enabled)
+                                None => ok(unit)
+                        configured?
+                        started = match l.command
+                                Run(program, dir) => processes.run(program, dir).mapError(io)
+                                Open(url) => processes.openUrl(url).mapError(io)
+                        started?
+                        ok(if chosen == Mode.Modded then "modded" else "vanilla")
 
-  private fn setDoorstop(game: String, enabled: Bool) -> Result[Unit, AppError]
-    ini = game + "/doorstop_config.ini"
-    current = if fs.exists(ini) then
-      fs.readText(ini).mapError(io)
-    else
-      ok("")
-    text = current?
-    fs.writeText(ini, setDoorstopEnabled(text, enabled)).mapError(io)
+        private fn setDoorstop(game: String, enabled: Bool) -> Result[Unit, AppError]
+                ini = game + "/doorstop_config.ini"
+                current = if fs.exists(ini) then
+                        fs.readText(ini).mapError(io)
+                else
+                        ok("")
+                text = current?
+                fs.writeText(ini, setDoorstopEnabled(text, enabled)).mapError(io)

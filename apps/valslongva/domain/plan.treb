@@ -8,87 +8,87 @@ use valslongva.domain.catalogue
 use valslongva.domain.library
 
 union StepKind
-  Loader
-  Mod
+        Loader
+        Mod
 
 record InstallStep
-  kind: StepKind
-  pkg: String
-  version: ListingVersion
+        kind: StepKind
+        pkg: String
+        version: ListingVersion
 
 union PlanError
-  UnknownPackage(name: String)
-  NoVersions(name: String)
-  BadDependency(text: String)
-  DependencyCycle(name: String)
+        UnknownPackage(name: String)
+        NoVersions(name: String)
+        BadDependency(text: String)
+        DependencyCycle(name: String)
 
 record Walk
-  visiting: Set[String]
-  done: Set[String]
-  steps: Vector[InstallStep]
+        visiting: Set[String]
+        done: Set[String]
+        steps: Vector[InstallStep]
 
 fn planInstall(cat: Catalogue, lib: Library, target: String) -> Result[Vector[InstallStep], PlanError] ! Pure
-  walk = visit(cat, lib, Walk(toSet([]), toSet([]), []), target, None)?
-  ok(walk.steps)
+        walk = visit(cat, lib, Walk(toSet([]), toSet([]), []), target, None)?
+        ok(walk.steps)
 
 // Already have it, at a version that satisfies the request?
 private fn satisfied(lib: Library, pkg: String, required: String) -> Bool
-  have = if isLoader(pkg) then
-    lib.loader
-  else
-    match lib.mods.get(pkg)
-      Some(m) => Some(m.version)
-      None => None
-  match have
-    None => false
-    Some(v) => satisfies(v, required)
+        have = if isLoader(pkg) then
+                lib.loader
+        else
+                match lib.mods.get(pkg)
+                        Some(m) => Some(m.version)
+                        None => None
+        match have
+                None => false
+                Some(v) => satisfies(v, required)
 
 private fn visit(cat: Catalogue, lib: Library, walk: Walk, pkg: String, required: Option[Version]) -> Result[Walk, PlanError]
-  if contains(walk.done, pkg) then
-    ok(walk)
-  else if contains(walk.visiting, pkg) then
-    error(PlanError.DependencyCycle(pkg))
-  else
-    listing = match lookup(cat, pkg)
-      Some(l) => ok(l)
-      None => error(PlanError.UnknownPackage(pkg))
-    listing2 = listing?
-    version = match latest(listing2)
-      Some(v) => ok(v)
-      None => error(PlanError.NoVersions(pkg))
-    version2 = version?
-    // a dependency is fine at any version that satisfies it; the target itself wants the newest
-    needed = match required
-      Some(v) => showVersion(v)
-      None => version2.versionNumber
-    if satisfied(lib, pkg, needed) then
-      ok(walk with { done: add(walk.done, pkg) })
-    else
-      resolve(cat, lib, walk, pkg, listing2, version2)
+        if contains(walk.done, pkg) then
+                ok(walk)
+        else if contains(walk.visiting, pkg) then
+                error(PlanError.DependencyCycle(pkg))
+        else
+                listing = match lookup(cat, pkg)
+                        Some(l) => ok(l)
+                        None => error(PlanError.UnknownPackage(pkg))
+                listing2 = listing?
+                version = match latest(listing2)
+                        Some(v) => ok(v)
+                        None => error(PlanError.NoVersions(pkg))
+                version2 = version?
+                // a dependency is fine at any version that satisfies it; the target itself wants the newest
+                needed = match required
+                        Some(v) => showVersion(v)
+                        None => version2.versionNumber
+                if satisfied(lib, pkg, needed) then
+                        ok(walk with { done: add(walk.done, pkg) })
+                else
+                        resolve(cat, lib, walk, pkg, listing2, version2)
 
 private fn resolve(cat: Catalogue, lib: Library, walk: Walk, pkg: String, listing: Listing, version: ListingVersion) -> Result[Walk, PlanError]
-  fn parse(d: String) -> Result[Dependency, PlanError]
-    match parseDependency(d)
-      Some(dep) => ok(dep)
-      None => error(PlanError.BadDependency(d))
-  deps = traverse(version.dependencies, parse)?
-  entered = walk with { visiting: add(walk.visiting, pkg) }
-  afterDeps = visitAll(cat, lib, entered, deps)?
-  kind = if isLoader(pkg) then StepKind.Loader else StepKind.Mod
-  ok(afterDeps with { done: add(afterDeps.done, pkg), steps: append(afterDeps.steps, InstallStep(kind, pkg, version)) })
+        fn parse(d: String) -> Result[Dependency, PlanError]
+                match parseDependency(d)
+                        Some(dep) => ok(dep)
+                        None => error(PlanError.BadDependency(d))
+        deps = traverse(version.dependencies, parse)?
+        entered = walk with { visiting: add(walk.visiting, pkg) }
+        afterDeps = visitAll(cat, lib, entered, deps)?
+        kind = if isLoader(pkg) then StepKind.Loader else StepKind.Mod
+        ok(afterDeps with { done: add(afterDeps.done, pkg), steps: append(afterDeps.steps, InstallStep(kind, pkg, version)) })
 
 private fn visitAll(cat: Catalogue, lib: Library, walk: Walk, deps: Vector[Dependency]) -> Result[Walk, PlanError]
-  match deps
-    [] => ok(walk)
-    [d, ...rest] =>
-      next = visit(cat, lib, walk, fullName(d.pkg), Some(d.version))?
-      visitAll(cat, lib, next, rest)
+        match deps
+                [] => ok(walk)
+                [d, ...rest] =>
+                        next = visit(cat, lib, walk, fullName(d.pkg), Some(d.version))?
+                        visitAll(cat, lib, next, rest)
 
 fn stepNames(steps: Vector[InstallStep]) -> Vector[String] ! Pure
-  map(steps, \s -> s.pkg + "-" + s.version.versionNumber)
+        map(steps, \s -> s.pkg + "-" + s.version.versionNumber)
 
 // A plan never repeats a package, and ends with the target when the target was not already installed.
 fn prop_planHasNoDuplicates(cat: Catalogue, target: String) -> Bool ! Pure
-  match planInstall(cat, emptyLibrary(), target)
-    Ok(steps) => length(toSet(map(steps, \s -> s.pkg))) == length(steps)
-    Error(_) => true
+        match planInstall(cat, emptyLibrary(), target)
+                Ok(steps) => length(toSet(map(steps, \s -> s.pkg))) == length(steps)
+                Error(_) => true

@@ -7,116 +7,116 @@ use valslongva.application.ports
 use valslongva.infrastructure.host
 
 service FakeFileSystem(files: Cell[Map[String, String]])
-  fn readText(path: String) -> Result[String, IoError]
-    match files.get().get(path)
-      Some(text) => ok(text)
-      None => error(IoError.Failed("no file " + path))
+        fn readText(path: String) -> Result[String, IoError]
+                match files.get().get(path)
+                        Some(text) => ok(text)
+                        None => error(IoError.Failed("no file " + path))
 
-  fn tailText(path: String, bytes: Int) -> Result[String, IoError]
-    readText(path)
+        fn tailText(path: String, bytes: Int) -> Result[String, IoError]
+                readText(path)
 
-  fn writeText(path: String, text: String) -> Result[Unit, IoError]
-    files.update(\m -> m.set(path, text))
-    ok(unit)
+        fn writeText(path: String, text: String) -> Result[Unit, IoError]
+                files.update(\m -> m.set(path, text))
+                ok(unit)
 
-  fn appendText(path: String, text: String) -> Result[Unit, IoError]
-    files.update(\m -> m.set(path, m.getOr(path, "") + text))
-    ok(unit)
+        fn appendText(path: String, text: String) -> Result[Unit, IoError]
+                files.update(\m -> m.set(path, m.getOr(path, "") + text))
+                ok(unit)
 
-  fn exists(path: String) -> Bool
-    m = files.get()
-    contains(m, path) or any(keys(m), \k -> startsWith(k, path + "/"))
+        fn exists(path: String) -> Bool
+                m = files.get()
+                contains(m, path) or any(keys(m), \k -> startsWith(k, path + "/"))
 
-  fn fileVersion(path: String) -> Option[String]
-    if contains(files.get(), path) then Some("5.4.23.5") else None
+        fn fileVersion(path: String) -> Option[String]
+                if contains(files.get(), path) then Some("5.4.23.5") else None
 
-  // a fake dll whose text is "plugin:guid|name|version" carries a BepInPlugin attribute
-  fn pluginInfo(path: String) -> Option[PluginInfo]
-    match files.get().get(path)
-      Some(text) => if startsWith(text, "plugin:") then parsePluginInfo(substring(text, 7, length(text))) else None
-      None => None
+        // a fake dll whose text is "plugin:guid|name|version" carries a BepInPlugin attribute
+        fn pluginInfo(path: String) -> Option[PluginInfo]
+                match files.get().get(path)
+                        Some(text) => if startsWith(text, "plugin:") then parsePluginInfo(substring(text, 7, length(text))) else None
+                        None => None
 
-  fn listFiles(dir: String) -> Result[Vector[String], IoError]
-    prefix = dir + "/"
-    ok(sort(map(filter(keys(files.get()), \k -> startsWith(k, prefix)), \k -> substring(k, length(prefix), length(k)))))
+        fn listFiles(dir: String) -> Result[Vector[String], IoError]
+                prefix = dir + "/"
+                ok(sort(map(filter(keys(files.get()), \k -> startsWith(k, prefix)), \k -> substring(k, length(prefix), length(k)))))
 
-  fn copyFile(from: String, to: String) -> Result[Unit, IoError]
-    match files.get().get(from)
-      Some(text) =>
-        files.update(\m -> m.set(to, text))
-        ok(unit)
-      None => error(IoError.Failed("no file " + from))
+        fn copyFile(from: String, to: String) -> Result[Unit, IoError]
+                match files.get().get(from)
+                        Some(text) =>
+                                files.update(\m -> m.set(to, text))
+                                ok(unit)
+                        None => error(IoError.Failed("no file " + from))
 
-  fn deleteTree(path: String) -> Result[Unit, IoError]
-    fn drop(m: Map[String, String], k: String) -> Map[String, String]
-      if k == path or startsWith(k, path + "/") then remove(m, k) else m
-    files.update(\m -> fold(keys(m), m, drop))
-    ok(unit)
+        fn deleteTree(path: String) -> Result[Unit, IoError]
+                fn drop(m: Map[String, String], k: String) -> Map[String, String]
+                        if k == path or startsWith(k, path + "/") then remove(m, k) else m
+                files.update(\m -> fold(keys(m), m, drop))
+                ok(unit)
 
-  fn moveTree(from: String, to: String) -> Result[Unit, IoError]
-    fn move(m: Map[String, String], k: String) -> Map[String, String]
-      if k == from or startsWith(k, from + "/") then remove(m.set(to + substring(k, length(from), length(k)), m.getOr(k, "")), k) else m
-    files.update(\m -> fold(keys(m), m, move))
-    ok(unit)
+        fn moveTree(from: String, to: String) -> Result[Unit, IoError]
+                fn move(m: Map[String, String], k: String) -> Map[String, String]
+                        if k == from or startsWith(k, from + "/") then remove(m.set(to + substring(k, length(from), length(k)), m.getOr(k, "")), k) else m
+                files.update(\m -> fold(keys(m), m, move))
+                ok(unit)
 
-  fn ensureDir(path: String) -> Result[Unit, IoError]
-    ok(unit)
+        fn ensureDir(path: String) -> Result[Unit, IoError]
+                ok(unit)
 
-  fn snapshot() -> Map[String, String]
-    files.get()
+        fn snapshot() -> Map[String, String]
+                files.get()
 
 service FakeHttp(pages: Map[String, String], fs: FakeFileSystem)
-  fn getText(url: String) -> Result[String, HttpError]
-    match pages.get(url)
-      Some(text) => ok(text)
-      None => error(HttpError.Unreachable("no page " + url))
+        fn getText(url: String) -> Result[String, HttpError]
+                match pages.get(url)
+                        Some(text) => ok(text)
+                        None => error(HttpError.Unreachable("no page " + url))
 
-  fn download(url: String, path: String) -> Result[Unit, HttpError]
-    fs.writeText(path, "zip:" + url).mapError(\e -> HttpError.Unreachable("cannot write " + path))
+        fn download(url: String, path: String) -> Result[Unit, HttpError]
+                fs.writeText(path, "zip:" + url).mapError(\e -> HttpError.Unreachable("cannot write " + path))
 
 // Unpacks a marker written by FakeHttp into the entries registered for that URL.
 service FakeArchive(entries: Map[String, Vector[String]], fs: FakeFileSystem)
-  fn extract(zip: String, dir: String) -> Result[Unit, IoError]
-    marker = fs.readText(zip)?
-    url = if startsWith(marker, "zip:") then substring(marker, 4, length(marker)) else marker
-    match entries.get(url)
-      None => error(IoError.Failed("not an archive: " + zip))
-      Some(names) =>
-        traverse(names, \n -> fs.writeText(dir + "/" + n, "bytes of " + n))?
-        ok(unit)
+        fn extract(zip: String, dir: String) -> Result[Unit, IoError]
+                marker = fs.readText(zip)?
+                url = if startsWith(marker, "zip:") then substring(marker, 4, length(marker)) else marker
+                match entries.get(url)
+                        None => error(IoError.Failed("not an archive: " + zip))
+                        Some(names) =>
+                                traverse(names, \n -> fs.writeText(dir + "/" + n, "bytes of " + n))?
+                                ok(unit)
 
 service FakeSteam(isRunning: Bool)
-  fn running() -> Bool
-    isRunning
+        fn running() -> Bool
+                isRunning
 
 service FakeProcesses(log: Cell[Vector[String]])
-  fn run(program: String, workingDir: String) -> Result[Unit, IoError]
-    log.update(\l -> append(l, "run " + program + " in " + workingDir))
-    ok(unit)
+        fn run(program: String, workingDir: String) -> Result[Unit, IoError]
+                log.update(\l -> append(l, "run " + program + " in " + workingDir))
+                ok(unit)
 
-  fn openUrl(url: String) -> Result[Unit, IoError]
-    log.update(\l -> append(l, "open " + url))
-    ok(unit)
+        fn openUrl(url: String) -> Result[Unit, IoError]
+                log.update(\l -> append(l, "open " + url))
+                ok(unit)
 
-  fn entries() -> Vector[String]
-    log.get()
+        fn entries() -> Vector[String]
+                log.get()
 
 service FakePlatform(osName: String, homeDir: String, data: String)
-  fn os() -> String
-    osName
+        fn os() -> String
+                osName
 
-  fn home() -> String
-    homeDir
+        fn home() -> String
+                homeDir
 
-  fn dataDir() -> String
-    data
+        fn dataDir() -> String
+                data
 
 service FixedClock(at: Instant)
-  fn now() -> Instant
-    at
+        fn now() -> Instant
+                at
 
 fn emptyFiles() -> Cell[Map[String, String]]
-  Cell.new({})
+        Cell.new({})
 
 fn emptyLog() -> Cell[Vector[String]]
-  Cell.new([])
+        Cell.new([])

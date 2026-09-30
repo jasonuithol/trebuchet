@@ -7,49 +7,49 @@ use valslongva.application.ports
 use valslongva.application.errors
 
 service CatalogueService(http: Http, fs: FileSystem, platform: Platform, clock: Clock, cache: Cell[Option[Catalogue]])
-  private fn listingPath() -> String
-    platform.dataDir() + "/catalogue.json"
+        private fn listingPath() -> String
+                platform.dataDir() + "/catalogue.json"
 
-  private fn stampPath() -> String
-    platform.dataDir() + "/catalogue.fetched"
+        private fn stampPath() -> String
+                platform.dataDir() + "/catalogue.fetched"
 
-  private fn isFresh(cat: Catalogue) -> Bool
-    Instant.secondsBetween(cat.fetchedAt, clock.now()) < 6 * 3600
+        private fn isFresh(cat: Catalogue) -> Bool
+                Instant.secondsBetween(cat.fetchedAt, clock.now()) < 6 * 3600
 
-  private fn decode(text: String, fetchedAt: Instant) -> Result[Catalogue, AppError]
-    packages = supervise json.decode[Vector[Listing]](text)
-    ok(index(packages.mapError(crashed)?, fetchedAt))
+        private fn decode(text: String, fetchedAt: Instant) -> Result[Catalogue, AppError]
+                packages = supervise json.decode[Vector[Listing]](text)
+                ok(index(packages.mapError(crashed)?, fetchedAt))
 
-  // What is loaded, without loading anything.
-  fn loaded() -> Option[Catalogue]
-    cache.get()
+        // What is loaded, without loading anything.
+        fn loaded() -> Option[Catalogue]
+                cache.get()
 
-  fn current() -> Result[Catalogue, AppError]
-    match cache.get()
-      Some(cat) =>
-        if isFresh(cat) then ok(cat) else refresh()
-      None =>
-        if fs.exists(listingPath()) and fs.exists(stampPath()) then
-          text = fs.readText(listingPath()).mapError(io)?
-          stamp = fs.readText(stampPath()).mapError(io)?
-          cat = decode(text, Instant.parse(trim(stamp)))?
-          cache.set(Some(cat))
-          if isFresh(cat) then ok(cat) else refresh()
-        else
-          refresh()
+        fn current() -> Result[Catalogue, AppError]
+                match cache.get()
+                        Some(cat) =>
+                                if isFresh(cat) then ok(cat) else refresh()
+                        None =>
+                                if fs.exists(listingPath()) and fs.exists(stampPath()) then
+                                        text = fs.readText(listingPath()).mapError(io)?
+                                        stamp = fs.readText(stampPath()).mapError(io)?
+                                        cat = decode(text, Instant.parse(trim(stamp)))?
+                                        cache.set(Some(cat))
+                                        if isFresh(cat) then ok(cat) else refresh()
+                                else
+                                        refresh()
 
-  fn refresh() -> Result[Catalogue, AppError]
-    text = http.getText(listingUrl()).mapError(net)?
-    now = clock.now()
-    cat = decode(text, now)?
-    fs.ensureDir(platform.dataDir()).mapError(io)?
-    fs.writeText(listingPath(), text).mapError(io)?
-    fs.writeText(stampPath(), toString(now)).mapError(io)?
-    cache.set(Some(cat))
-    ok(cat)
+        fn refresh() -> Result[Catalogue, AppError]
+                text = http.getText(listingUrl()).mapError(net)?
+                now = clock.now()
+                cat = decode(text, now)?
+                fs.ensureDir(platform.dataDir()).mapError(io)?
+                fs.writeText(listingPath(), text).mapError(io)?
+                fs.writeText(stampPath(), toString(now)).mapError(io)?
+                cache.set(Some(cat))
+                ok(cat)
 
 fn listingUrl() -> String ! Pure
-  "https://thunderstore.io/c/valheim/api/v1/package/"
+        "https://thunderstore.io/c/valheim/api/v1/package/"
 
 fn emptyCache() -> Cell[Option[Catalogue]]
-  Cell.new(None)
+        Cell.new(None)

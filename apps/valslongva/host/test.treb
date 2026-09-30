@@ -13,22 +13,22 @@ use valslongva.host.fixture
 use valslongva.api.api
 
 root test
-  platform: FakePlatform("linux", "/home/viking", "/home/viking/.local/share/valslongva")
-  clock: FixedClock(Instant.parse("2026-09-30T10:00:00Z"))
-  files: seededFiles()
-  fs: FakeFileSystem
-  pages: fixturePages()
-  http: FakeHttp
-  entries: fixtureArchives()
-  archive: FakeArchive
-  log: emptyLog()
-  processes: FakeProcesses
-  client: FakeSteam(true)
-  cache: emptyCache()
-  settings: SettingsStore
-  locator: Locator
-  catalogue: CatalogueService
-  installer: Installer
-  steam: SteamStatus
-  launcher: Launcher
-  api: Api
+        platform: FakePlatform("linux", "/home/viking", "/home/viking/.local/share/valslongva")
+        clock: FixedClock(Instant.parse("2026-09-30T10:00:00Z"))
+        files: seededFiles()
+        fs: FakeFileSystem
+        pages: fixturePages()
+        http: FakeHttp
+        entries: fixtureArchives()
+        archive: FakeArchive
+        log: emptyLog()
+        processes: FakeProcesses
+        client: FakeSteam(true)
+        cache: emptyCache()
+        settings: SettingsStore
+        locator: Locator
+        catalogue: CatalogueService
+        installer: Installer
+        steam: SteamStatus
+        launcher: Launcher
+        api: Api

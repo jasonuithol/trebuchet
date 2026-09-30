@@ -5,20 +5,20 @@ use valslongva.application.ports
 use valslongva.application.errors
 
 record Settings
-  gamePath: Option[String]
+        gamePath: Option[String]
 
 service SettingsStore(fs: FileSystem, platform: Platform)
-  private fn path() -> String
-    platform.dataDir() + "/settings.json"
+        private fn path() -> String
+                platform.dataDir() + "/settings.json"
 
-  fn load() -> Result[Settings, AppError]
-    if fs.exists(path()) then
-      text = fs.readText(path()).mapError(io)?
-      decoded = supervise json.decode[Settings](text)
-      decoded.mapError(crashed)
-    else
-      ok(Settings(None))
+        fn load() -> Result[Settings, AppError]
+                if fs.exists(path()) then
+                        text = fs.readText(path()).mapError(io)?
+                        decoded = supervise json.decode[Settings](text)
+                        decoded.mapError(crashed)
+                else
+                        ok(Settings(None))
 
-  fn save(s: Settings) -> Result[Unit, AppError]
-    fs.ensureDir(platform.dataDir()).mapError(io)?
-    fs.writeText(path(), json.encode(s)).mapError(io)
+        fn save(s: Settings) -> Result[Unit, AppError]
+                fs.ensureDir(platform.dataDir()).mapError(io)?
+                fs.writeText(path(), json.encode(s)).mapError(io)

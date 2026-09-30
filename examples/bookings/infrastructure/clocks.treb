@@ -1,13 +1,12 @@
 module bookings.infrastructure.clocks
 
 // Adapters satisfying the Clock shape.
-
 use bookings.application.ports
 
 service SystemClock
-  fn now() -> Instant
-    sys.clock()
+        fn now() -> Instant
+                sys.clock()
 
 service FixedClock(at: Instant)
-  fn now() -> Instant
-    at
+        fn now() -> Instant
+                at
