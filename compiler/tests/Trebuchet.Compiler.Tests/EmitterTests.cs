@@ -308,6 +308,22 @@ public class EmitterTests
     }
 
     [Fact]
+    public void StringBuiltinsCompileAndRun()
+    {
+        var asm = EmitAndBuild("text");
+        var demo = asm.GetType("Generated.Text")!.GetMethod("demo")!;
+        Assert.Equal(InterpreterTests.TextExpected, (string)demo.Invoke(null, null)!);
+    }
+
+    [Fact]
+    public void JsonDecodesLenientlyOnDotNet()
+    {
+        var asm = EmitAndBuild("json");
+        var demo = asm.GetType("Generated.Thunder")!.GetMethod("demo")!;
+        Assert.Equal(InterpreterTests.JsonExpected, (string)demo.Invoke(null, null)!);
+    }
+
+    [Fact]
     public void PatternsCompileAndRun()
     {
         var asm = EmitAndBuild("patterns");

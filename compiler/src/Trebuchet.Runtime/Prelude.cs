@@ -195,6 +195,27 @@ public static class Prelude
     public static string toUpper(string s) => s.ToUpperInvariant();
     public static string toLower(string s) => s.ToLowerInvariant();
     public static bool startsWith(string s, string prefix) => s.StartsWith(prefix, StringComparison.Ordinal);
+    public static bool endsWith(string s, string suffix) => s.EndsWith(suffix, StringComparison.Ordinal);
+    public static Vector<string> split(string s, string sep) => Vector<string>.From(sep.Length == 0 ? s.Select(c => c.ToString()) : s.Split(sep));
+    public static string join(Vector<string> parts, string sep) => string.Join(sep, parts);
+    public static string replace(string s, string from, string to) => from.Length == 0 ? s : s.Replace(from, to, StringComparison.Ordinal);
+    public static string substring(string s, long start, long length)
+    {
+        var st = (int)Math.Clamp(start, 0, s.Length);
+        var len = (int)Math.Clamp(length, 0, s.Length - st);
+        return s.Substring(st, len);
+    }
+    public static Option<long> indexOf(string s, string sub) { var i = s.IndexOf(sub, StringComparison.Ordinal); return i < 0 ? Option<long>.None : Option<long>.Some(i); }
+    public static Option<long> parseInt(string s) => long.TryParse(s.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var n) ? Option<long>.Some(n) : Option<long>.None;
+    public static Option<double> parseFloat(string s) => double.TryParse(s.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? Option<double>.Some(d) : Option<double>.None;
+    public static Vector<string> lines(string s) => Vector<string>.From(s.Replace("\r\n", "\n").Split('\n'));
+    public static string padLeft(string s, long width, string pad)
+    {
+        if (pad.Length == 0 || s.Length >= width) return s;
+        var sb = new System.Text.StringBuilder();
+        while (sb.Length + s.Length < width) sb.Append(pad);
+        return sb.ToString()[..(int)(width - s.Length)] + s;
+    }
     public static string uuid() => Guid.NewGuid().ToString();
     public static async ValueTask<Unit> sleep(long ms) { await System.Threading.Tasks.Task.Delay((int)Math.Max(0, ms)); return Unit.Value; }
 }

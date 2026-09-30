@@ -471,6 +471,18 @@ The last C++ question is answered the cheap way. Compiling a translation unit wi
 
 The runtime test program now compiles and runs both ways; with the flag it adds checks that hammer a shared vector's nodes from eight threads and update a cell from sixteen. The event loop is unchanged and still one per thread; `post` was already the one thread-safe entry. Whether to run more than one loop, and what the emitter would parallelise, remains the §7.25 design, unbuilt until a workload needs it. This closes the last item in §9 that was about the runtime; what remains open is language design.
 
+### 7.27 The boundary a real application needs: strings, JSON, and host assemblies
+
+The first real application (a Valheim mod manager, `valslöngva`) was specified before a line of it was written, and the specification found three gaps that would otherwise have been worked around inside the app. All three are boundary work, none is language design, and all three were closed before the application started, so that it demonstrates the language rather than its workarounds.
+
+**Strings.** The builtin set had `trim`, `toUpper`, `toLower`, `startsWith`, and `contains` and nothing else. Parsing a Thunderstore dependency string (`denikson-BepInExPack_Valheim-5.4.2202`), a version number, or a path needs `split`, `join`, `replace`, `substring`, `indexOf`, `endsWith`, `parseInt`, `parseFloat`, `lines`, and `padLeft`, so those exist now on all three targets with the same edge behaviour: `split` with an empty separator yields characters, `substring` clamps, `indexOf` and the parsers return `Option`, `lines` accepts either line ending. String literals gained `\r` and `\0` escapes for the same reason.
+
+**JSON.** `json.decode[T]` existed as a signature: the .NET runtime called `System.Text.Json` with default options, which knew nothing about `Option` or single-field records, and the interpreter panicked. The decision is one policy on both: field names bind leniently, so a document's `full_name` lands in a record's `fullName` and no attribute is needed for the common snake_case API; a missing or null `Option` field is `None`; unknown fields are ignored; a single-field record nested in a document is its bare value; a nullary variant is its name and a variant with fields carries `type`. `json.encode` writes the same shape, so a decoded value re-encodes to the document it came from, minus what the type did not declare. The interpreter reads the call's explicit type argument from the checker (a new `ExplicitTypeArgs` table, recorded for every call that writes `[T]`) and builds values by type; the dev server's request binding now shares that reader. A malformed document is a panic, as the brief's boundary rule requires; a wire-name attribute for the cases lenient matching cannot reach is the next step if an API demands it. C++ decode remains unbuilt.
+
+**Host assemblies.** `treb serve` and `treb test` bound `csharp` extern symbols only to the framework. `--with Host.dll` loads an assembly (several, comma-separated) before binding, so an application's own thin host class, the instance-API wrappers the brief expects around `HttpClient` and `Process`, runs under the interpreter too, and property tests can exercise externs. An extern with no implementation still panics with the same message, which is now also how a missing `--with` shows up in a test run.
+
+`examples/text/` and `examples/json/` are the samples; each has an interpreter test and a .NET test, and `examples/text/` also runs on C++. The application itself is the next section.
+
 ---
 
 ## 8. Revised milestones

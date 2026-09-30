@@ -29,7 +29,12 @@ public static class TrebuchetJson
         return options;
     }
 
-    public static JsonSerializerOptions Options => Configure(new JsonSerializerOptions());
+    private static JsonSerializerOptions? _options;
+    /// <summary>One configured instance; JsonSerializerOptions caches converters and metadata, so reuse matters.</summary>
+    public static JsonSerializerOptions Options => _options ??= Configure(new JsonSerializerOptions());
+
+    /// <summary>A field name for lenient matching: full_name, fullName, and FullName are the same field.</summary>
+    public static string Normalise(string name) => name.Replace("_", "").ToLowerInvariant();
 }
 
 public sealed class TrebuchetJsonConverter : JsonConverterFactory
@@ -42,7 +47,7 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
             if (def == typeof(Option<>) || def == typeof(Map<,>) || def == typeof(Set<>) || def == typeof(Vector<>)) return true;
         }
         if (t.IsDefined(typeof(TrebuchetUnionAttribute), false) || t.IsDefined(typeof(TrebuchetVariantAttribute), false)) return true;
-        return t.IsDefined(typeof(TrebuchetRecordAttribute), false) && SingleField(t) is not null;
+        return t.IsDefined(typeof(TrebuchetRecordAttribute), false) && Ctor(t) is { } c && c.GetParameters().Length > 0;
     }
 
     public override JsonConverter CreateConverter(Type t, JsonSerializerOptions options)
@@ -53,7 +58,8 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
         else if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Set<>)) converter = typeof(SetConverter<>).MakeGenericType(t.GetGenericArguments());
         else if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Vector<>)) converter = typeof(VectorConverter<>).MakeGenericType(t.GetGenericArguments());
         else if (t.IsDefined(typeof(TrebuchetUnionAttribute), false) || t.IsDefined(typeof(TrebuchetVariantAttribute), false)) converter = typeof(UnionConverter<>).MakeGenericType(t);
-        else converter = typeof(SingleFieldConverter<>).MakeGenericType(t);
+        else if (SingleField(t) is not null) converter = typeof(SingleFieldConverter<>).MakeGenericType(t);
+        else converter = typeof(RecordConverter<>).MakeGenericType(t);
         return (JsonConverter)Activator.CreateInstance(converter)!;
     }
 
@@ -106,9 +112,11 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
         for (var i = 0; i < ps.Length; i++)
         {
             var found = false;
+            var wanted = TrebuchetJson.Normalise(ps[i].Name!);
             foreach (var prop in obj.EnumerateObject())
             {
-                if (!string.Equals(prop.Name, ps[i].Name, StringComparison.OrdinalIgnoreCase)) continue;
+                // exact or lenient: snake_case documents bind lowerCamel fields
+                if (prop.Name != ps[i].Name && TrebuchetJson.Normalise(prop.Name) != wanted) continue;
                 args[i] = prop.Value.Deserialize(ps[i].ParameterType, options);
                 found = true;
                 break;
@@ -121,6 +129,31 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
             }
         }
         return ctor.Invoke(args);
+    }
+
+    /// <summary>A record with several fields: read by lenient field name with Option defaults, written with the declared names.</summary>
+    private sealed class RecordConverter<T> : JsonConverter<T>
+    {
+        private readonly ParameterInfo[] _params = Ctor(typeof(T))!.GetParameters();
+
+        public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var obj = JsonElement.ParseValue(ref reader);
+            if (obj.ValueKind != JsonValueKind.Object) throw new JsonException($"expected an object for {typeof(T).Name}");
+            return (T)Construct(typeof(T), obj, options);
+        }
+
+        public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            foreach (var p in _params)
+            {
+                var prop = typeof(T).GetProperty(p.Name!, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)!;
+                writer.WritePropertyName(options.PropertyNamingPolicy?.ConvertName(prop.Name) ?? prop.Name);
+                JsonSerializer.Serialize(writer, prop.GetValue(value), prop.PropertyType, options);
+            }
+            writer.WriteEndObject();
+        }
     }
 
     private sealed class SingleFieldConverter<T> : JsonConverter<T>
@@ -216,6 +249,9 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
 
     private sealed class OptionConverter<T> : JsonConverter<Option<T>>
     {
+        // without this the serializer short-circuits a JSON null to a C# null and never asks us
+        public override bool HandleNull => true;
+
         public override Option<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
             reader.TokenType == JsonTokenType.Null ? Option<T>.None : Option<T>.Some(JsonSerializer.Deserialize<T>(ref reader, options)!);
 

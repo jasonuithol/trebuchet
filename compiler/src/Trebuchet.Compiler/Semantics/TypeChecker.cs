@@ -72,6 +72,8 @@ public sealed class TypeChecker
     public Dictionary<InstanceDecl, TType> InstanceTargets { get; } = new();
     /// <summary>The type of each local function, for the emitters.</summary>
     public Dictionary<LocalFnStmt, FnT> LocalFnTypes { get; } = new();
+    /// <summary>Type arguments written at a call, resolved: what json.decode[T] needs at run time.</summary>
+    public Dictionary<CallExpr, IReadOnlyList<TType>> ExplicitTypeArgs { get; } = new();
     private readonly Dictionary<ShapeT, Scope> _classScopes = new(ReferenceEqualityComparer.Instance);
     private readonly List<Action> _deferred = new();
 
@@ -1079,6 +1081,7 @@ public sealed class TypeChecker
         {
             CalleeOf[call] = chosen;
             if (chosenTypeArgs is not null && !_builtinFns.Contains(chosenAlt)) CallTypeArgs[call] = chosenTypeArgs;
+            if (explicitTypeArgs.Count > 0) ExplicitTypeArgs[call] = explicitTypeArgs;
             if (chosenTypeArgs is not null && chosenOriginal is not null)
             {
                 // resolved after every body is checked, when inference variables have their final bindings

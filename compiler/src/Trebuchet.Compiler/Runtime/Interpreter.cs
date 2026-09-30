@@ -345,6 +345,14 @@ public sealed class Interpreter
         }
         if (Checker is not null && Checker.CallDictionaries.TryGetValue(c, out var dicts))
             foreach (var (shape, type) in dicts) positional.Add(DictionaryFor(shape, type, env, c.Pos));
+        if (c.Callee is MemberExpr { Name: "decode", Target: TypeNameExpr { Name: "json" } or NameExpr { Name: "json" } } && Checker is not null && Checker.ExplicitTypeArgs.TryGetValue(c, out var decodeArgs))
+        {
+            var text = positional.Count > 0 && positional[0] is StringValue sv ? sv.V : throw new TrebPanic($"{c.Pos}: json.decode needs a String");
+            System.Text.Json.Nodes.JsonNode? node;
+            try { node = System.Text.Json.Nodes.JsonNode.Parse(text); }
+            catch (System.Text.Json.JsonException ex) { throw new TrebPanic($"{c.Pos}: json.decode: {ex.Message}"); }
+            return JsonValues.FromJson(this, decodeArgs[0], node, "json.decode");
+        }
         if (Checker is not null && Checker.ClassCalls.TryGetValue(c, out var cc))
             return Member(DictionaryFor(cc.Shape, cc.Type, env, c.Pos), cc.Member, env, positional, c.Pos, named);
         if (c.Callee is MemberExpr mem)

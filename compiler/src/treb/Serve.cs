@@ -304,49 +304,5 @@ public static class Serve
         return result is UnitValue ? Results.NoContent() : Results.Json(ToJson(result));
     }
 
-    public static JsonNode? ToJson(Value v) => ToJson(v, 0);
-
-    private static JsonNode? ToJson(Value v, int depth) => v switch
-    {
-        IntValue i => JsonValue.Create(i.V),
-        FloatValue f => JsonValue.Create(f.V),
-        BoolValue b => JsonValue.Create(b.V),
-        StringValue s => JsonValue.Create(s.V),
-        UnitValue => null,
-        InstantValue t => JsonValue.Create(t.Show()),
-        ListValue l => new JsonArray(l.Items.Select(x => ToJson(x, depth + 1)).ToArray()),
-        SetValue st => new JsonArray(st.Items.Select(x => ToJson(x, depth + 1)).ToArray()),
-        MapValue m => MapToJson(m, depth),
-        CellValue c => ToJson(c.Current, depth),
-        RecordValue { Union: "Option" } o => o.TypeName == "Some" ? ToJson(o.FieldValues[0], depth) : null,
-        RecordValue r when r.IsVariant && r.FieldValues.Length == 0 => JsonValue.Create(r.TypeName),
-        // a nested single-field record such as RoomId("x") flattens to its value; the top-level object never does
-        RecordValue r when depth > 0 && !r.IsVariant && r.FieldValues.Length == 1 && r.FieldValues[0] is StringValue or IntValue => ToJson(r.FieldValues[0], depth),
-        RecordValue r => RecordToJson(r, depth),
-        _ => JsonValue.Create(v.Show()),
-    };
-
-    private static JsonObject RecordToJson(RecordValue r, int depth)
-    {
-        var obj = new JsonObject();
-        if (r.IsVariant) obj["type"] = r.TypeName;
-        for (var i = 0; i < r.FieldValues.Length; i++) obj[r.FieldNames[i]] = ToJson(r.FieldValues[i], depth + 1);
-        return obj;
-    }
-
-    private static JsonNode MapToJson(MapValue m, int depth)
-    {
-        var obj = new JsonObject();
-        foreach (var kv in m.Entries)
-        {
-            var key = kv.Key switch
-            {
-                StringValue s => s.V,
-                RecordValue { FieldValues.Length: 1 } r when r.FieldValues[0] is StringValue ks => ks.V,
-                var k => k.Show(),
-            };
-            obj[key] = ToJson(kv.Value, depth + 1);
-        }
-        return obj;
-    }
+    public static JsonNode? ToJson(Value v) => JsonValues.ToJson(v);
 }

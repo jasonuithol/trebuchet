@@ -130,7 +130,10 @@ public static class env
 
 public static class json
 {
-    public static string encode<T>(T value) => System.Text.Json.JsonSerializer.Serialize(value);
-    public static T decode<T>(string text) =>
-        System.Text.Json.JsonSerializer.Deserialize<T>(text) ?? throw new TrebPanic("json.decode: null");
+    public static string encode<T>(T value) => System.Text.Json.JsonSerializer.Serialize(value, TrebuchetJson.Options);
+    public static T decode<T>(string text)
+    {
+        try { return System.Text.Json.JsonSerializer.Deserialize<T>(text, TrebuchetJson.Options) ?? throw new TrebPanic("json.decode: the document is null"); }
+        catch (System.Text.Json.JsonException ex) { throw new TrebPanic("json.decode: " + ex.Message); }
+    }
 }

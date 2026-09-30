@@ -101,6 +101,16 @@ public static class BuiltinSignatures
         Def("toUpper", "(String) -> String ! Pure");
         Def("toLower", "(String) -> String ! Pure");
         Def("startsWith", "(String, String) -> Bool ! Pure");
+        Def("endsWith", "(String, String) -> Bool ! Pure");
+        Def("split", "(String, String) -> Vector[String] ! Pure");
+        Def("join", "(Vector[String], String) -> String ! Pure");
+        Def("replace", "(String, String, String) -> String ! Pure");
+        Def("substring", "(String, Int, Int) -> String ! Pure");
+        Def("indexOf", "(String, String) -> Option[Int] ! Pure");
+        Def("parseInt", "(String) -> Option[Int] ! Pure");
+        Def("parseFloat", "(String) -> Option[Float] ! Pure");
+        Def("lines", "(String) -> Vector[String] ! Pure");
+        Def("padLeft", "(String, Int, String) -> String ! Pure");
         Def("uuid", "() -> String ! Nondet");
         Def("sleep", "(Int) -> Unit ! Suspend");
 

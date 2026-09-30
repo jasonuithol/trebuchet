@@ -21,6 +21,7 @@
 #include <coroutine>
 #include <cstdint>
 #include <cstdio>
+#include <cerrno>
 #include <cstdlib>
 #include <ctime>
 #include <functional>
@@ -1136,6 +1137,69 @@ inline std::string trim(const std::string& s) {
 inline std::string toUpper(std::string s) { for (auto& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c))); return s; }
 inline std::string toLower(std::string s) { for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); return s; }
 inline bool startsWith(const std::string& s, const std::string& p) { return s.rfind(p, 0) == 0; }
+inline bool endsWith(const std::string& s, const std::string& p) { return s.size() >= p.size() && s.compare(s.size() - p.size(), p.size(), p) == 0; }
+inline Vector<std::string> split(const std::string& s, const std::string& sep) {
+    Vector<std::string> r;
+    if (sep.empty()) { for (char c : s) r = r.append(std::string(1, c)); return r; }
+    std::size_t start = 0;
+    for (;;) {
+        auto at = s.find(sep, start);
+        if (at == std::string::npos) { r = r.append(s.substr(start)); return r; }
+        r = r.append(s.substr(start, at - start));
+        start = at + sep.size();
+    }
+}
+inline std::string join(const Vector<std::string>& parts, const std::string& sep) {
+    std::string out;
+    bool first = true;
+    for (const auto& p : parts) { if (!first) out += sep; out += p; first = false; }
+    return out;
+}
+inline std::string replace(const std::string& s, const std::string& from, const std::string& to) {
+    if (from.empty()) return s;
+    std::string out;
+    std::size_t start = 0;
+    for (;;) {
+        auto at = s.find(from, start);
+        if (at == std::string::npos) { out += s.substr(start); return out; }
+        out += s.substr(start, at - start);
+        out += to;
+        start = at + from.size();
+    }
+}
+inline std::string substring(const std::string& s, std::int64_t start, std::int64_t length) {
+    auto st = static_cast<std::size_t>(std::clamp<std::int64_t>(start, 0, static_cast<std::int64_t>(s.size())));
+    auto len = static_cast<std::size_t>(std::clamp<std::int64_t>(length, 0, static_cast<std::int64_t>(s.size() - st)));
+    return s.substr(st, len);
+}
+inline Option<std::int64_t> indexOf(const std::string& s, const std::string& sub) {
+    auto at = s.find(sub);
+    return at == std::string::npos ? Option<std::int64_t>::None() : Option<std::int64_t>::Some(static_cast<std::int64_t>(at));
+}
+inline Option<std::int64_t> parseInt(const std::string& s) {
+    std::string t = trim(s);
+    if (t.empty()) return Option<std::int64_t>::None();
+    char* end = nullptr;
+    errno = 0;
+    long long v = std::strtoll(t.c_str(), &end, 10);
+    if (errno != 0 || end != t.c_str() + t.size()) return Option<std::int64_t>::None();
+    return Option<std::int64_t>::Some(static_cast<std::int64_t>(v));
+}
+inline Option<double> parseFloat(const std::string& s) {
+    std::string t = trim(s);
+    if (t.empty()) return Option<double>::None();
+    char* end = nullptr;
+    double v = std::strtod(t.c_str(), &end);
+    if (end != t.c_str() + t.size()) return Option<double>::None();
+    return Option<double>::Some(v);
+}
+inline Vector<std::string> lines(const std::string& s) { return split(replace(s, "\r\n", "\n"), "\n"); }
+inline std::string padLeft(const std::string& s, std::int64_t width, const std::string& pad) {
+    if (pad.empty() || static_cast<std::int64_t>(s.size()) >= width) return s;
+    std::string fill;
+    while (static_cast<std::int64_t>(fill.size() + s.size()) < width) fill += pad;
+    return fill.substr(0, static_cast<std::size_t>(width) - s.size()) + s;
+}
 inline std::string uuid() {
     static std::mt19937_64 rng{std::random_device{}()};
     static const char* hex = "0123456789abcdef";

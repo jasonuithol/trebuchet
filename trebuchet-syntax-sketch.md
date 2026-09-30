@@ -334,6 +334,10 @@ Records and unions may be recursive, directly (`Node(left: Tree[T], right: Tree[
 
 `Seq[T]` is lazy: `map`, `filter`, `take`, `drop`, `takeWhile` on a `Seq` return a `Seq` without pulling; `toVector`, `first`, `fold` pull. A function given to a lazy combinator may not `Suspend`. A `Seq` is not compared with `==`.
 
+Strings: `length`, `contains`, `startsWith`, `endsWith`, `trim`, `toUpper`, `toLower`, `split`, `join`, `replace`, `substring`, `indexOf`, `lines`, `padLeft`, and the parsers `parseInt` and `parseFloat`; `indexOf` and the parsers return an `Option`, `substring` clamps, `split("abc", "")` is the characters. Literal escapes are `\n`, `\t`, `\r`, `\0`, `\"`, and `\\`.
+
+`json.encode(value)` and `json.decode[T](text)` are the JSON boundary. Field names bind leniently (`full_name` in a document fills `fullName`), a missing or null `Option` field is `None`, unknown fields are ignored, a nested single-field record is its bare value, a nullary variant is its name, a variant with fields carries `type`. A malformed document panics.
+
 `sleep(ms)` is `! Suspend` and is the reference builtin for suspension; a function that calls it infers `Suspend`. There is no `spawn`; a Trebuchet body is sequential and concurrency is the host's, until parallelism is designed.
 
 ### Deep update

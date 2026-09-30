@@ -1,0 +1,37 @@
+module thunder
+
+// The JSON boundary. A document's field names bind leniently, so Thunderstore's snake_case
+// full_name lands in fullName; a missing Option field is None; unknown fields are ignored; a
+// nested single-field record is its bare value; a nullary variant is its name. json.decode
+// needs its type argument and panics on a malformed document.
+record Owner(name: String)
+
+union Status
+  Active
+  Deprecated
+
+record PackageVersion
+  fullName: String
+  versionNumber: String
+  dependencies: Vector[String]
+  fileSize: Int
+  websiteUrl: Option[String]
+
+record Package
+  name: String
+  owner: Owner
+  status: Status
+  ratingScore: Int
+  versions: Vector[PackageVersion]
+
+fn demo() -> String ! Pure
+  text = "{\"name\": \"BepInExPack_Valheim\", \"owner\": \"denikson\", \"status\": \"Active\", \"rating_score\": 412, \"unknown_field\": true, \"versions\": [{\"full_name\": \"denikson-BepInExPack_Valheim-5.4.2351\", \"version_number\": \"5.4.2351\", \"dependencies\": [], \"file_size\": 702924}]}"
+  p = json.decode[Package](text)
+  latest = match first(p.versions)
+    Some(v) => v.versionNumber + " " + toString(v.fileSize) + " deps=" + toString(length(v.dependencies)) + " site=" + getOr(v.websiteUrl, "none")
+    None => "no versions"
+  status = match p.status
+    Active => "active"
+    Deprecated => "deprecated"
+  back = json.decode[Package](json.encode(p))
+  p.name + " by " + p.owner.name + " " + status + " " + toString(p.ratingScore) + " " + latest + " roundtrip=" + if back == p then "same" else "different"

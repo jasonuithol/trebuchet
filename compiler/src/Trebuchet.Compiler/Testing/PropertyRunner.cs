@@ -35,6 +35,7 @@ public sealed class PropertyRunner
     }
 
     public IReadOnlyList<Diagnostic> Diagnostics => _checker.Diagnostics;
+    public Interpreter Interpreter => _it;
 
     public static bool IsProperty(FnDecl fn) => fn.Signature.Name.StartsWith("prop", StringComparison.Ordinal);
 

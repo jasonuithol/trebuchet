@@ -202,6 +202,8 @@ public sealed class Lexer
                     {
                         'n' => '\n',
                         't' => '\t',
+                        'r' => '\r',
+                        '0' => '\0',
                         '"' => '"',
                         '\\' => '\\',
                         var e => throw Error($"unknown escape '\\{e}'"),

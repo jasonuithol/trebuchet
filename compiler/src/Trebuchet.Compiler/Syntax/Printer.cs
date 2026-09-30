@@ -438,6 +438,8 @@ public sealed class Printer
                 '\\' => "\\\\",
                 '\n' => "\\n",
                 '\t' => "\\t",
+                '\r' => "\\r",
+                '\0' => "\\0",
                 _ => ch.ToString(),
             });
         }

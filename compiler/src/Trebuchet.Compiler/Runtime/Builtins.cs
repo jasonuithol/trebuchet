@@ -271,6 +271,36 @@ public static class Builtins
         Def("toUpper", (_, a) => new StringValue(Str(a, 0, "toUpper").ToUpperInvariant()));
         Def("toLower", (_, a) => new StringValue(Str(a, 0, "toLower").ToLowerInvariant()));
         Def("startsWith", (_, a) => Bool(Str(a, 0, "startsWith").StartsWith(Str(a, 1, "startsWith"), StringComparison.Ordinal)));
+        Def("endsWith", (_, a) => Bool(Str(a, 0, "endsWith").EndsWith(Str(a, 1, "endsWith"), StringComparison.Ordinal)));
+        Def("split", (_, a) =>
+        {
+            var sep = Str(a, 1, "split");
+            var parts = sep.Length == 0 ? Str(a, 0, "split").Select(c => c.ToString()).ToArray() : Str(a, 0, "split").Split(sep);
+            return new ListValue(Vector<Value>.From(parts.Select(p => (Value)new StringValue(p))));
+        });
+        Def("join", (_, a) => new StringValue(string.Join(Str(a, 1, "join"), List(a, 0, "join").Items.Select(v => ((StringValue)v).V))));
+        Def("replace", (_, a) => new StringValue(Str(a, 1, "replace").Length == 0 ? Str(a, 0, "replace") : Str(a, 0, "replace").Replace(Str(a, 1, "replace"), Str(a, 2, "replace"), StringComparison.Ordinal)));
+        Def("substring", (_, a) =>
+        {
+            var s = Str(a, 0, "substring");
+            var start = (int)Math.Clamp(((IntValue)Arg(a, 1, "substring")).V, 0, s.Length);
+            var len = (int)Math.Clamp(((IntValue)Arg(a, 2, "substring")).V, 0, s.Length - start);
+            return new StringValue(s.Substring(start, len));
+        });
+        Def("indexOf", (_, a) => { var i = Str(a, 0, "indexOf").IndexOf(Str(a, 1, "indexOf"), StringComparison.Ordinal); return i < 0 ? None : Some(new IntValue(i)); });
+        Def("parseInt", (_, a) => long.TryParse(Str(a, 0, "parseInt").Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var n) ? Some(new IntValue(n)) : None);
+        Def("parseFloat", (_, a) => double.TryParse(Str(a, 0, "parseFloat").Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? Some(new FloatValue(d)) : None);
+        Def("lines", (_, a) => new ListValue(Vector<Value>.From(Str(a, 0, "lines").Replace("\r\n", "\n").Split('\n').Select(p => (Value)new StringValue(p)))));
+        Def("padLeft", (_, a) =>
+        {
+            var s = Str(a, 0, "padLeft");
+            var width = (int)((IntValue)Arg(a, 1, "padLeft")).V;
+            var pad = Str(a, 2, "padLeft");
+            if (pad.Length == 0 || s.Length >= width) return new StringValue(s);
+            var sb = new System.Text.StringBuilder();
+            while (sb.Length + s.Length < width) sb.Append(pad);
+            return new StringValue(sb.ToString()[..(width - s.Length)] + s);
+        });
 
         // ---- time
         var instant = new Env(null, "Instant");
@@ -298,8 +328,9 @@ public static class Builtins
         }));
         g.Define("env", new NamespaceValue("env", envNs));
         var json = new Env(null, "json");
-        json.Define("encode", new Builtin("json.encode", (_, a) => new StringValue(Arg(a, 0, "json.encode").Show())));
-        json.Define("decode", new Builtin("json.decode", (_, _) => throw new TrebPanic("json.decode is not available in the interpreter")));
+        json.Define("encode", new Builtin("json.encode", (_, a) => new StringValue(JsonValues.ToJson(Arg(a, 0, "json.encode"))?.ToJsonString() ?? "null")));
+        // decode needs its type argument; the interpreter supplies it from the checker at the call site
+        json.Define("decode", new Builtin("json.decode", (_, _) => throw new TrebPanic("json.decode needs a type argument, json.decode[T](text)")));
         g.Define("json", new NamespaceValue("json", json));
 
         return g;

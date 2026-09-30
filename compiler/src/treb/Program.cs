@@ -17,8 +17,9 @@ static int Usage()
                                           lower to a C# project against Trebuchet.Runtime;
                                           --host adds IServiceCollection registration per root
                                           --no-lines omits #line directives (stack traces then name the .cs files)
-          treb serve <dir> [--root dev] [--api api] [--port 5080]
-                                          run an API service from a composition root over HTTP
+          treb serve <dir> [--root dev] [--api api] [--port 5080] [--with Host.dll]
+                                          run an API service from a composition root over HTTP;
+                                          --with loads an assembly whose static methods implement externs
         """);
     return 2;
 }
@@ -84,12 +85,20 @@ if (command == "emit")
     }
 }
 
+// --with: assemblies whose public static methods implement the program's csharp externs
+foreach (var dll in (options.GetValueOrDefault("with", "")).Split(',', StringSplitOptions.RemoveEmptyEntries))
+{
+    try { System.Reflection.Assembly.LoadFrom(Path.GetFullPath(dll)); }
+    catch (Exception ex) { Console.Error.WriteLine($"error: cannot load {dll}: {ex.Message}"); return 1; }
+}
+
 if (command == "test")
 {
     try
     {
         var modules = Trebuchet.Compiler.Semantics.ModuleSet.Load(positional[0]);
         var runner = new Trebuchet.Compiler.Testing.PropertyRunner(modules, int.Parse(options.GetValueOrDefault("seed", "20260908")));
+        ReflectionExterns.Bind(runner.Interpreter, modules);
         if (runner.Diagnostics.Count > 0)
         {
             foreach (var d in runner.Diagnostics) Console.Error.WriteLine(d);

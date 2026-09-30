@@ -329,6 +329,28 @@ public class InterpreterTests
         Assert.Equal(new StringValue(LazyExpected), it.Call(demo, Array.Empty<Value>()));
     }
 
+    public const string TextExpected = "denikson/BepInExPack_Valheim v5.4.2333 | unparsed | BepInEx/core/BepInEx.dll 8 /core/BepInEx.dll dll 3 007 2.5";
+
+    [Fact]
+    public void StringBuiltinsRun()
+    {
+        var modules = ModuleSet.Load(Path.Combine(ExamplesDir(), "text"));
+        var it = new Interpreter(modules);
+        it.EnvOf(modules.Find("text")!).TryGet("demo", out var demo);
+        Assert.Equal(new StringValue(TextExpected), it.Call(demo, Array.Empty<Value>()));
+    }
+
+    public const string JsonExpected = "BepInExPack_Valheim by denikson active 412 5.4.2351 702924 deps=0 site=none roundtrip=same";
+
+    [Fact]
+    public void JsonDecodesLenientlyInTheInterpreter()
+    {
+        var modules = ModuleSet.Load(Path.Combine(ExamplesDir(), "json"));
+        var it = new Interpreter(modules);
+        it.EnvOf(modules.Find("thunder")!).TryGet("demo", out var demo);
+        Assert.Equal(new StringValue(JsonExpected), it.Call(demo, Array.Empty<Value>()));
+    }
+
     public const string CollectionsDemoExpected = "3 unique; both=2 either=4 onlyA=red hasRed=yes afterRemove=2 equal=yes empty=yes vec=yes map=yes";
 
     [Fact]

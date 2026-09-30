@@ -32,6 +32,7 @@ dotnet run --project src/treb -- emit ../examples/bookings --out /tmp/gen --host
 dotnet run --project src/treb -- emit ../examples/bookings --out /tmp/cpp --target cpp
 g++ -std=c++20 -Isrc/Trebuchet.Runtime.Cpp -I/tmp/cpp ../examples/bookings/cpp/driver.cpp -o /tmp/cpp/driver
 dotnet run --project src/treb -- serve ../examples/bookings --root dev --port 5080
+dotnet run --project src/treb -- test ../examples/properties --with /path/to/Host.dll   # externs from your assembly
 dotnet test
 ```
 
@@ -54,8 +55,10 @@ Generated C# carries `#line` directives, so panics and compiler diagnostics poin
 
 `treb serve` binds every `extern fn` with a `csharp` symbol to that static method by
 reflection, loading the framework assembly that owns the symbol's namespace if needed, and
-converts arguments and results between interpreter values and CLR values. An extern whose
-symbol cannot be found keeps the "no implementation registered" panic.
+converts arguments and results between interpreter values and CLR values. `--with Host.dll`
+(comma-separated for several) loads your own assemblies first, so an application's host class
+binds too; `treb test` takes the same flag. An extern whose symbol cannot be found keeps the
+"no implementation registered" panic.
 
 ## Running the bookings API
 
@@ -169,7 +172,8 @@ suspends becomes an async lambda, and a higher-order builtin receiving one is ca
 `EmitterTests` emits the bookings program, builds it with `dotnet build`, and runs the
 interpreter's scenario against it, unwrapping the `ValueTask` results.
 
-Known limits: one namespace means type names must be unique across the program; hoisted
+Known limits: one namespace means type names must be unique across the program, and a module
+may not share its name with a builtin namespace (`json`, `Seq`); hoisted
 `?` and `match` temporaries can reorder evaluation relative to sibling arguments; `with` on
 an entity is not supported.
 
@@ -343,6 +347,14 @@ array of `{key, value}` pairs; `Vector` and `Set` are arrays. Generated records 
 tagged with `[TrebuchetRecord]`, `[TrebuchetUnion]`, and `[TrebuchetVariant]` so the converter
 only touches Trebuchet types. The host sample registers it with `ConfigureHttpJsonOptions`.
 
+Reading is lenient: a field binds by exact name or by name ignoring case and underscores, so a
+snake_case document (`full_name`) fills a lowerCamel record (`fullName`); a missing or null
+`Option` field is `None`; unknown fields are ignored. `json.decode[T](text)` and
+`json.encode(value)` use these options on .NET, and the interpreter implements the same policy
+in `Runtime/JsonValues.cs` from the call's explicit type argument (the checker's
+`ExplicitTypeArgs`). A malformed document panics. `examples/json/` decodes a Thunderstore-like
+document and round-trips it.
+
 On .NET, every extern result passes through `Boundary.To<T>`: arrays and enumerables become
 `Vector`, dictionaries become `Map`, null becomes `None` when the declared type is `Option`
 (and a panic otherwise), and integers and dates widen to `long` and `DateTimeOffset`.
@@ -415,8 +427,8 @@ Semantics the interpreter fixed that the documents had left loose:
 ## Not yet implemented
 
 - `fmt` keeps comments but normalises blank lines.
-- `json.decode`, database access, and anything the Postgres adapter needs; the `dev` and
-  `test` roots use the in-memory store.
+- `json.decode` on C++, database access, and anything the Postgres adapter needs; the `dev`
+  and `test` roots use the in-memory store.
 - Vector builtins `take`, `drop`, `at`, `sortBy`, `traverse` exist; there is no slicing syntax.
 - A set literal; `toSet([...])` builds one. Set builtins: `toSet`, `add`, `remove`, `contains`,
   `length`, `isEmpty`, `items`, `merge`, `intersect`, `difference` (`examples/collections/`).

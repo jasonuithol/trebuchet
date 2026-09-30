@@ -1,7 +1,6 @@
 module bookings.domain.queries
 
 // Queries carry no Write effect.
-
 use bookings.domain.ids
 use bookings.domain.slot
 use bookings.domain.booking
