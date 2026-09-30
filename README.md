@@ -29,7 +29,7 @@ the runtime's event loop.
 | `compiler/` | The prototype: lexer, parser, type and effect checker, interpreter, C# and C++ emitters, both runtimes, the `treb` CLI, and 214 tests. See `compiler/README.md`. |
 | `examples/` | Samples that run on all three targets: `bookings` (an onion-layered API with a React UI), `orders` (the acceptance domain), `ffi`, `async`, `resources`, `factories`, `trees`, `supervision`, `collections`, `generics`. |
 | `examples/bookings-host/` | A stock ASP.NET project embedding the generated C#. |
-| `apps/valslongva/` | **valslöngva**, a Valheim mod manager: the first real application, written in Trebuchet end to end (BepInEx install, Thunderstore browsing, one-click dependency-resolved installs, modded/vanilla launch on Windows and Linux). See its README and strategy §7.28. |
+| `apps/valslongva/` | **valslöngva**, a Valheim mod manager: the first real application, written in Trebuchet end to end (BepInEx install, Thunderstore browsing, one-click dependency-resolved installs, modded/vanilla launch on Windows and Linux). Downloadable builds are on the [releases page](https://github.com/jasonuithol/trebuchet/releases/tag/valslongva-v0.1.0). See its README and strategy §7.28. |
 | `apps/valslongva-host/` | The C# around it: the static class its externs bind to and the ASP.NET process that serves its UI. |
 | `vscode-trebuchet/` | Syntax highlighting for `.treb` files. |
 | `docs/` | The published strategy page and the wallpaper generator. |

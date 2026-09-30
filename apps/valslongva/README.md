@@ -8,6 +8,12 @@ The Trebuchet sources are this folder. `apps/valslongva-host/` is the C# that wr
 static `Host` class the externs bind to, and an ASP.NET process that serves the UI and maps
 the `Api` service's methods to routes.
 
+## Getting it
+
+Builds for Linux and Windows are on the releases page:
+https://github.com/jasonuithol/trebuchet/releases/tag/valslongva-v0.1.0. Unpack, run, and the
+browser opens; Settings has "Install on this computer" for a launcher entry.
+
 ## Running it
 
 Everything below is from `compiler/`, with `treb` meaning `dotnet run --project src/treb --`.
