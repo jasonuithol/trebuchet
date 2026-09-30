@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- valslöngva is Old Norse for a sling: two cords, a pouch, a stone about to fly -->
+  <rect width="64" height="64" rx="14" fill="#1f2428"/>
+  <path d="M14 12 L32 46 L50 12" fill="none" stroke="#6aa6d8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="32" cy="48" r="7" fill="#e6c27a"/>
+  <path d="M40 12 L54 6" stroke="#e6c27a" stroke-width="4" stroke-linecap="round"/>
+</svg>
