@@ -157,7 +157,8 @@ function App() {
   const install = name => run(`Installing ${name}`, () => api("POST", "/install", { name }), r => r.length ? `Installed ${r.join(", ")}` : `${name} is already up to date`);
   const uninstall = name => run(`Removing ${name}`, () => api("POST", "/uninstall", { name }), () => `Removed ${name}; its config files were kept`);
   const enable = (name, on) => run(on ? `Enabling ${name}` : `Disabling ${name}`, () => api("POST", on ? "/enable" : "/disable", { name }));
-  const adopt = (entry, name) => run(`Managing ${entry} as ${name}`, () => api("POST", "/adopt", { entry, name }), () => `${name} is now managed; Update will replace ${entry} with the Thunderstore package`);
+  const adopt = (entry, name) => run(`Managing ${entry} as ${name}`, () => api("POST", "/adopt", { entry, name }), () => `${name} is now managed; "Replace with Thunderstore" on the Installed tab swaps ${entry} for the package`);
+  const reinstall = name => run(`Replacing ${name} with the Thunderstore package`, () => api("POST", "/reinstall", { name }), r => `Installed ${r.join(", ")}`);
   const loader = () => run("Installing BepInEx", () => api("POST", "/loader"), r => r.length ? `Installed ${r.join(", ")}` : "BepInEx is already up to date");
 
   // BepInEx is not a mod: it is the thing mods need, so it gets its own line and its own verbs.
@@ -299,9 +300,10 @@ function App() {
             <tbody>
               {installed.map(m => (
                 <tr key={m.pkg}>
-                  <td>{m.pkg}</td>
+                  <td>{m.pkg} {m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>}</td>
                   <td>{m.version}</td>
-                  <td>{m.latestVersion && m.latestVersion !== m.version ? <button className="primary small" disabled={!!busy} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button> : (m.latestVersion || "")}</td>
+                  <td>{m.adopted && m.latestVersion ? <button className="primary small" disabled={!!busy} onClick={() => reinstall(m.pkg)}>Replace with Thunderstore {m.latestVersion}</button>
+                    : m.latestVersion && m.latestVersion !== m.version ? <button className="primary small" disabled={!!busy} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button> : (m.latestVersion || "")}</td>
                   <td>{fmtDate(m.installedAt)}</td>
                   <td><span className={`tag ${m.enabled ? "on" : "off"}`}>{m.enabled ? "enabled" : "disabled"}</span></td>
                   <td className="actions">

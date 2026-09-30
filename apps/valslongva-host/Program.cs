@@ -31,6 +31,7 @@ app.MapGet("/package", async (string name) => Respond(await api.getPackage(name)
 app.MapGet("/installed", async () => Respond(await api.getInstalled()));
 app.MapPost("/install", async (Named body) => Respond(await api.postInstall(body.name)));
 app.MapPost("/loader", async () => Respond(await api.postLoader()));
+app.MapPost("/reinstall", async (Named body) => Respond(await api.postReinstall(body.name)));
 app.MapPost("/adopt", async (Adopt body) => Respond(await api.postAdopt(body.entry, body.name)));
 app.MapPost("/uninstall", async (Named body) => Respond(await api.postUninstall(body.name)));
 app.MapPost("/enable", async (Named body) => Respond(await api.postEnable(body.name)));

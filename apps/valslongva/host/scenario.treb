@@ -147,10 +147,13 @@ handler prop_reportsALooseDllAndAdoptsItOnRequest() -> Bool
   adopted = match (w.api.postAdopt("Longship.dll", "viking-Longship"), w.api.getStatus())
     (Ok(_), Ok(s)) => s.installed == 1 and length(s.unmanaged) == 1
     _ => false
-  updated = match w.api.postInstall("viking-Longship")
-    Ok(done) => done == ["denikson-BepInExPack_Valheim-5.4.2202", "viking-Longship-1.2.0"] and not contains(w.fs.snapshot(), gameDir() + "/BepInEx/plugins/Longship.dll")
+  flagged = match w.api.getInstalled()
+    Ok(mods) => map(mods, \m -> m.adopted) == [true]
     Error(_) => false
-  loaded and reported and adopted and updated
+  replaced = match (w.api.postReinstall("viking-Longship"), w.api.getInstalled())
+    (Ok(done), Ok(mods)) => done == ["denikson-BepInExPack_Valheim-5.4.2202", "viking-Longship-1.2.0"] and not contains(w.fs.snapshot(), gameDir() + "/BepInEx/plugins/Longship.dll") and map(mods, \m -> m.adopted) == [false]
+    _ => false
+  loaded and reported and adopted and flagged and replaced
 
 // A managed mod deleted by hand is noticed on the next look.
 handler prop_noticesAManagedModRemovedByHand() -> Bool

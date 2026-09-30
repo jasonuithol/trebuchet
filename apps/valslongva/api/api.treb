@@ -55,6 +55,7 @@ record InstalledView
   enabled: Bool
   latestVersion: Option[String]
   installedAt: Instant
+  adopted: Bool
 
 record PackageDetail
   summary: ListingSummary
@@ -145,10 +146,14 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
           match lookup(c, pkg)
             None => None
             Some(l) => map(latest(l), \v -> v.versionNumber)
-    ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt)))
+    ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt, m.adopted)))
 
   fn postInstall(name: String) -> Result[Vector[String], AppError]
     outcome = supervise installer.install(name)
+    outcome.mapError(crashed)?
+
+  fn postReinstall(name: String) -> Result[Vector[String], AppError]
+    outcome = supervise installer.reinstall(name)
     outcome.mapError(crashed)?
 
   fn postLoader() -> Result[Vector[String], AppError]

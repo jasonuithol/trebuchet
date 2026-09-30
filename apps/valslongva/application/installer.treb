@@ -99,6 +99,16 @@ service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platfo
     traverse(steps, \s -> perform(game, lib, s))?
     ok(stepNames(steps))
 
+  // The Thunderstore package in place of whatever is there, whatever the versions say.
+  fn reinstall(name: String) -> Result[Vector[String], AppError]
+    game = locator.gameDir()?
+    cat = catalogue.current()?
+    lib = libraryAt(game)?
+    fresh = lib with { mods: remove(lib.mods, name) }
+    steps = planInstall(cat, fresh, name).mapError(planning)?
+    traverse(steps, \s -> perform(game, lib, s))?
+    ok(stepNames(steps))
+
   fn installLoader() -> Result[Vector[String], AppError]
     install(loaderName())
 
