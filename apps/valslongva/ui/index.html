@@ -61,6 +61,7 @@
   th { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
   tr:last-child td { border-bottom: none; }
   .empty { color: var(--muted); padding: 14px; }
+  .cap { color: var(--muted); font-size: 12px; font-weight: normal; }
   .loader { grid-column: 1 / -1; display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 14px; }
   .loader .what { flex: 1 1 320px; }
   .loader img { width: 48px; height: 48px; border-radius: 8px; background: var(--bg); transition: filter .4s, opacity .4s; }
@@ -261,23 +262,11 @@ function App() {
           {!page ? <div className="empty">Loading…</div> : page.items.length === 0 ? <div className="empty">Nothing matches.</div> : (
             <div className="list">
               {page.items.map(s => (
-                <div className="card" key={s.fullName}>
-                  {s.icon ? <img src={s.icon} alt="" loading="lazy" /> : <div />}
-                  <div>
-                    <div className="name">{s.name} <span className="owner">by {s.owner}</span> {s.isDeprecated && <span className="tag dep">deprecated</span>} {s.installedVersion && <span className={`tag ${s.enabled ? "on" : "off"}`}>{s.enabled ? "installed" : "disabled"} {s.installedVersion}</span>}</div>
-                    <div className="desc">{s.description}</div>
-                    <div className="meta">
-                      <span>v{s.latestVersion}</span><span>{fmtCount(s.downloads)} downloads</span><span>{s.ratingScore} ★</span><span>{fmtDate(s.dateUpdated)}</span>
-                      {s.dependencies.length > 0 && <span>{s.dependencies.length} dependenc{s.dependencies.length === 1 ? "y" : "ies"}</span>}
-                      {s.categories.slice(0, 3).map(c => <span className="tag" key={c}>{c}</span>)}
-                    </div>
-                  </div>
-                  <div className="actions">
-                    {!s.installedVersion && <button className="primary small" disabled={!ready || !!busy} onClick={() => install(s.fullName)}>Install</button>}
-                    {s.installedVersion && s.installedVersion !== s.latestVersion && <button className="primary small" disabled={!!busy} onClick={() => install(s.fullName)}>Update to {s.latestVersion}</button>}
-                    {s.installedVersion && <button className="small danger" disabled={!!busy} onClick={() => uninstall(s.fullName)}>Uninstall</button>}
-                  </div>
-                </div>
+                <Card key={s.fullName} s={s} actions={<>
+                  {!s.installedVersion && <button className="primary small" disabled={!ready || !!busy} onClick={() => install(s.fullName)}>Install</button>}
+                  {s.installedVersion && s.installedVersion !== s.latestVersion && <button className="primary small" disabled={!!busy} onClick={() => install(s.fullName)}>Update to {s.latestVersion}</button>}
+                  {s.installedVersion && <button className="small danger" disabled={!!busy} onClick={() => uninstall(s.fullName)}>Uninstall</button>}
+                </>} />
               ))}
             </div>
           )}
@@ -297,31 +286,44 @@ function App() {
       )}
       {tab === "installed" && (
         installed.length === 0 ? <div className="empty">{ready ? "No mods managed by valslöngva yet." : "Set the game folder first."}</div> : (
-          <table>
-            <thead><tr><th>Package</th><th>Version</th><th>Latest</th><th>Installed</th><th>State</th><th></th></tr></thead>
-            <tbody>
-              {installed.map(m => (
-                <tr key={m.pkg}>
-                  <td>{m.pkg} {m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>}</td>
-                  <td>{m.version}</td>
-                  <td>{m.adopted && m.latestVersion ? (confirming === "reinstall:" + m.pkg
+          <div className="list">
+            {installed.map(m => {
+              const s = m.summary || { fullName: m.pkg, name: m.pkg, owner: "", description: "not in the catalogue (yet)", latestVersion: m.latestVersion || m.version, downloads: 0, ratingScore: 0, categories: [], icon: "", isDeprecated: false, dateUpdated: "", dependencies: [], installedVersion: m.version, enabled: m.enabled };
+              const replace = m.adopted && m.latestVersion;
+              return (
+                <Card key={m.pkg} s={{ ...s, installedVersion: m.version, enabled: m.enabled }} extra={<>{m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>} <span className="cap">installed {fmtDate(m.installedAt)}</span></>} actions={<>
+                  {replace ? (confirming === "reinstall:" + m.pkg
                       ? <span><span className="tag off">local {m.version} goes to valslongva/backup</span> <button className="primary small" disabled={!!busy} onClick={() => reinstall(m.pkg)}>Yes, replace with {m.latestVersion}</button> <button className="small" onClick={() => setConfirming(null)}>Keep mine</button></span>
                       : <button className="small" disabled={!!busy} onClick={() => setConfirming("reinstall:" + m.pkg)}>Replace with Thunderstore {m.latestVersion}{m.latestVersion !== m.version ? ` (mine is ${m.version})` : ""}</button>)
-                    : m.latestVersion && m.latestVersion !== m.version ? <button className="primary small" disabled={!!busy} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button> : (m.latestVersion || "")}</td>
-                  <td>{fmtDate(m.installedAt)}</td>
-                  <td><span className={`tag ${m.enabled ? "on" : "off"}`}>{m.enabled ? "enabled" : "disabled"}</span></td>
-                  <td className="actions">
-                    <button className="small" disabled={!!busy} onClick={() => enable(m.pkg, !m.enabled)}>{m.enabled ? "Disable" : "Enable"}</button>
-                    <button className="small danger" disabled={!!busy} onClick={() => uninstall(m.pkg)}>Uninstall</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    : m.latestVersion && m.latestVersion !== m.version && <button className="primary small" disabled={!!busy} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button>}
+                  <button className="small" disabled={!!busy} onClick={() => enable(m.pkg, !m.enabled)}>{m.enabled ? "Disable" : "Enable"}</button>
+                  <button className="small danger" disabled={!!busy} onClick={() => uninstall(m.pkg)}>Uninstall</button>
+                </>} />
+              );
+            })}
+          </div>
         )
       )}
       {tab === "installed" && <Unmanaged items={status && status.unmanaged} busy={busy} onAdopt={adopt} />}
     </>
+  );
+}
+
+function Card({ s, actions, extra }) {
+  return (
+    <div className="card">
+      {s.icon ? <img src={s.icon} alt="" loading="lazy" /> : <div />}
+      <div>
+        <div className="name">{s.name} {s.owner && <span className="owner">by {s.owner}</span>} {s.isDeprecated && <span className="tag dep">deprecated</span>} {s.installedVersion && <span className={`tag ${s.enabled ? "on" : "off"}`}>{s.enabled ? "installed" : "disabled"} {s.installedVersion}</span>} {extra}</div>
+        <div className="desc">{s.description}</div>
+        <div className="meta">
+          <span>v{s.latestVersion}</span>{s.downloads > 0 && <span>{fmtCount(s.downloads)} downloads</span>}{s.ratingScore > 0 && <span>{s.ratingScore} ★</span>}{s.dateUpdated && <span>{fmtDate(s.dateUpdated)}</span>}
+          {s.dependencies.length > 0 && <span>{s.dependencies.length} dependenc{s.dependencies.length === 1 ? "y" : "ies"}</span>}
+          {s.categories.slice(0, 3).map(c => <span className="tag" key={c}>{c}</span>)}
+        </div>
+      </div>
+      <div className="actions">{actions}</div>
+    </div>
   );
 }
 

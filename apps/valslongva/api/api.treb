@@ -60,6 +60,8 @@ record InstalledView
   latestVersion: Option[String]
   installedAt: Instant
   adopted: Bool
+  // what the catalogue knows about the package it came from, once the catalogue is loaded
+  summary: Option[ListingSummary]
 
 record PackageDetail
   summary: ListingSummary
@@ -167,14 +169,19 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
     installer.scan()?
     lib = installer.library()?
     cat = catalogue.loaded()
-    fn latestOf(pkg: String) -> Option[String]
+    fn listingOf(pkg: String) -> Option[Listing]
       match cat
         None => None
-        Some(c) =>
-          match lookup(c, pkg)
-            None => None
-            Some(l) => map(latest(l), \v -> v.versionNumber)
-    ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt, m.adopted)))
+        Some(c) => lookup(c, pkg)
+    fn latestOf(pkg: String) -> Option[String]
+      match listingOf(pkg)
+        None => None
+        Some(l) => map(latest(l), \v -> v.versionNumber)
+    fn summaryOf(pkg: String) -> Option[ListingSummary]
+      match listingOf(pkg)
+        None => None
+        Some(l) => summarise(l, lib)
+    ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt, m.adopted, summaryOf(m.pkg))))
 
   fn postInstall(name: String) -> Result[Vector[String], AppError]
     outcome = supervise installer.install(name)
