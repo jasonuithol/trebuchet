@@ -47,7 +47,9 @@ dotnet publish -c Release -r linux-x64 --self-contained     # or win-x64: one fo
   folders as unmanaged with what their `BepInPlugin` attribute says, offers "manage as" when a
   catalogue package has exactly that name, and notices managed mods removed by hand.
 - **Updates, disables, enables, and uninstalls.** Disabling moves the package folder to
-  `valslongva/disabled/`; uninstalling keeps the config files.
+  `valslongva/disabled/`; uninstalling keeps the config files. Before an update, reinstall, or
+  uninstall, the package's recorded files move to a dated folder under `valslongva/backup/`,
+  so nothing that was in the game folder is ever destroyed.
 - **Checks Steam first.** A process check says whether the client is running and the tail of its
   `logs/connection_log.txt` says whether it is signed in; the Play buttons wait for both.
 - **Plays modded or vanilla.** On Windows the `doorstop_config.ini` flag decides and Steam

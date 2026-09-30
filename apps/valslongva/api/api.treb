@@ -48,6 +48,10 @@ record UnmanagedView
   pluginVersion: Option[String]
   guid: Option[String]
   suggestion: Option[String]
+  // the plugin's own version is one Thunderstore has for the suggested package; when it is not,
+  // this is a local build and replacing it loses something Thunderstore cannot give back
+  onThunderstore: Bool
+  suggestedVersion: Option[String]
 
 record InstalledView
   pkg: String
@@ -105,7 +109,17 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
           None => None
 
   private fn view(u: Unmanaged) -> UnmanagedView
-    UnmanagedView(u.entry, u.isFolder, u.pluginName, u.pluginVersion, u.guid, suggestionFor(u))
+    suggestion = suggestionFor(u)
+    listing = match (suggestion, catalogue.loaded())
+      (Some(name), Some(c)) => lookup(c, name)
+      _ => None
+    known = match (listing, u.pluginVersion)
+      (Some(l), Some(v)) => any(l.versions, \lv -> lv.versionNumber == v)
+      _ => false
+    newest = match listing
+      Some(l) => map(latest(l), \lv -> lv.versionNumber)
+      None => None
+    UnmanagedView(u.entry, u.isFolder, u.pluginName, u.pluginVersion, u.guid, suggestion, known, newest)
 
   private fn libraryOrEmpty() -> Library
     match installer.library()

@@ -145,14 +145,16 @@ service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platfo
       Mod => LibraryEvent.ModInstalled(step.pkg, step.version.versionNumber, targets, clock.now())
     note(game, ev)
 
+  // Nothing the user had is destroyed: the package's recorded files move to a dated folder
+  // under valslongva/backup before anything replaces them. Configs stay where they are.
   private fn removeFiles(game: String, lib: Library, name: String) -> Result[Unit, AppError]
-    fs.deleteTree(game + "/" + modFolder(name)).mapError(io)?
-    fs.deleteTree(game + "/" + disabledFolder(name)).mapError(io)?
     recorded = match lib.mods.get(name)
       Some(m) => m.files
       None => []
-    // configs are the user's, whoever placed them
-    traverse(filter(recorded, \f -> not startsWith(f, "BepInEx/config/")), \f -> fs.deleteTree(game + "/" + f).mapError(io))?
+    backup = game + "/valslongva/backup/" + name + "/" + replace(replace(toString(clock.now()), ":", "-"), ".", "-")
+    traverse(filter(recorded, \f -> not startsWith(f, "BepInEx/config/")), \f -> if fs.exists(game + "/" + f) then fs.moveTree(game + "/" + f, backup + "/" + f).mapError(io) else ok(unit))?
+    fs.deleteTree(game + "/" + modFolder(name)).mapError(io)?
+    fs.deleteTree(game + "/" + disabledFolder(name)).mapError(io)?
     ok(unit)
 
   fn uninstall(name: String) -> Result[Unit, AppError]

@@ -574,6 +574,7 @@ Note that a short record can be declared inline, `record OrderId(value: String)`
 13. Whether top-level constants exist (`loaderName = "..."` at module level). The mod manager spells them as nullary functions.
 14. Whether an expression may continue onto the next line (a long `and` chain, a `match` inside a call's arguments or a lambda). Today a `- item` vector with `all`, or a local function, stands in.
 15. Whether a module's last name segment should shadow a function of the same name (`plan`, `search`), or whether the checker should prefer the function when the name is called.
+16. Whether a local named function declared inside a handler or service method may write, as a lambda there may. Today it may not (it is a `fn`), which forces a lambda or a private method for a small writing helper.
 
 ---
 

@@ -116,6 +116,7 @@ function App() {
   const [installed, setInstalled] = useState([]);
   const [gamePath, setGamePath] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [confirming, setConfirming] = useState(null); // a destructive-looking action waits for a second click
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -158,7 +159,8 @@ function App() {
   const uninstall = name => run(`Removing ${name}`, () => api("POST", "/uninstall", { name }), () => `Removed ${name}; its config files were kept`);
   const enable = (name, on) => run(on ? `Enabling ${name}` : `Disabling ${name}`, () => api("POST", on ? "/enable" : "/disable", { name }));
   const adopt = (entry, name) => run(`Managing ${entry} as ${name}`, () => api("POST", "/adopt", { entry, name }), () => `${name} is now managed; "Replace with Thunderstore" on the Installed tab swaps ${entry} for the package`);
-  const reinstall = name => run(`Replacing ${name} with the Thunderstore package`, () => api("POST", "/reinstall", { name }), r => `Installed ${r.join(", ")}`);
+  const reinstall = name => { setConfirming(null); run(`Replacing ${name} with the Thunderstore package`, () => api("POST", "/reinstall", { name }), r => `Installed ${r.join(", ")}; the previous files are under valslongva/backup in the game folder`); };
+  const uninstall2 = name => { setConfirming(null); uninstall(name); };
   const loader = () => run("Installing BepInEx", () => api("POST", "/loader"), r => r.length ? `Installed ${r.join(", ")}` : "BepInEx is already up to date");
 
   // BepInEx is not a mod: it is the thing mods need, so it gets its own line and its own verbs.
@@ -302,7 +304,9 @@ function App() {
                 <tr key={m.pkg}>
                   <td>{m.pkg} {m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>}</td>
                   <td>{m.version}</td>
-                  <td>{m.adopted && m.latestVersion ? <button className="primary small" disabled={!!busy} onClick={() => reinstall(m.pkg)}>Replace with Thunderstore {m.latestVersion}</button>
+                  <td>{m.adopted && m.latestVersion ? (confirming === "reinstall:" + m.pkg
+                      ? <span><span className="tag off">local {m.version} goes to valslongva/backup</span> <button className="primary small" disabled={!!busy} onClick={() => reinstall(m.pkg)}>Yes, replace with {m.latestVersion}</button> <button className="small" onClick={() => setConfirming(null)}>Keep mine</button></span>
+                      : <button className="small" disabled={!!busy} onClick={() => setConfirming("reinstall:" + m.pkg)}>Replace with Thunderstore {m.latestVersion}{m.latestVersion !== m.version ? ` (mine is ${m.version})` : ""}</button>)
                     : m.latestVersion && m.latestVersion !== m.version ? <button className="primary small" disabled={!!busy} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button> : (m.latestVersion || "")}</td>
                   <td>{fmtDate(m.installedAt)}</td>
                   <td><span className={`tag ${m.enabled ? "on" : "off"}`}>{m.enabled ? "enabled" : "disabled"}</span></td>
@@ -335,7 +339,10 @@ function Unmanaged({ items, busy, onAdopt }) {
               <td>{u.pluginName || <span style={{ color: "var(--muted)" }}>not a BepInEx plugin</span>}</td>
               <td>{u.pluginVersion || ""}</td>
               <td><code>{u.guid || ""}</code></td>
-              <td className="actions">{u.suggestion && <button className="small" disabled={!!busy} onClick={() => onAdopt(u.entry, u.suggestion)}>Manage as {u.suggestion}</button>}</td>
+              <td className="actions">
+                {u.suggestion && <button className="small" disabled={!!busy} onClick={() => onAdopt(u.entry, u.suggestion)}>Manage as {u.suggestion}</button>}
+                {u.suggestion && u.pluginVersion && !u.onThunderstore && <div style={{ fontSize: 12, color: "var(--warn)", marginTop: 4 }}>your {u.pluginVersion} is not on Thunderstore (newest {u.suggestedVersion || "?"}): a local build, most likely</div>}
+              </td>
             </tr>
           ))}
         </tbody>

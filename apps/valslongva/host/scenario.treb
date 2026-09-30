@@ -151,7 +151,10 @@ handler prop_reportsALooseDllAndAdoptsItOnRequest() -> Bool
     Ok(mods) => map(mods, \m -> m.adopted) == [true]
     Error(_) => false
   replaced = match (w.api.postReinstall("viking-Longship"), w.api.getInstalled())
-    (Ok(done), Ok(mods)) => done == ["denikson-BepInExPack_Valheim-5.4.2202", "viking-Longship-1.2.0"] and not contains(w.fs.snapshot(), gameDir() + "/BepInEx/plugins/Longship.dll") and map(mods, \m -> m.adopted) == [false]
+    (Ok(done), Ok(mods)) =>
+      snap = w.fs.snapshot()
+      backedUp = any(keys(snap), \k -> startsWith(k, gameDir() + "/valslongva/backup/viking-Longship/") and endsWith(k, "/BepInEx/plugins/Longship.dll"))
+      done == ["denikson-BepInExPack_Valheim-5.4.2202", "viking-Longship-1.2.0"] and not contains(snap, gameDir() + "/BepInEx/plugins/Longship.dll") and backedUp and map(mods, \m -> m.adopted) == [false]
     _ => false
   loaded and reported and adopted and flagged and replaced
 
