@@ -3,8 +3,11 @@
 // application needs, and it knows nothing about Trebuchet: strings, bools, arrays, tasks.
 // Exceptions thrown here become the Failed or Unreachable error variant over there.
 
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 
 namespace Valslongva;
 
@@ -47,6 +50,63 @@ public static class Host
         if (!File.Exists(path)) return "";
         try { return FileVersionInfo.GetVersionInfo(path).FileVersion ?? ""; }
         catch (Exception) { return ""; }
+    }
+
+    /// <summary>
+    /// "guid|name|version" from a plugin assembly's [BepInPlugin] attribute, read from the metadata
+    /// without loading the assembly; "" when the file is not a plugin or cannot be read.
+    /// </summary>
+    public static string PluginInfo(string path)
+    {
+        try
+        {
+            using var file = File.OpenRead(path);
+            using var pe = new PEReader(file);
+            if (!pe.HasMetadata) return "";
+            var md = pe.GetMetadataReader();
+            foreach (var handle in md.CustomAttributes)
+            {
+                var attribute = md.GetCustomAttribute(handle);
+                if (attribute.Parent.Kind != HandleKind.TypeDefinition) continue;
+                if (AttributeTypeName(md, attribute) != "BepInPlugin") continue;
+                var value = attribute.DecodeValue(new NameOnlyTypes());
+                var args = value.FixedArguments.Select(a => a.Value?.ToString() ?? "").ToArray();
+                if (args.Length >= 3) return string.Join("|", args.Take(3));
+            }
+        }
+        catch (Exception) { /* not a managed assembly, or unreadable: not a plugin then */ }
+        return "";
+    }
+
+    private static string AttributeTypeName(MetadataReader md, CustomAttribute attribute)
+    {
+        switch (attribute.Constructor.Kind)
+        {
+            case HandleKind.MemberReference:
+            {
+                var parent = md.GetMemberReference((MemberReferenceHandle)attribute.Constructor).Parent;
+                return parent.Kind == HandleKind.TypeReference ? md.GetString(md.GetTypeReference((TypeReferenceHandle)parent).Name) : "";
+            }
+            case HandleKind.MethodDefinition:
+            {
+                var type = md.GetMethodDefinition((MethodDefinitionHandle)attribute.Constructor).GetDeclaringType();
+                return md.GetString(md.GetTypeDefinition(type).Name);
+            }
+            default: return "";
+        }
+    }
+
+    /// <summary>The attribute decoder wants a type model; names are all it needs here.</summary>
+    private sealed class NameOnlyTypes : ICustomAttributeTypeProvider<string>
+    {
+        public string GetPrimitiveType(PrimitiveTypeCode typeCode) => typeCode.ToString();
+        public string GetSystemType() => "System.Type";
+        public string GetSZArrayType(string elementType) => elementType + "[]";
+        public string GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind) => reader.GetString(reader.GetTypeDefinition(handle).Name);
+        public string GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind) => reader.GetString(reader.GetTypeReference(handle).Name);
+        public string GetTypeFromSerializedName(string name) => name;
+        public PrimitiveTypeCode GetUnderlyingEnumType(string type) => PrimitiveTypeCode.Int32;
+        public bool IsSystemType(string type) => type == "System.Type";
     }
 
     /// <summary>Every file under a folder, as forward-slash paths relative to it, in a stable order.</summary>

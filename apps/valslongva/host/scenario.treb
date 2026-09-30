@@ -10,6 +10,7 @@ use valslongva.application.installer
 use valslongva.application.launcher
 use valslongva.application.steamStatus
 use valslongva.domain.steam
+use valslongva.domain.scan
 use valslongva.infrastructure.fakes
 use valslongva.host.fixture
 use valslongva.api.api
@@ -20,12 +21,12 @@ record World
   processes: FakeProcesses
 
 fn world() -> World
-  worldWith(FakeSteam(true))
+  worldWith(FakeSteam(true), seededFiles())
 
-fn worldWith(steamClient: FakeSteam) -> World
+fn worldWith(steamClient: FakeSteam, files: Cell[Map[String, String]]) -> World
   platform = FakePlatform("linux", "/home/viking", "/home/viking/.local/share/valslongva")
   clock = FixedClock(Instant.parse("2026-09-30T10:00:00Z"))
-  fs = FakeFileSystem(seededFiles())
+  fs = FakeFileSystem(files)
   http = FakeHttp(fixturePages(), fs)
   archive = FakeArchive(fixtureArchives(), fs)
   processes = FakeProcesses(emptyLog())
@@ -38,7 +39,7 @@ fn worldWith(steamClient: FakeSteam) -> World
   World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam), fs, processes)
 
 handler prop_launchNeedsSteam() -> Bool
-  w = worldWith(FakeSteam(false))
+  w = worldWith(FakeSteam(false), seededFiles())
   refused = match (w.api.postLoader(), w.api.postLaunch("vanilla"))
     (Ok(_), Error(Conflict(_))) => true
     _ => false
@@ -113,6 +114,49 @@ handler prop_linuxLaunchRunsTheScriptOrTheGame() -> Bool
   w = world()
   match (w.api.postLoader(), w.api.postLaunch("modded"), w.api.postLaunch("vanilla"))
     (Ok(_), Ok(_), Ok(_)) => w.processes.entries() == ["run " + gameDir() + "/start_game_bepinex.sh in " + gameDir(), "run " + gameDir() + "/valheim.x86_64 in " + gameDir()]
+    _ => false
+
+// A Thunderstore-packaged folder someone else put there is adopted on the first look, once.
+handler prop_adoptsAPackagedFolderFoundInThePluginsFolder() -> Bool
+  files = seededFiles()
+  folder = gameDir() + "/BepInEx/plugins/viking-Longship"
+  files.update(\m -> m.set(folder + "/manifest.json", "{\"name\": \"Longship\", \"version_number\": \"1.1.0\", \"description\": \"x\", \"dependencies\": []}").set(folder + "/Longship.dll", "plugin:viking.longship|Longship|1.1.0"))
+  w = worldWith(FakeSteam(true), files)
+  first = match w.api.getStatus()
+    Ok(s) => s.adopted == ["viking-Longship"] and s.installed == 1 and isEmpty(s.unmanaged)
+    Error(_) => false
+  second = match w.api.getStatus()
+    Ok(s) => isEmpty(s.adopted) and s.installed == 1
+    Error(_) => false
+  listed = match w.api.getInstalled()
+    Ok(mods) => map(mods, \m -> m.pkg + " " + m.version) == ["viking-Longship 1.1.0"]
+    Error(_) => false
+  first and second and listed
+
+// A loose dll is reported with what its attribute says, suggested when the catalogue has its name, and adopted only on request.
+handler prop_reportsALooseDllAndAdoptsItOnRequest() -> Bool
+  files = seededFiles()
+  files.update(\m -> m.set(gameDir() + "/BepInEx/plugins/Longship.dll", "plugin:viking.longship|Longship|1.1.0").set(gameDir() + "/BepInEx/plugins/DayNight.dll", "plugin:tarbaby.daynight|DayNight|2.0.0"))
+  w = worldWith(FakeSteam(true), files)
+  loaded = match w.api.getSearch("", "name", true, 0, 5)
+    Ok(_) => true
+    Error(_) => false
+  reported = match w.api.getStatus()
+    Ok(s) => s.installed == 0 and map(s.unmanaged, \u -> u.entry + ":" + getOr(u.pluginName, "?") + ":" + getOr(u.suggestion, "-")) == ["DayNight.dll:DayNight:-", "Longship.dll:Longship:viking-Longship"]
+    Error(_) => false
+  adopted = match (w.api.postAdopt("Longship.dll", "viking-Longship"), w.api.getStatus())
+    (Ok(_), Ok(s)) => s.installed == 1 and length(s.unmanaged) == 1
+    _ => false
+  updated = match w.api.postInstall("viking-Longship")
+    Ok(done) => done == ["denikson-BepInExPack_Valheim-5.4.2202", "viking-Longship-1.2.0"] and not contains(w.fs.snapshot(), gameDir() + "/BepInEx/plugins/Longship.dll")
+    Error(_) => false
+  loaded and reported and adopted and updated
+
+// A managed mod deleted by hand is noticed on the next look.
+handler prop_noticesAManagedModRemovedByHand() -> Bool
+  w = world()
+  match (w.api.postInstall("viking-Longship"), w.fs.deleteTree(gameDir() + "/BepInEx/plugins/viking-Longship"), w.api.getStatus())
+    (Ok(_), Ok(_), Ok(s)) => s.installed == 0
     _ => false
 
 handler prop_searchMarksWhatIsInstalled() -> Bool

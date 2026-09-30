@@ -7,6 +7,7 @@ use valslongva.domain.catalogue
 use valslongva.domain.library
 use valslongva.domain.layout
 use valslongva.domain.plan
+use valslongva.domain.scan
 use valslongva.application.ports
 use valslongva.application.errors
 use valslongva.application.catalogueService
@@ -19,6 +20,58 @@ service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platfo
   fn library() -> Result[Library, AppError]
     game = locator.gameDir()?
     libraryAt(game)
+
+  // What the plugins folder holds that the log does not: adopt what is certain, report the rest,
+  // and note what has gone. Idempotent, so every status request may run it.
+  fn scan() -> Result[Scan, AppError]
+    game = locator.gameDir()?
+    lib = libraryAt(game)?
+    entries = pluginEntries(game)?
+    result = scanPlugins(lib, entries, clock.now())
+    traverse(result.events, \e -> note(game, e))?
+    ok(result)
+
+  // The user says an unmanaged entry is a catalogue package; from now on it is managed.
+  fn adopt(entry: String, pkg: String) -> Result[Unit, AppError]
+    game = locator.gameDir()?
+    entries = pluginEntries(game)?
+    match find(entries, \e -> e.name == entry)
+      None => error(AppError.NotFound("nothing named " + entry + " in the plugins folder"))
+      Some(e) =>
+        version = match e.plugin
+          Some(p) => p.version
+          None => "0.0.0"
+        note(game, LibraryEvent.ModAdopted(pkg, version, e.files, clock.now()))
+
+  private fn pluginEntries(game: String) -> Result[Vector[PluginEntry], AppError]
+    dir = game + "/BepInEx/plugins"
+    listed = if fs.exists(dir) then fs.listFiles(dir).mapError(io) else ok([])
+    all = listed?
+    fn top(f: String) -> String
+      match indexOf(f, "/")
+        Some(i) => substring(f, 0, i)
+        None => f
+    names = sort(items(toSet(map(all, top))))
+    traverse(names, \n -> entryFor(dir, n, all))
+
+  private fn entryFor(dir: String, name: String, all: Vector[String]) -> Result[PluginEntry, AppError]
+    own = filter(all, \f -> f == name or startsWith(f, name + "/"))
+    isFolder = any(own, \f -> startsWith(f, name + "/"))
+    manifest = if isFolder and contains(own, name + "/manifest.json") then readManifest(dir + "/" + name + "/manifest.json") else None
+    info = match find(own, \f -> endsWith(toLower(f), ".dll"))
+      Some(d) => fs.pluginInfo(dir + "/" + d)
+      None => None
+    ok(PluginEntry(name, isFolder, manifest, map(own, \f -> "BepInEx/plugins/" + f), info))
+
+  // A manifest we cannot read is no manifest; the folder is then merely unmanaged.
+  private fn readManifest(path: String) -> Option[Manifest]
+    match fs.readText(path)
+      Error(_) => None
+      Ok(text) =>
+        decoded = supervise json.decode[Manifest](text)
+        match decoded
+          Ok(m) => Some(m)
+          Error(_) => None
 
   private fn libraryAt(game: String) -> Result[Library, AppError]
     if fs.exists(logPath(game)) then
@@ -68,10 +121,11 @@ service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platfo
     placements = match step.kind
       Loader => placeLoader(files)
       Mod => placeMod(step.pkg, files)
-    // an update replaces the package folder wholesale; configs are merged, never removed
+    // an update replaces the package folder wholesale and whatever the log recorded for it
+    // (an adopted loose dll, say); configs are merged, never removed
     removed = match step.kind
       Loader => ok(unit)
-      Mod => fs.deleteTree(game + "/" + modFolder(step.pkg)).mapError(io)
+      Mod => removeFiles(game, lib, step.pkg)
     removed?
     traverse(placements, \p -> fs.copyFile(tmp + "/" + p.source, game + "/" + p.target).mapError(io))?
     fs.deleteTree(tmp).mapError(io)?
@@ -81,14 +135,23 @@ service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platfo
       Mod => LibraryEvent.ModInstalled(step.pkg, step.version.versionNumber, targets, clock.now())
     note(game, ev)
 
+  private fn removeFiles(game: String, lib: Library, name: String) -> Result[Unit, AppError]
+    fs.deleteTree(game + "/" + modFolder(name)).mapError(io)?
+    fs.deleteTree(game + "/" + disabledFolder(name)).mapError(io)?
+    recorded = match lib.mods.get(name)
+      Some(m) => m.files
+      None => []
+    // configs are the user's, whoever placed them
+    traverse(filter(recorded, \f -> not startsWith(f, "BepInEx/config/")), \f -> fs.deleteTree(game + "/" + f).mapError(io))?
+    ok(unit)
+
   fn uninstall(name: String) -> Result[Unit, AppError]
     game = locator.gameDir()?
     lib = libraryAt(game)?
     match lib.mods.get(name)
       None => error(AppError.NotFound(name + " is not installed"))
       Some(_) =>
-        fs.deleteTree(game + "/" + modFolder(name)).mapError(io)?
-        fs.deleteTree(game + "/" + disabledFolder(name)).mapError(io)?
+        removeFiles(game, lib, name)?
         note(game, LibraryEvent.ModRemoved(name, clock.now()))
 
   fn setEnabled(name: String, enabled: Bool) -> Result[Unit, AppError]

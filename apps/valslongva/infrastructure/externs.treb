@@ -37,6 +37,10 @@ extern fn hostExists(path: String) -> Bool ! Nondet
 extern fn hostFileVersion(path: String) -> String ! Nondet
   csharp "Valslongva.Host.FileVersion"
 
+// "guid|name|version" from a plugin dll's BepInPlugin attribute, or "" when there is none.
+extern fn hostPluginInfo(path: String) -> String ! Nondet
+  csharp "Valslongva.Host.PluginInfo"
+
 extern fn hostListFiles(dir: String) -> Result[Vector[String], IoError] ! Nondet
   csharp "Valslongva.Host.ListFiles"
   catch csharp "System.Exception" -> Failed

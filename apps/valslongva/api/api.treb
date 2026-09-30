@@ -5,6 +5,7 @@ module valslongva.api.api
 // and launcher are supervised: a panic there is an Internal error, not a dead server.
 use valslongva.domain.packages
 use valslongva.domain.steam
+use valslongva.domain.scan
 use valslongva.domain.catalogue
 use valslongva.domain.library
 use valslongva.domain.paging
@@ -34,8 +35,19 @@ record Status
   loaderIcon: Option[String]
   steam: SteamState
   installed: Int
+  // this request's scan of the plugins folder: adopted just now, and what is there unmanaged
+  adopted: Vector[String]
+  unmanaged: Vector[UnmanagedView]
   catalogueFetchedAt: Option[Instant]
   cataloguePackages: Int
+
+record UnmanagedView
+  entry: String
+  isFolder: Bool
+  pluginName: Option[String]
+  pluginVersion: Option[String]
+  guid: Option[String]
+  suggestion: Option[String]
 
 record InstalledView
   pkg: String
@@ -77,6 +89,23 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
       Some(v) => if length(v.icon) == 0 then None else Some(v.icon)
       None => None
 
+  // A catalogue package whose name is the plugin's or the entry's name, exactly, ignoring case.
+  private fn suggestionFor(u: Unmanaged) -> Option[String]
+    fn key(s: String) -> String
+      toLower(replace(replace(s, "_", ""), " ", ""))
+    wanted = match u.pluginName
+      Some(n) => key(n)
+      None => key(replace(u.entry, ".dll", ""))
+    match catalogue.loaded()
+      None => None
+      Some(c) =>
+        match find(c.packages, \l -> key(l.name) == wanted)
+          Some(l) => Some(l.fullName)
+          None => None
+
+  private fn view(u: Unmanaged) -> UnmanagedView
+    UnmanagedView(u.entry, u.isFolder, u.pluginName, u.pluginVersion, u.guid, suggestionFor(u))
+
   private fn libraryOrEmpty() -> Library
     match installer.library()
       Ok(lib) => lib
@@ -85,11 +114,12 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
   fn getStatus() -> Result[Status, AppError]
     match locator.gameDir()
       Error(e) =>
-        ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, catalogueStamp(), cataloguePackages()))
+        ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages()))
       Ok(dir) =>
+        scanned = installer.scan()?
         lib = installer.library()?
         core = dir + "/BepInEx/core/BepInEx.dll"
-        ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), catalogueStamp(), cataloguePackages()))
+        ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages()))
 
   fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
     cat = catalogue.current()?
@@ -105,6 +135,7 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
           Some(s) => ok(PackageDetail(s, map(l.versions, \v -> v.versionNumber), l.packageUrl))
 
   fn getInstalled() -> Result[Vector[InstalledView], AppError]
+    installer.scan()?
     lib = installer.library()?
     cat = catalogue.loaded()
     fn latestOf(pkg: String) -> Option[String]
@@ -123,6 +154,9 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
   fn postLoader() -> Result[Vector[String], AppError]
     outcome = supervise installer.installLoader()
     outcome.mapError(crashed)?
+
+  fn postAdopt(entry: String, name: String) -> Result[Unit, AppError]
+    installer.adopt(entry, name)
 
   fn postUninstall(name: String) -> Result[Unit, AppError]
     installer.uninstall(name)

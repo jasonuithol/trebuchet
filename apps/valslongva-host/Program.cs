@@ -31,6 +31,7 @@ app.MapGet("/package", async (string name) => Respond(await api.getPackage(name)
 app.MapGet("/installed", async () => Respond(await api.getInstalled()));
 app.MapPost("/install", async (Named body) => Respond(await api.postInstall(body.name)));
 app.MapPost("/loader", async () => Respond(await api.postLoader()));
+app.MapPost("/adopt", async (Adopt body) => Respond(await api.postAdopt(body.entry, body.name)));
 app.MapPost("/uninstall", async (Named body) => Respond(await api.postUninstall(body.name)));
 app.MapPost("/enable", async (Named body) => Respond(await api.postEnable(body.name)));
 app.MapPost("/disable", async (Named body) => Respond(await api.postDisable(body.name)));
@@ -67,5 +68,6 @@ static void OpenBrowser(string url)
 
 // Request bodies that are not Trebuchet records.
 public sealed record Named(string name);
+public sealed record Adopt(string entry, string name);
 public sealed record Launch(string mode);
 public sealed record GamePath(string path);

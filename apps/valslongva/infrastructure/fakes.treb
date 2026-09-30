@@ -2,7 +2,9 @@ module valslongva.infrastructure.fakes
 
 // In-memory adapters for tests and for the test composition root. A file system is a map
 // from path to text; a download writes a marker the fake archive knows how to unpack.
+use valslongva.domain.scan
 use valslongva.application.ports
+use valslongva.infrastructure.host
 
 service FakeFileSystem(files: Cell[Map[String, String]])
   fn readText(path: String) -> Result[String, IoError]
@@ -27,6 +29,12 @@ service FakeFileSystem(files: Cell[Map[String, String]])
 
   fn fileVersion(path: String) -> Option[String]
     if contains(files.get(), path) then Some("5.4.23.5") else None
+
+  // a fake dll whose text is "plugin:guid|name|version" carries a BepInPlugin attribute
+  fn pluginInfo(path: String) -> Option[PluginInfo]
+    match files.get().get(path)
+      Some(text) => if startsWith(text, "plugin:") then parsePluginInfo(substring(text, 7, length(text))) else None
+      None => None
 
   fn listFiles(dir: String) -> Result[Vector[String], IoError]
     prefix = dir + "/"

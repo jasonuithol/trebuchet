@@ -1,8 +1,14 @@
 module valslongva.infrastructure.host
 
 // Adapters over the externs. Each satisfies one port shape by having its members.
+use valslongva.domain.scan
 use valslongva.application.ports
 use valslongva.infrastructure.externs
+
+fn parsePluginInfo(text: String) -> Option[PluginInfo] ! Pure
+  match split(text, "|")
+    [guid, name, version] => Some(PluginInfo(guid, name, version))
+    _ => None
 
 service HostPlatform
   fn os() -> String
@@ -35,6 +41,8 @@ service HostFileSystem
   fn fileVersion(path: String) -> Option[String]
     v = hostFileVersion(path)
     if length(v) == 0 then None else Some(v)
+  fn pluginInfo(path: String) -> Option[PluginInfo]
+    parsePluginInfo(hostPluginInfo(path))
 
   fn listFiles(dir: String) -> Result[Vector[String], IoError]
     hostListFiles(dir)

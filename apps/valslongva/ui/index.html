@@ -157,6 +157,7 @@ function App() {
   const install = name => run(`Installing ${name}`, () => api("POST", "/install", { name }), r => r.length ? `Installed ${r.join(", ")}` : `${name} is already up to date`);
   const uninstall = name => run(`Removing ${name}`, () => api("POST", "/uninstall", { name }), () => `Removed ${name}; its config files were kept`);
   const enable = (name, on) => run(on ? `Enabling ${name}` : `Disabling ${name}`, () => api("POST", on ? "/enable" : "/disable", { name }));
+  const adopt = (entry, name) => run(`Managing ${entry} as ${name}`, () => api("POST", "/adopt", { entry, name }), () => `${name} is now managed; Update will replace ${entry} with the Thunderstore package`);
   const loader = () => run("Installing BepInEx", () => api("POST", "/loader"), r => r.length ? `Installed ${r.join(", ")}` : "BepInEx is already up to date");
 
   // BepInEx is not a mod: it is the thing mods need, so it gets its own line and its own verbs.
@@ -288,8 +289,11 @@ function App() {
         </>
       )}
 
+      {tab === "installed" && status && status.adopted && status.adopted.length > 0 && (
+        <div className="msg ok">Found and adopted from the game folder: {status.adopted.join(", ")}</div>
+      )}
       {tab === "installed" && (
-        installed.length === 0 ? <div className="empty">{ready ? "No mods installed through valslöngva yet." : "Set the game folder first."}</div> : (
+        installed.length === 0 ? <div className="empty">{ready ? "No mods managed by valslöngva yet." : "Set the game folder first."}</div> : (
           <table>
             <thead><tr><th>Package</th><th>Version</th><th>Latest</th><th>Installed</th><th>State</th><th></th></tr></thead>
             <tbody>
@@ -310,6 +314,30 @@ function App() {
           </table>
         )
       )}
+      {tab === "installed" && <Unmanaged items={status && status.unmanaged} busy={busy} onAdopt={adopt} />}
+    </>
+  );
+}
+
+function Unmanaged({ items, busy, onAdopt }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <>
+      <h2 style={{ fontSize: 15, margin: "24px 0 8px" }}>Also in the plugins folder, not managed <span style={{ fontWeight: "normal", fontSize: 12, color: "var(--muted)" }}>left alone; nothing here is changed unless you say so</span></h2>
+      <table>
+        <thead><tr><th>Entry</th><th>Plugin</th><th>Version</th><th>GUID</th><th></th></tr></thead>
+        <tbody>
+          {items.map(u => (
+            <tr key={u.entry}>
+              <td>{u.entry} <span className="tag">{u.isFolder ? "folder" : "file"}</span></td>
+              <td>{u.pluginName || <span style={{ color: "var(--muted)" }}>not a BepInEx plugin</span>}</td>
+              <td>{u.pluginVersion || ""}</td>
+              <td><code>{u.guid || ""}</code></td>
+              <td className="actions">{u.suggestion && <button className="small" disabled={!!busy} onClick={() => onAdopt(u.entry, u.suggestion)}>Manage as {u.suggestion}</button>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </>
   );
 }

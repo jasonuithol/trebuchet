@@ -42,6 +42,10 @@ dotnet publish -c Release -r linux-x64 --self-contained     # or win-x64: one fo
   pinned version of each, dependencies before dependents, skipping what is already
   satisfied. Each package unpacks into one folder, `BepInEx/plugins/<Namespace-Name>/`, its
   `config/` files merge into `BepInEx/config/`, and nothing else touches the game root.
+- **Finds what was already there.** Every look at the game folder adopts Thunderstore-packaged
+  folders it did not install (folder name and manifest agree), lists loose dlls and other
+  folders as unmanaged with what their `BepInPlugin` attribute says, offers "manage as" when a
+  catalogue package has exactly that name, and notices managed mods removed by hand.
 - **Updates, disables, enables, and uninstalls.** Disabling moves the package folder to
   `valslongva/disabled/`; uninstalling keeps the config files.
 - **Checks Steam first.** A process check says whether the client is running and the tail of its

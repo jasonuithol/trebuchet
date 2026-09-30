@@ -1,5 +1,7 @@
 module valslongva.application.ports
 
+use valslongva.domain.scan
+
 // What the application needs from the outside world, as shapes. Interfaces are structural:
 // the host adapters and the test fakes both satisfy them without saying so.
 union IoError
@@ -15,6 +17,7 @@ shape FileSystem
   fn appendText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
   fn exists(path: String) -> Bool ! Nondet
   fn fileVersion(path: String) -> Option[String] ! Nondet
+  fn pluginInfo(path: String) -> Option[PluginInfo] ! Nondet
   fn listFiles(dir: String) -> Result[Vector[String], IoError] ! Nondet
   fn copyFile(from: String, to: String) -> Result[Unit, IoError] ! Nondet Write
   fn deleteTree(path: String) -> Result[Unit, IoError] ! Nondet Write

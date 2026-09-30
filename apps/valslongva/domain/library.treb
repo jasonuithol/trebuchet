@@ -4,6 +4,7 @@ module valslongva.domain.library
 // line per event. Files are game-relative paths so that uninstall knows what to remove.
 union LibraryEvent
   ModInstalled(pkg: String, version: String, files: Vector[String], at: Instant)
+  ModAdopted(pkg: String, version: String, files: Vector[String], at: Instant)
   ModRemoved(pkg: String, at: Instant)
   ModDisabled(pkg: String, at: Instant)
   ModEnabled(pkg: String, at: Instant)
@@ -27,6 +28,8 @@ fn emptyLibrary() -> Library ! Pure
 fn applyEvent(lib: Library, ev: LibraryEvent) -> Library ! Pure
   match ev
     ModInstalled(pkg, version, files, at) =>
+      lib with { mods: lib.mods.set(pkg, InstalledMod(pkg, version, files, true, at)) }
+    ModAdopted(pkg, version, files, at) =>
       lib with { mods: lib.mods.set(pkg, InstalledMod(pkg, version, files, true, at)) }
     ModRemoved(pkg, ...) =>
       lib with { mods: remove(lib.mods, pkg) }

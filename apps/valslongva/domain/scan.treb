@@ -1,0 +1,91 @@
+module valslongva.domain.scan
+
+// What is in BepInEx/plugins that the library does not know about. A folder named
+// Namespace-Name with a Thunderstore manifest whose name agrees is that package, and is
+// adopted without asking. Anything else is reported as unmanaged and left alone: a plugin's
+// BepInPlugin attribute names it, but nothing maps that to a catalogue package for certain.
+// A managed mod none of whose files remain has been removed behind our back.
+
+use valslongva.domain.library
+
+record Manifest
+  name: String
+  versionNumber: String
+
+record PluginInfo
+  guid: String
+  name: String
+  version: String
+
+// One entry at the top of the plugins folder: a file or a folder, with what could be read of it.
+record PluginEntry
+  name: String
+  isFolder: Bool
+  manifest: Option[Manifest]
+  files: Vector[String]
+  plugin: Option[PluginInfo]
+
+record Unmanaged
+  entry: String
+  isFolder: Bool
+  pluginName: Option[String]
+  pluginVersion: Option[String]
+  guid: Option[String]
+
+record Scan
+  events: Vector[LibraryEvent]
+  adopted: Vector[String]
+  unmanaged: Vector[Unmanaged]
+
+// The package a folder is, when its name and manifest say the same thing.
+fn packageOf(entry: PluginEntry) -> Option[String] ! Pure
+  match entry.manifest
+    None => None
+    Some(m) =>
+      if entry.isFolder and length(m.name) > 0 and endsWith(entry.name, "-" + m.name) and length(entry.name) > length(m.name) + 1 then
+        Some(entry.name)
+      else
+        None
+
+fn managedFiles(lib: Library) -> Set[String] ! Pure
+  fold(installedMods(lib), toSet([]), \acc, m -> merge(acc, toSet(m.files)))
+
+fn scanPlugins(lib: Library, entries: Vector[PluginEntry], now: Instant) -> Scan ! Pure
+  known = managedFiles(lib)
+  fn isManaged(e: PluginEntry) -> Bool
+    isInstalled(lib, e.name) or any(e.files, \f -> contains(known, f))
+  fn step(acc: Scan, e: PluginEntry) -> Scan
+    if isManaged(e) then
+      acc
+    else
+      match packageOf(e)
+        Some(pkg) =>
+          version = match e.manifest
+            Some(m) => m.versionNumber
+            None => "0.0.0"
+          acc with { events: append(acc.events, LibraryEvent.ModAdopted(pkg, version, e.files, now)), adopted: append(acc.adopted, pkg) }
+        None =>
+          acc with { unmanaged: append(acc.unmanaged, Unmanaged(e.name, e.isFolder, map(e.plugin, \p -> p.name), map(e.plugin, \p -> p.version), map(e.plugin, \p -> p.guid))) }
+  scanned = fold(entries, Scan([], [], []), step)
+  present = fold(entries, toSet([]), \acc, e -> merge(acc, toSet(e.files)))
+  gone = filter(installedMods(lib), \m -> m.enabled and length(m.files) > 0 and not any(m.files, \f -> contains(present, f)))
+  scanned with { events: concat(scanned.events, map(gone, \m -> LibraryEvent.ModRemoved(m.pkg, now))) }
+
+fn prop_managedEntriesAreNeverAdoptedNorReported(pkg: String, version: String, files: Vector[String], at: Instant) -> Bool ! Pure
+  clean = replace(pkg, "/", "")
+  lib = applyEvent(emptyLibrary(), LibraryEvent.ModInstalled(clean, version, files, at))
+  entry = PluginEntry(clean, true, Some(Manifest("x", "1.0.0")), files, None)
+  scan = scanPlugins(lib, [entry], at)
+  isEmpty(scan.adopted) and isEmpty(scan.unmanaged)
+
+fn prop_everyEntryIsAdoptedOrReported(entries: Vector[PluginEntry], at: Instant) -> Bool ! Pure
+  scan = scanPlugins(emptyLibrary(), entries, at)
+  length(scan.adopted) + length(scan.unmanaged) == length(entries)
+
+fn prop_adoptionNeedsTheManifestToAgree(ns: String, name: String, version: String, at: Instant) -> Bool ! Pure
+  folder = ns + "-" + name
+  agree = PluginEntry(folder, true, Some(Manifest(name, version)), [folder + "/a.dll"], None)
+  disagree = PluginEntry(folder, true, Some(Manifest(name + "x", version)), [folder + "/a.dll"], None)
+  ok = length(ns) > 0 and length(name) > 0 and not contains(ns, "-")
+  scan = scanPlugins(emptyLibrary(), [agree, disagree], at)
+  if ok then scan.adopted == [folder] and length(scan.unmanaged) == 1 else true
