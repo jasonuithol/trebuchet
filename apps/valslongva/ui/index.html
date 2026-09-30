@@ -45,6 +45,8 @@
   label.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
   .list { display: flex; flex-direction: column; gap: 8px; }
   .card { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; }
+  .card a.name, .card a.iconlink { color: inherit; text-decoration: none; }
+  .card a.name:hover { text-decoration: underline; color: var(--accent); }
   .card img { width: 56px; height: 56px; border-radius: 6px; background: var(--bg); object-fit: cover; }
   .card .name { font-weight: 600; }
   .card .owner { color: var(--muted); font-weight: normal; }
@@ -287,7 +289,7 @@ function App() {
         installed.length === 0 ? <div className="empty">{ready ? "No mods managed by valslöngva yet." : "Set the game folder first."}</div> : (
           <div className="list">
             {installed.map(m => {
-              const s = m.summary || { fullName: m.pkg, name: m.pkg, owner: "", description: "not in the catalogue (yet)", latestVersion: m.latestVersion || m.version, downloads: 0, ratingScore: 0, categories: [], icon: "", isDeprecated: false, dateUpdated: "", dependencies: [], installedVersion: m.version, enabled: m.enabled };
+              const s = m.summary || { fullName: m.pkg, name: m.pkg, owner: "", description: "not in the catalogue (yet)", packageUrl: "", latestVersion: m.latestVersion || m.version, downloads: 0, ratingScore: 0, categories: [], icon: "", isDeprecated: false, dateUpdated: "", dependencies: [], installedVersion: m.version, enabled: m.enabled };
               const replace = m.adopted && m.latestVersion;
               return (
                 <Card key={m.pkg} s={{ ...s, installedVersion: m.version, enabled: m.enabled }} extra={<>{m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>} <span className="cap">installed {fmtDate(m.installedAt)}</span></>} actions={<>
@@ -311,9 +313,9 @@ function App() {
 function Card({ s, actions, extra }) {
   return (
     <div className="card">
-      {s.icon ? <img src={s.icon} alt="" loading="lazy" /> : <div />}
+      {s.icon ? <a className="iconlink" href={s.packageUrl || undefined} target="_blank" rel="noopener"><img src={s.icon} alt="" loading="lazy" /></a> : <div />}
       <div>
-        <div className="name">{s.name} {s.owner && <span className="owner">by {s.owner}</span>} {s.isDeprecated && <span className="tag dep">deprecated</span>} {s.installedVersion && <span className={`tag ${s.enabled ? "on" : "off"}`}>{s.enabled ? "installed" : "disabled"} {s.installedVersion}</span>} {extra}</div>
+        <div className="name">{s.packageUrl ? <a className="name" href={s.packageUrl} target="_blank" rel="noopener" title="open on Thunderstore">{s.name}</a> : s.name} {s.owner && <span className="owner">by {s.owner}</span>} {s.isDeprecated && <span className="tag dep">deprecated</span>} {s.installedVersion && <span className={`tag ${s.enabled ? "on" : "off"}`}>{s.enabled ? "installed" : "disabled"} {s.installedVersion}</span>} {extra}</div>
         <div className="desc">{s.description}</div>
         <div className="meta">
           <span>v{s.latestVersion}</span>{s.downloads > 0 && <span>{fmtCount(s.downloads)} downloads</span>}{s.ratingScore > 0 && <span>{s.ratingScore} ★</span>}{s.dateUpdated && <span>{fmtDate(s.dateUpdated)}</span>}

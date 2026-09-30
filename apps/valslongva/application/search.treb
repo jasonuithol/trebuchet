@@ -20,6 +20,7 @@ record ListingSummary
   dependencies: Vector[String]
   installedVersion: Option[String]
   enabled: Bool
+  packageUrl: String
 
 fn summarise(l: Listing, lib: Library) -> Option[ListingSummary] ! Pure
   match latest(l)
@@ -29,7 +30,7 @@ fn summarise(l: Listing, lib: Library) -> Option[ListingSummary] ! Pure
       enabled = match installed
         Some(m) => m.enabled
         None => false
-      Some(ListingSummary(l.fullName, l.name, l.owner, v.description, v.versionNumber, totalDownloads(l), l.ratingScore, l.categories, v.icon, l.isDeprecated, l.dateUpdated, v.dependencies, map(installed, \m -> m.version), enabled))
+      Some(ListingSummary(l.fullName, l.name, l.owner, v.description, v.versionNumber, totalDownloads(l), l.ratingScore, l.categories, v.icon, l.isDeprecated, l.dateUpdated, v.dependencies, map(installed, \m -> m.version), enabled, l.packageUrl))
 
 fn matches(s: ListingSummary, terms: Vector[String]) -> Bool ! Pure
   haystack = toLower(s.fullName + " " + s.description)
