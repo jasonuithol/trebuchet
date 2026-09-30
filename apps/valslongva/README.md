@@ -26,8 +26,14 @@ The compiled application:
 cd ../apps/valslongva-host
 treb emit ../valslongva --out Generated --host --reference Externs/Externs.csproj
 dotnet run                                          # opens http://localhost:5173/ui/
-dotnet publish -c Release -r linux-x64 --self-contained     # or win-x64: one folder, one executable
+./publish.sh        # dist/valslongva-linux-x64.tar.gz and dist/valslongva-win-x64.zip
 ```
+
+The published build is one self-contained executable with the `ui/` folder beside it: unpack,
+run, and the browser opens. It is also its own installer: Settings has "Install on this
+computer", which copies it to the user's programs folder and adds a Start menu entry on Windows
+or an app-launcher entry on Linux, no administrator rights involved; "Remove from this computer"
+undoes only that. `valslongva install` and `valslongva remove` do the same from a terminal.
 
 ## What it does
 

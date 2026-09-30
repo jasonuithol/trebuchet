@@ -6,6 +6,12 @@ using System.Diagnostics;
 using Generated;
 using Trebuchet.Runtime;
 
+// `valslongva install` and `valslongva remove` work without a browser, for scripts and the curious.
+if (args.Length > 0 && args[0] is "install" or "remove")
+{
+    Console.WriteLine(args[0] == "install" ? $"installed to {Valslongva.Setup.Install()}" : $"removed from {Valslongva.Setup.Remove()}");
+    return;
+}
 var port = args.Length > 0 && int.TryParse(args[0], out var p) ? p : 5173;
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory });
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
@@ -39,6 +45,13 @@ app.MapPost("/disable", async (Named body) => Respond(await api.postDisable(body
 app.MapPost("/launch", async (Launch body) => Respond(await api.postLaunch(body.mode)));
 app.MapPost("/gamepath", async (GamePath body) => Respond(await api.postGamePath(body.path)));
 app.MapPost("/refresh", async () => Respond(await api.postRefresh()));
+// the application managing its own installation: host business, not the mod manager's
+app.MapGet("/setup", () => Results.Json(Valslongva.Setup.Status()));
+app.MapPost("/setup", (SetupRequest r) =>
+{
+    try { return Results.Json(new { path = r.action == "remove" ? Valslongva.Setup.Remove() : Valslongva.Setup.Install(), Valslongva.Setup.IsInstalled }); }
+    catch (Exception ex) { return Results.Json(new { error = "Setup", message = ex.Message }, statusCode: 500); }
+});
 
 var url = $"http://localhost:{port}/ui/";
 Console.WriteLine($"valslöngva at {url}");
@@ -72,3 +85,4 @@ public sealed record Named(string name);
 public sealed record Adopt(string entry, string name);
 public sealed record Launch(string mode);
 public sealed record GamePath(string path);
+public sealed record SetupRequest(string action);

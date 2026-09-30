@@ -119,7 +119,8 @@ function App() {
   const [installed, setInstalled] = useState([]);
   const [gamePath, setGamePath] = useState("");
   const [showSettings, setShowSettings] = useState(false);
-  const [confirming, setConfirming] = useState(null); // a destructive-looking action waits for a second click
+  const [confirming, setConfirming] = useState(null);
+  const [setup, setSetup] = useState(null); // where this program lives and whether it is installed (host, not the mod manager) // a destructive-looking action waits for a second click
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -145,6 +146,7 @@ function App() {
   }, []);
 
   useEffect(() => { if (status === null) refreshStatus(); }, [status]);
+  useEffect(() => { api("GET", "/setup").then(setSetup).catch(() => setSetup(null)); }, [status]);
   useEffect(() => { const t = setTimeout(loadPage, 250); return () => clearTimeout(t); }, [loadPage]);
   useEffect(() => { if (status && status.gameDir) loadInstalled(); }, [status]);
 
@@ -199,6 +201,7 @@ function App() {
   }
   const launch = mode => run(`Starting Valheim (${mode})`, () => api("POST", "/launch", { mode }), () => `Valheim is starting in ${mode} mode`);
   const savePath = () => run("Saving the game folder", () => api("POST", "/gamepath", { path: gamePath }), s => s.gameDir ? `Using ${s.gameDir}` : (s.gameProblem || "No game folder"));
+  const setupApp = action => run(action === "install" ? "Installing valslöngva on this computer" : "Removing valslöngva from this computer", () => api("POST", "/setup", { action }), r => action === "install" ? `Installed to ${r.path}; it is in your app launcher now` : `Removed from ${r.path}; your settings and mods were left alone`);
   const refresh = () => run("Refreshing the catalogue", () => api("POST", "/refresh"), s => `Catalogue has ${s.cataloguePackages} packages`);
 
   const ready = status && status.gameDir;
@@ -236,6 +239,14 @@ function App() {
             <button disabled={!!busy} onClick={savePath}>Save</button>
             <button disabled={!!busy} onClick={refresh}>Refresh catalogue</button>
             {status && status.candidates && status.candidates.length > 0 && <span className="sub">Looked in: {status.candidates.join(", ")}</span>}
+            {setup && (
+              <div style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+                <span className="sub">This program: {setup.installed ? `installed at ${setup.path}` : "running from where it was downloaded"}</span>
+                {!setup.installed && <button disabled={!!busy} onClick={() => setupApp("install")}>Install on this computer</button>}
+                {setup.installed && !setup.runningInstalled && <button disabled={!!busy} onClick={() => setupApp("install")}>Reinstall this version</button>}
+                {setup.installed && <button className="danger" disabled={!!busy} onClick={() => setupApp("remove")}>Remove from this computer</button>}
+              </div>
+            )}
           </div>
         )}
       </div>
