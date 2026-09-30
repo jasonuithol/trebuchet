@@ -41,6 +41,14 @@ public static class Host
 
     public static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
 
+    /// <summary>The file version stamped into an executable or dll, or "" when unknown.</summary>
+    public static string FileVersion(string path)
+    {
+        if (!File.Exists(path)) return "";
+        try { return FileVersionInfo.GetVersionInfo(path).FileVersion ?? ""; }
+        catch (Exception) { return ""; }
+    }
+
     /// <summary>Every file under a folder, as forward-slash paths relative to it, in a stable order.</summary>
     public static string[] ListFiles(string dir) =>
         Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories)

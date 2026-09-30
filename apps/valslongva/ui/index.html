@@ -54,6 +54,9 @@
   th { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
   tr:last-child td { border-bottom: none; }
   .empty { color: var(--muted); padding: 14px; }
+  .loader { grid-column: 1 / -1; display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 14px; }
+  .loader .what { flex: 1 1 320px; }
+  .loader .what small { display: block; color: var(--muted); font-size: 12px; }
   .settings { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
   .settings input { flex: 1 1 320px; }
   .busy { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
@@ -141,6 +144,33 @@ function App() {
   const uninstall = name => run(`Removing ${name}`, () => api("POST", "/uninstall", { name }), () => `Removed ${name}; its config files were kept`);
   const enable = (name, on) => run(on ? `Enabling ${name}` : `Disabling ${name}`, () => api("POST", on ? "/enable" : "/disable", { name }));
   const loader = () => run("Installing BepInEx", () => api("POST", "/loader"), r => r.length ? `Installed ${r.join(", ")}` : "BepInEx is already up to date");
+
+  // BepInEx is not a mod: it is the thing mods need, so it gets its own line and its own verbs.
+  function LoaderLine({ s }) {
+    if (!s) return null;
+    const latest = s.loaderLatest ? ` ${s.loaderLatest}` : "";
+    if (!s.loaderPresent) return (
+      <div className="loader">
+        <div className="what"><span className="tag dep">BepInEx not installed</span> Mods need BepInEx to load.<small>Installing it merges the BepInEx pack into the game folder; installing any mod does this too.</small></div>
+        <button className="primary" disabled={!ready || !!busy} onClick={loader}>Install BepInEx{latest}</button>
+      </div>
+    );
+    if (s.loader) {
+      const newer = s.loaderLatest && s.loaderLatest !== s.loader;
+      return (
+        <div className="loader">
+          <div className="what"><span className="tag on">BepInEx {s.loader}</span> installed by valslöngva{newer ? `, ${s.loaderLatest} is available` : ", up to date"}.<small>{s.loaderDetected ? `BepInEx.dll file version ${s.loaderDetected}` : ""}</small></div>
+          {newer && <button className="primary" disabled={!!busy} onClick={loader}>Update BepInEx to {s.loaderLatest}</button>}
+        </div>
+      );
+    }
+    return (
+      <div className="loader">
+        <div className="what"><span className="tag off">BepInEx detected</span> present in the game folder but not installed by valslöngva{s.loaderDetected ? ` (BepInEx.dll ${s.loaderDetected})` : ""}.<small>Installing the pack from Thunderstore refreshes it in place and lets valslöngva keep it up to date; installing a mod does the same.</small></div>
+        <button disabled={!!busy} onClick={loader}>Install BepInEx{latest} over it</button>
+      </div>
+    );
+  }
   const launch = mode => run(`Starting Valheim (${mode})`, () => api("POST", "/launch", { mode }), () => `Valheim is starting in ${mode} mode`);
   const savePath = () => run("Saving the game folder", () => api("POST", "/gamepath", { path: gamePath }), s => s.gameDir ? `Using ${s.gameDir}` : (s.gameProblem || "No game folder"));
   const refresh = () => run("Refreshing the catalogue", () => api("POST", "/refresh"), s => `Catalogue has ${s.cataloguePackages} packages`);
@@ -162,16 +192,15 @@ function App() {
       <div className="panel status">
         <div className="facts">
           <span>Game: {ready ? <b>{status.gameDir}</b> : <b style={{ color: "var(--bad)" }}>{status ? status.gameProblem : "…"}</b>}</span>
-          <span>BepInEx: <b>{status ? (status.loaderPresent ? (status.loader || "present") : "not installed") : "…"}</b></span>
           <span>Mods: <b>{status ? status.installed : "…"}</b></span>
           <span>Catalogue: <b>{status && status.catalogueFetchedAt ? `${fmtCount(status.cataloguePackages)} packages, ${fmtWhen(status.catalogueFetchedAt)}` : "not loaded yet"}</b></span>
           <button className="small" onClick={() => setShowSettings(s => !s)}>{showSettings ? "Hide settings" : "Settings"}</button>
         </div>
         <div className="play">
-          {status && !status.loaderPresent && <button disabled={!ready || !!busy} onClick={loader}>Install BepInEx</button>}
           <button className="primary" disabled={!ready || !!busy || !(status && status.loaderPresent)} onClick={() => launch("modded")}>Play modded</button>
           <button disabled={!ready || !!busy} onClick={() => launch("vanilla")}>Play vanilla</button>
         </div>
+        <LoaderLine s={status} />
         {showSettings && (
           <div className="settings" style={{ gridColumn: "1 / -1" }}>
             <span className="sub">Valheim folder</span>

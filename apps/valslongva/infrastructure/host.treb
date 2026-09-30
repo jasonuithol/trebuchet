@@ -30,6 +30,9 @@ service HostFileSystem
 
   fn exists(path: String) -> Bool
     hostExists(path)
+  fn fileVersion(path: String) -> Option[String]
+    v = hostFileVersion(path)
+    if length(v) == 0 then None else Some(v)
 
   fn listFiles(dir: String) -> Result[Vector[String], IoError]
     hostListFiles(dir)

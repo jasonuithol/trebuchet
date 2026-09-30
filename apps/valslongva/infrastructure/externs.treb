@@ -29,6 +29,10 @@ extern fn hostAppendText(path: String, text: String) -> Result[Unit, IoError] ! 
 extern fn hostExists(path: String) -> Bool ! Nondet
   csharp "Valslongva.Host.Exists"
 
+// The file version stamped into a dll, or "" when there is none or the file is missing.
+extern fn hostFileVersion(path: String) -> String ! Nondet
+  csharp "Valslongva.Host.FileVersion"
+
 extern fn hostListFiles(dir: String) -> Result[Vector[String], IoError] ! Nondet
   csharp "Valslongva.Host.ListFiles"
   catch csharp "System.Exception" -> Failed

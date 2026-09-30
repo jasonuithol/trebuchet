@@ -22,6 +22,9 @@ service FakeFileSystem(files: Cell[Map[String, String]])
     m = files.get()
     contains(m, path) or any(keys(m), \k -> startsWith(k, path + "/"))
 
+  fn fileVersion(path: String) -> Option[String]
+    if contains(files.get(), path) then Some("5.4.23.5") else None
+
   fn listFiles(dir: String) -> Result[Vector[String], IoError]
     prefix = dir + "/"
     ok(sort(map(filter(keys(files.get()), \k -> startsWith(k, prefix)), \k -> substring(k, length(prefix), length(k)))))

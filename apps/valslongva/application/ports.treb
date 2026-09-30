@@ -13,6 +13,7 @@ shape FileSystem
   fn writeText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
   fn appendText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
   fn exists(path: String) -> Bool ! Nondet
+  fn fileVersion(path: String) -> Option[String] ! Nondet
   fn listFiles(dir: String) -> Result[Vector[String], IoError] ! Nondet
   fn copyFile(from: String, to: String) -> Result[Unit, IoError] ! Nondet Write
   fn deleteTree(path: String) -> Result[Unit, IoError] ! Nondet Write

@@ -37,6 +37,16 @@ handler prop_findsTheGameInTheSteamLibrary() -> Bool
     Ok(s) => s.gameDir == Some(gameDir()) and not s.loaderPresent and s.installed == 0
     Error(_) => false
 
+handler prop_statusReportsTheLoaderBeforeAndAfter() -> Bool
+  w = world()
+  before = match w.api.getStatus()
+    Ok(s) => not s.loaderPresent and s.loader == None and s.loaderDetected == None
+    Error(_) => false
+  after = match (w.api.postLoader(), w.api.getStatus())
+    (Ok(_), Ok(s)) => s.loaderPresent and s.loader == Some("5.4.2202") and s.loaderDetected == Some("5.4.23.5") and s.loaderLatest == Some("5.4.2202")
+    _ => false
+  before and after
+
 handler prop_installingAModBringsItsLoader() -> Bool
   w = world()
   match w.api.postInstall("viking-Longship")

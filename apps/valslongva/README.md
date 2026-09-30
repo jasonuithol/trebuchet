@@ -33,7 +33,9 @@ dotnet publish -c Release -r linux-x64 --self-contained     # or win-x64: one fo
 
 - **Finds the game** through every Steam library in `libraryfolders.vdf`, or a folder you set.
 - **Installs BepInEx** from Thunderstore's `denikson-BepInExPack_Valheim`, merging the pack's
-  folder into the game root.
+  folder into the game root. The loader has its own line in the UI with three states: absent,
+  detected but not installed by valslöngva (with the dll's file version), or installed at a
+  pack version, each with its own action.
 - **Browses Thunderstore** from the community listing (12,000 packages, 170 MB of JSON),
   cached on disk for six hours; search, sort by downloads, rating, recency, or name.
 - **Installs with one click**: the dependency closure is resolved against the listing, newest
