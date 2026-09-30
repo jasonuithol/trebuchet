@@ -7,6 +7,7 @@ use valslongva.application.locator
 use valslongva.application.catalogueService
 use valslongva.application.installer
 use valslongva.application.launcher
+use valslongva.application.steamStatus
 use valslongva.infrastructure.fakes
 use valslongva.host.fixture
 use valslongva.api.api
@@ -22,10 +23,12 @@ root test
   archive: FakeArchive
   log: emptyLog()
   processes: FakeProcesses
+  client: FakeSteam(true)
   cache: emptyCache()
   settings: SettingsStore
   locator: Locator
   catalogue: CatalogueService
   installer: Installer
+  steam: SteamStatus
   launcher: Launcher
   api: Api

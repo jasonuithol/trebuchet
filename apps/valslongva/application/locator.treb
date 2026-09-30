@@ -33,5 +33,5 @@ service Locator(fs: FileSystem, platform: Platform, settings: SettingsStore)
   fn looksLikeValheim(dir: String) -> Bool
     fs.exists(dir + "/valheim.x86_64") or fs.exists(dir + "/valheim.exe")
 
-  private fn steamRoot() -> String
+  fn steamRoot() -> String
     if platform.os() == "windows" then "C:/Program Files (x86)/Steam" else platform.home() + "/.steam/steam"

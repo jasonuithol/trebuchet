@@ -59,6 +59,11 @@
   .loader img { width: 48px; height: 48px; border-radius: 8px; background: var(--bg); transition: filter .4s, opacity .4s; }
   .loader img.off { filter: grayscale(1); opacity: .45; }
   .loader .what small { display: block; color: var(--muted); font-size: 12px; }
+  .steam { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-right: 6px; }
+  .steam .glyph { width: 26px; height: 26px; background-color: #6b7680; -webkit-mask: url(https://cdn.jsdelivr.net/npm/simple-icons@13/icons/steam.svg) center / contain no-repeat; mask: url(https://cdn.jsdelivr.net/npm/simple-icons@13/icons/steam.svg) center / contain no-repeat; transition: background-color .4s; }
+  .steam.Connected .glyph { background-color: #2a9d5c; }
+  .steam.NotConnected .glyph { background-color: #d09a2b; }
+  .steam.NotRunning .glyph { background-color: #8a8f94; opacity: .5; }
   .settings { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
   .settings input { flex: 1 1 320px; }
   .busy { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
@@ -183,6 +188,8 @@ function App() {
   const refresh = () => run("Refreshing the catalogue", () => api("POST", "/refresh"), s => `Catalogue has ${s.cataloguePackages} packages`);
 
   const ready = status && status.gameDir;
+  const steamOk = status && status.steam === "Connected";
+  const steamText = { Connected: "Steam connected", NotConnected: "Steam running, not signed in", NotRunning: "Steam not running" }[status ? status.steam : ""] || "";
   const pages = page ? Math.max(1, Math.ceil(page.total / PAGE)) : 1;
   const pageNo = Math.floor(offset / PAGE) + 1;
 
@@ -204,8 +211,9 @@ function App() {
           <button className="small" onClick={() => setShowSettings(s => !s)}>{showSettings ? "Hide settings" : "Settings"}</button>
         </div>
         <div className="play">
-          <button className="primary" disabled={!ready || !!busy || !(status && status.loaderPresent)} onClick={() => launch("modded")}>Play modded</button>
-          <button disabled={!ready || !!busy} onClick={() => launch("vanilla")}>Play vanilla</button>
+          {status && <div className={`steam ${status.steam}`} title={steamText}><span className="glyph"></span><span>{steamText}</span></div>}
+          <button className="primary" disabled={!ready || !steamOk || !!busy || !(status && status.loaderPresent)} onClick={() => launch("modded")}>Play modded</button>
+          <button disabled={!ready || !steamOk || !!busy} onClick={() => launch("vanilla")}>Play vanilla</button>
         </div>
         <LoaderLine s={status} />
         {showSettings && (

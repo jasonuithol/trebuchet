@@ -19,6 +19,52 @@ fn libraryPaths(vdf: String) -> Vector[String] ! Pure
 fn gameCandidates(libraries: Vector[String]) -> Vector[String] ! Pure
   map(libraries, \lib -> replace(lib, "\\", "/") + "/steamapps/common/Valheim")
 
+// Whether the client is signed in and talking to Steam. The client keeps logs/connection_log.txt,
+// each line prefixed with its connection state in brackets: the last such line is the truth.
+union SteamState
+  NotRunning
+  NotConnected
+  Connected
+
+fn logSaysConnected(log: String) -> Bool ! Pure
+  fn state(line: String) -> Option[String]
+    match split(line, "] [")
+      [_, rest, ..._] =>
+        match split(rest, ",")
+          [word, ..._] => Some(trim(word))
+          _ => None
+      _ => None
+  fn newest(acc: Option[String], line: String) -> Option[String]
+    match state(line)
+      Some(s) => Some(s)
+      None => acc
+  match fold(lines(log), None, newest)
+    Some(s) => s == "Logged On"
+    None => false
+
+fn steamState(running: Bool, connectionLog: Option[String]) -> SteamState ! Pure
+  if not running then
+    SteamState.NotRunning
+  else
+    match connectionLog
+      Some(log) => if logSaysConnected(log) then SteamState.Connected else SteamState.NotConnected
+      None => SteamState.NotConnected
+
+fn steamStateName(s: SteamState) -> String ! Pure
+  match s
+    NotRunning => "not running"
+    NotConnected => "running, not connected"
+    Connected => "connected"
+
+fn prop_notRunningWinsOverAnyLog(log: String) -> Bool ! Pure
+  steamState(false, Some(log)) == SteamState.NotRunning
+
+fn prop_lastStateLineDecides(noise: String) -> Bool ! Pure
+  clean = replace(replace(noise, "[", ""), "]", "")
+  on = "[2026-09-30 10:10:01] [Logged On, 4, 7] [U:1:1] " + clean
+  off = "[2026-09-30 10:10:02] [Disconnected, 0, 0] [U:1:1] " + clean
+  logSaysConnected(on + "\n" + off) == false and logSaysConnected(off + "\n" + on) == true
+
 fn runUrl() -> String ! Pure
   "steam://rungameid/" + appId()
 

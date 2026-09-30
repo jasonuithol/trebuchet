@@ -112,6 +112,22 @@ public static class Host
         }
     });
 
+    /// <summary>Whether a Steam client process is up. The name is "steam" on Linux and Windows alike.</summary>
+    public static bool SteamRunning()
+    {
+        try { return Process.GetProcessesByName("steam").Length > 0; }
+        catch (Exception) { return false; }
+    }
+
+    /// <summary>The last part of a text file, for logs that grow.</summary>
+    public static async Task<string> TailText(string path, long bytes)
+    {
+        await using var f = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        if (f.Length > bytes) f.Seek(-bytes, SeekOrigin.End);
+        using var reader = new StreamReader(f);
+        return await reader.ReadToEndAsync();
+    }
+
     /// <summary>Starts a program detached. A shell script goes through sh, since a zip does not carry the executable bit.</summary>
     public static void Run(string program, string workingDir)
     {

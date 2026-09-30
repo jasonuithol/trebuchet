@@ -18,6 +18,10 @@ extern fn hostReadText(path: String) -> Result[String, IoError] ! Nondet Suspend
   csharp "Valslongva.Host.ReadText"
   catch csharp "System.Exception" -> Failed
 
+extern fn hostTailText(path: String, bytes: Int) -> Result[String, IoError] ! Nondet Suspend
+  csharp "Valslongva.Host.TailText"
+  catch csharp "System.Exception" -> Failed
+
 extern fn hostWriteText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
   csharp "Valslongva.Host.WriteText"
   catch csharp "System.Exception" -> Failed
@@ -64,6 +68,9 @@ extern fn hostDownload(url: String, path: String) -> Result[Unit, HttpError] ! N
 extern fn hostExtractZip(zip: String, dir: String) -> Result[Unit, IoError] ! Nondet Write Suspend
   csharp "Valslongva.Host.ExtractZip"
   catch csharp "System.Exception" -> Failed
+
+extern fn hostSteamRunning() -> Bool ! Nondet
+  csharp "Valslongva.Host.SteamRunning"
 
 extern fn hostRun(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
   csharp "Valslongva.Host.Run"

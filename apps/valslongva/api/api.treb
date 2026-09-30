@@ -4,6 +4,7 @@ module valslongva.api.api
 // /install. Scalars bind from the query string or the JSON body. Calls into the installer
 // and launcher are supervised: a panic there is an Internal error, not a dead server.
 use valslongva.domain.packages
+use valslongva.domain.steam
 use valslongva.domain.catalogue
 use valslongva.domain.library
 use valslongva.domain.paging
@@ -15,6 +16,7 @@ use valslongva.application.catalogueService
 use valslongva.application.search
 use valslongva.application.installer
 use valslongva.application.launcher
+use valslongva.application.steamStatus
 
 record Status
   os: String
@@ -30,6 +32,7 @@ record Status
   loaderLatest: Option[String]
   // the pack's icon on Thunderstore, so the UI can show it without a copy in this repository
   loaderIcon: Option[String]
+  steam: SteamState
   installed: Int
   catalogueFetchedAt: Option[Instant]
   cataloguePackages: Int
@@ -49,7 +52,7 @@ record PackageDetail
 fn appVersion() -> String ! Pure
   "0.1.0"
 
-service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem)
+service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem, steam: SteamStatus)
   private fn catalogueStamp() -> Option[Instant]
     map(catalogue.loaded(), \c -> c.fetchedAt)
 
@@ -82,11 +85,11 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
   fn getStatus() -> Result[Status, AppError]
     match locator.gameDir()
       Error(e) =>
-        ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), 0, catalogueStamp(), cataloguePackages()))
+        ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, catalogueStamp(), cataloguePackages()))
       Ok(dir) =>
         lib = installer.library()?
         core = dir + "/BepInEx/core/BepInEx.dll"
-        ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), length(lib.mods), catalogueStamp(), cataloguePackages()))
+        ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), catalogueStamp(), cataloguePackages()))
 
   fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
     cat = catalogue.current()?

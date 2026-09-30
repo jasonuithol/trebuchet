@@ -10,6 +10,9 @@ service FakeFileSystem(files: Cell[Map[String, String]])
       Some(text) => ok(text)
       None => error(IoError.Failed("no file " + path))
 
+  fn tailText(path: String, bytes: Int) -> Result[String, IoError]
+    readText(path)
+
   fn writeText(path: String, text: String) -> Result[Unit, IoError]
     files.update(\m -> m.set(path, text))
     ok(unit)
@@ -73,6 +76,10 @@ service FakeArchive(entries: Map[String, Vector[String]], fs: FakeFileSystem)
       Some(names) =>
         traverse(names, \n -> fs.writeText(dir + "/" + n, "bytes of " + n))?
         ok(unit)
+
+service FakeSteam(isRunning: Bool)
+  fn running() -> Bool
+    isRunning
 
 service FakeProcesses(log: Cell[Vector[String]])
   fn run(program: String, workingDir: String) -> Result[Unit, IoError]

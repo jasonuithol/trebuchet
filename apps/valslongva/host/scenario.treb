@@ -8,6 +8,8 @@ use valslongva.application.locator
 use valslongva.application.catalogueService
 use valslongva.application.installer
 use valslongva.application.launcher
+use valslongva.application.steamStatus
+use valslongva.domain.steam
 use valslongva.infrastructure.fakes
 use valslongva.host.fixture
 use valslongva.api.api
@@ -18,6 +20,9 @@ record World
   processes: FakeProcesses
 
 fn world() -> World
+  worldWith(FakeSteam(true))
+
+fn worldWith(steamClient: FakeSteam) -> World
   platform = FakePlatform("linux", "/home/viking", "/home/viking/.local/share/valslongva")
   clock = FixedClock(Instant.parse("2026-09-30T10:00:00Z"))
   fs = FakeFileSystem(seededFiles())
@@ -28,8 +33,19 @@ fn world() -> World
   locator = Locator(fs, platform, settings)
   catalogue = CatalogueService(http, fs, platform, clock, emptyCache())
   installer = Installer(fs, http, archive, platform, clock, catalogue, locator)
-  launcher = Launcher(fs, processes, platform, locator, installer)
-  World(Api(installer, catalogue, launcher, locator, settings, platform, fs), fs, processes)
+  steam = SteamStatus(steamClient, fs, locator)
+  launcher = Launcher(fs, processes, platform, locator, installer, steam)
+  World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam), fs, processes)
+
+handler prop_launchNeedsSteam() -> Bool
+  w = worldWith(FakeSteam(false))
+  refused = match (w.api.postLoader(), w.api.postLaunch("vanilla"))
+    (Ok(_), Error(Conflict(_))) => true
+    _ => false
+  reported = match w.api.getStatus()
+    Ok(s) => s.steam == SteamState.NotRunning
+    Error(_) => false
+  refused and reported and w.processes.entries() == []
 
 handler prop_findsTheGameInTheSteamLibrary() -> Bool
   w = world()

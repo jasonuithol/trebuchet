@@ -499,6 +499,8 @@ A Valheim mod manager, `apps/valslongva/`, is the first program written in Trebu
 
 **The loader is not a mod.** First use showed that BepInEx wants its own line, not a row in the catalogue: the status reports three states, absent, detected in the game folder but not installed by valslöngva (with the dll's file version, read by a host extern), or installed by it at a pack version, and each state has its own verb: install, install over it, update. Installing a mod still brings the loader as a dependency, and an unmanaged loader is refreshed by that, which the line says.
 
+**Steam must be up and signed in.** The game will not start without the client, so the status carries a `SteamState` (not running, running but not connected, connected), the launcher refuses the other two, and the UI shows the Steam mark next to the Play buttons in grey, amber, or green. Running is a process check behind a host extern; connected is read from the tail of the client's own `logs/connection_log.txt`, whose last bracketed state is the truth, parsed by a pure function with properties. That is the same borrowing of host knowledge the mod-packaging side did, and the second time a log on disk stood in for an API the host does not offer.
+
 What the exercise did not find is as telling: no need for mutation beyond the two `Cell`s in the fakes, no place a panic was wanted outside `supervise` at the edge, and no dependency shape that the root could not compose. The application is in the portfolio as the language's demonstration.
 
 ---

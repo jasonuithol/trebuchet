@@ -8,7 +8,8 @@ fn gameDir() -> String ! Pure
 
 fn seededFiles() -> Cell[Map[String, String]]
   vdf = "\"libraryfolders\"\n{\n\t\"0\"\n\t{\n\t\t\"path\"\t\t\"/home/viking/.local/share/Steam\"\n\t}\n}\n"
-  Cell.new({"/home/viking/.steam/steam/steamapps/libraryfolders.vdf": vdf, gameDir() + "/valheim.x86_64": "elf"})
+  log = "[2026-09-30 09:59:59] [Connecting, 4, 7] [U:1:1] Connect() starting connection\n[2026-09-30 10:00:00] [Logged On, 4, 7] [U:1:1] RecvMsgClientLogOnResponse() : processing complete\n"
+  Cell.new({"/home/viking/.steam/steam/steamapps/libraryfolders.vdf": vdf, "/home/viking/.steam/steam/logs/connection_log.txt": log, gameDir() + "/valheim.x86_64": "elf"})
 
 fn loaderUrl() -> String ! Pure
   "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/5.4.2202/"

@@ -6,6 +6,7 @@ use valslongva.application.locator
 use valslongva.application.catalogueService
 use valslongva.application.installer
 use valslongva.application.launcher
+use valslongva.application.steamStatus
 use valslongva.infrastructure.host
 use valslongva.api.api
 
@@ -16,10 +17,12 @@ root main
   http: HostHttp
   archive: HostArchive
   processes: HostProcesses
+  client: HostSteam
   cache: emptyCache()
   settings: SettingsStore
   locator: Locator
   catalogue: CatalogueService
   installer: Installer
+  steam: SteamStatus
   launcher: Launcher
   api: Api

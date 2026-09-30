@@ -44,6 +44,8 @@ dotnet publish -c Release -r linux-x64 --self-contained     # or win-x64: one fo
   `config/` files merge into `BepInEx/config/`, and nothing else touches the game root.
 - **Updates, disables, enables, and uninstalls.** Disabling moves the package folder to
   `valslongva/disabled/`; uninstalling keeps the config files.
+- **Checks Steam first.** A process check says whether the client is running and the tail of its
+  `logs/connection_log.txt` says whether it is signed in; the Play buttons wait for both.
 - **Plays modded or vanilla.** On Windows the `doorstop_config.ini` flag decides and Steam
   launches the game; on Linux the loader's `start_game_bepinex.sh` preloads doorstop, so modded
   runs the script and vanilla runs the executable, with Steam already running.
@@ -57,7 +59,7 @@ platform's local data folder (`~/.local/share/valslongva`, `%LOCALAPPDATA%\valsl
 | Folder | Layer |
 |---|---|
 | `domain/` | Pure: versions and dependency strings, the Thunderstore listing, the library fold, the install plan, the file placement convention, doorstop and Steam text, launch commands. Every module has properties. |
-| `application/` | Ports as shapes (`FileSystem`, `Http`, `Archive`, `Processes`, `Platform`, `Clock`), one error type, and the services: settings, locator, catalogue, search, installer, launcher. |
+| `application/` | Ports as shapes (`FileSystem`, `Http`, `Archive`, `Processes`, `SteamClient`, `Platform`, `Clock`), one error type, and the services: settings, locator, catalogue, search, installer, Steam status, launcher. |
 | `infrastructure/` | Externs to `Valslongva.Host`, the adapters over them, and in-memory fakes. |
 | `api/` | The `Api` service: routes by method name. |
 | `host/` | Roots `main` and `test`, the fixture world, and scenario handlers. |

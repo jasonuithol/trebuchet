@@ -10,6 +10,7 @@ union HttpError
 
 shape FileSystem
   fn readText(path: String) -> Result[String, IoError] ! Nondet Suspend
+  fn tailText(path: String, bytes: Int) -> Result[String, IoError] ! Nondet Suspend
   fn writeText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
   fn appendText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
   fn exists(path: String) -> Bool ! Nondet
@@ -30,6 +31,9 @@ shape Archive
 shape Processes
   fn run(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
   fn openUrl(url: String) -> Result[Unit, IoError] ! Nondet Write
+
+shape SteamClient
+  fn running() -> Bool ! Nondet
 
 shape Platform
   fn os() -> String ! Nondet
