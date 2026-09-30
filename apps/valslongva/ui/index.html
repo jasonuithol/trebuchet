@@ -240,7 +240,7 @@ function App() {
 
       <div className="tabs">
         <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>Browse</button>
-        <button className={tab === "installed" ? "on" : ""} onClick={() => setTab("installed")}>Installed ({installed.length})</button>
+        <button className={tab === "installed" ? "on" : ""} onClick={() => setTab("installed")}>Installed ({installed.length + (status && status.unmanaged ? status.unmanaged.length : 0)})</button>
       </div>
 
       {tab === "browse" && (
