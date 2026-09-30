@@ -64,7 +64,7 @@
         },
         {
           "comment": "type-introducing declarations: record Order, union OrderEvent, entity Session, shape Clock, service OrderService",
-          "match": "^\\s*((?:(?:scoped|resource)\\s+)*(?:record|entity|union|shape|service|instance))\\s+([A-Z][A-Za-z0-9]*)",
+          "match": "^\\s*((?:(?:private|scoped|resource)\\s+)*(?:record|entity|union|shape|service|instance))\\s+([A-Z][A-Za-z0-9]*)",
           "captures": {
             "1": {
               "name": "keyword.declaration.type.trebuchet"
@@ -75,8 +75,8 @@
           }
         },
         {
-          "comment": "function-like declarations: fn total(, handler place(, root main",
-          "match": "^\\s*(?:(extern)\\s+)?(fn|handler|root)\\s+([a-z][A-Za-z0-9]*)",
+          "comment": "function-like declarations: fn total(, private fn current(, extern fn read(, handler place(, root main",
+          "match": "^\\s*((?:(?:private|extern)\\s+)*)(fn|handler|root)\\s+([a-z][A-Za-z0-9]*)",
           "captures": {
             "1": {
               "name": "storage.modifier.extern.trebuchet"
@@ -167,6 +167,10 @@
         {
           "match": "\\b(scoped|resource)\\b",
           "name": "storage.modifier.lifetime.trebuchet"
+        },
+        {
+          "match": "\\b(private)\\b",
+          "name": "storage.modifier.visibility.trebuchet"
         }
       ]
     },
