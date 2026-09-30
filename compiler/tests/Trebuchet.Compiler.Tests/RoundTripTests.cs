@@ -48,6 +48,18 @@ public class RoundTripTests
         return line;
     }
 
+    /// <summary>The lexer takes any indentation width, so a file printed at eight spaces parses to the same tree as at two.</summary>
+    [Fact]
+    public void PrintingAtAnotherWidthRoundTrips()
+    {
+        var path = Path.Combine(FindExamplesDir(), "bookings", "domain", "handlers.treb");
+        var source = File.ReadAllText(path);
+        var canonical = Printer.Print(Parser.ParseFile(source, path));
+        var wide = Printer.Print(Parser.ParseFile(source, path), indent: 8);
+        Assert.Contains("\n        ", wide);
+        Assert.Equal(canonical, Printer.Print(Parser.ParseFile(wide, path)));
+    }
+
     [Theory]
     [MemberData(nameof(ExampleFiles))]
     public void PrintReproducesSource(string relative)

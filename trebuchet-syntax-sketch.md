@@ -564,7 +564,7 @@ Note that a short record can be declared inline, `record OrderId(value: String)`
 3. Whether the inline `with { ... }` form is needed or the tree form is always used.
 4. Whether `shape` declarations exist or structural interfaces stay anonymous.
 5. Whether `x.f(a)` sugar is worth the ambiguity between field access and method call.
-6. Indentation width and whether tabs are permitted.
+6. Indentation width and whether tabs are permitted. Today: the lexer accepts any width (a child must be deeper than its parent, a dedent must land on an open level), tabs are refused, and `treb fmt` writes two spaces unless given `--indent N`.
 7. String interpolation syntax.
 8. ~~Module visibility~~: settled as public-by-default with `private`, enforced (§6a).
 9. Whether a service method may share a name with a top-level function, as in the bookings sample where the method `request` calls the handler `request` by qualification.

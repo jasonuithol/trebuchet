@@ -24,6 +24,7 @@ tests/Trebuchet.Compiler.Tests/    xunit: lexer, parser, round-trip over ../exam
 dotnet run --project src/treb -- parse ../examples        # parse, report errors
 dotnet run --project src/treb -- fmt <file>               # canonical formatting to stdout
 dotnet run --project src/treb -- fmt --write <file|dir>   # rewrite in place
+dotnet run --project src/treb -- fmt --indent 8 <file>      # any width; the lexer reads any, the printer writes 2 unless told
 dotnet run --project src/treb -- tokens <file>            # dump the token stream
 dotnet run --project src/treb -- check ../examples/bookings  # type and effect check, exit 1 on errors
 dotnet run --project src/treb -- effects ../examples/bookings # print every function's inferred effects

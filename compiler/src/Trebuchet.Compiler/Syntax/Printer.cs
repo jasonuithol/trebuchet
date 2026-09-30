@@ -10,15 +10,17 @@ namespace Trebuchet.Compiler.Syntax;
 /// </summary>
 public sealed class Printer
 {
-    private const string IndentUnit = "  ";
+    /// <summary>Spaces per level. The lexer accepts any width; this is only what the printer writes.</summary>
+    private string IndentUnit = "  ";
     private readonly StringBuilder _sb = new();
     private int _indent;
     private IReadOnlyList<Comment> _comments = Array.Empty<Comment>();
     private int _nextComment;
 
-    public static string Print(SourceFile file)
+    public static string Print(SourceFile file, int indent = 2)
     {
-        var p = new Printer { _comments = file.Comments };
+        if (indent < 1) throw new ArgumentOutOfRangeException(nameof(indent), "indent must be at least 1");
+        var p = new Printer { _comments = file.Comments, IndentUnit = new string(' ', indent) };
         p.File(file);
         p.FlushComments(int.MaxValue);
         return p._sb.ToString();

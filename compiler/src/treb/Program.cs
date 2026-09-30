@@ -7,7 +7,7 @@ static int Usage()
 
         usage:
           treb parse <file|dir>...        parse and report syntax errors
-          treb fmt [--write] <file|dir>...  print canonical formatting (or rewrite in place)
+          treb fmt [--write] [--indent N] <file|dir>...  print canonical formatting (or rewrite in place); N spaces per level, default 2
           treb tokens <file>              dump the token stream
           treb check <dir>                load all modules and report type errors
           treb effects <dir>              print the inferred effects of every function
@@ -200,7 +200,7 @@ switch (command)
             try
             {
                 var ast = Parser.ParseFile(File.ReadAllText(f), f);
-                var text = Printer.Print(ast);
+                var text = Printer.Print(ast, int.Parse(options.GetValueOrDefault("indent", "2")));
                 if (write) File.WriteAllText(f, text);
                 else
                 {
