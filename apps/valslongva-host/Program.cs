@@ -21,8 +21,7 @@ var ui = Path.Combine(AppContext.BaseDirectory, "ui");
 if (Directory.Exists(ui))
 {
     app.UseStaticFiles(new StaticFileOptions { FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(ui), RequestPath = "/ui" });
-    app.MapGet("/ui", () => Results.Redirect("/ui/index.html"));
-    app.MapGet("/ui/", () => Results.Redirect("/ui/index.html"));
+    app.MapGet("/ui", () => Results.Redirect("/ui/index.html")); // also matches /ui/
 }
 
 app.MapGet("/status", async () => Respond(await api.getStatus()));

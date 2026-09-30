@@ -114,6 +114,7 @@ function App() {
     try {
       const p = await api("GET", `/search?query=${encodeURIComponent(query)}&sort=${sort}&deprecated=${deprecated}&offset=${offset}&limit=${PAGE}`);
       setPage(p);
+      setStatus(s => (s && !s.catalogueFetchedAt) ? null : s); // the first search loads the catalogue; re-read the status line
     } catch (e) { setMsg({ kind: "err", text: e.message }); }
     finally { setBusy(b => b && b.startsWith("Loading the catalogue") ? null : b); }
   }, [query, sort, deprecated, offset]);
@@ -122,7 +123,7 @@ function App() {
     try { setInstalled(await api("GET", "/installed")); } catch (e) { setInstalled([]); }
   }, []);
 
-  useEffect(() => { refreshStatus(); }, []);
+  useEffect(() => { if (status === null) refreshStatus(); }, [status]);
   useEffect(() => { const t = setTimeout(loadPage, 250); return () => clearTimeout(t); }, [loadPage]);
   useEffect(() => { if (status && status.gameDir) loadInstalled(); }, [status]);
 
