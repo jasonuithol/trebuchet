@@ -478,6 +478,8 @@ struct Instant {
         using namespace std::chrono;
         return Instant{duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()};
     }
+    static Instant plusSeconds(Instant t, std::int64_t seconds) { return Instant{t.millis + seconds * 1000}; }
+    static std::int64_t secondsBetween(Instant from, Instant to) { return (to.millis - from.millis) / 1000; }
 
     std::string toString() const {
         std::time_t t = millis / 1000;

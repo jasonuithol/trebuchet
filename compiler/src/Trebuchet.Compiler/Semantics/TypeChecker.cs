@@ -54,6 +54,8 @@ public sealed class TypeChecker
     public Dictionary<CallExpr, (string Shape, string Member, TType Type)> ClassCalls { get; } = new();
     /// <summary>A comparison on a type parameter constrained by Ord: the parameter name.</summary>
     public Dictionary<BinaryExpr, string> OrdComparisons { get; } = new();
+    /// <summary>Comparison operators on a concrete type with an Ord instance: the instance to compare through.</summary>
+    public Dictionary<BinaryExpr, TType> OrdInstanceComparisons { get; } = new();
     /// <summary>Instances declared anywhere in the program, by shape and the key of the instance's type.</summary>
     public Dictionary<(string Shape, string TypeKey), (InstanceDecl Decl, Module Module)> Instances { get; } = new();
     /// <summary>The name that identifies a type for instance lookup and emitted instance names.</summary>
@@ -1067,6 +1069,9 @@ public sealed class TypeChecker
                 if (!Unify(lt, paramType))
                     Error(ctx, expr.Pos, $"argument '{chosen.ParamNames[i] ?? (i + 1).ToString()}' of {name}: expected {Show(paramType)} but found {Show(lt)}");
             }
+            // a shape-typed parameter takes any service that satisfies it, as a root dependency would
+            else if (Prune(paramType) is ShapeT && Prune(slotTypes[i]!) is ServiceT or RecordT)
+                Provides(slotTypes[i]!, paramType, expr.Pos, $"argument '{chosen.ParamNames[i] ?? (i + 1).ToString()}' of {name}", ctx);
             else if (!Unify(slotTypes[i]!, paramType))
                 Error(ctx, expr.Pos, $"argument '{chosen.ParamNames[i] ?? (i + 1).ToString()}' of {name}: expected {Show(paramType)} but found {Show(slotTypes[i]!)}");
             else if (Prune(paramType) is FnT { Effects: { } allowed } && Prune(slotTypes[i]!) is FnT given && _frameOf.TryGetValue(given, out var givenFrame))
@@ -1263,6 +1268,12 @@ public sealed class TypeChecker
                 return PrimT.Bool;
             }
             return Error(ctx, b.Pos, $"'{b.Op}' on {lp.Name} needs '{lp.Name}: Ord' in the type parameters");
+        }
+        // a concrete type with an Ord instance compares through it: Version < Version
+        if (comparison && left is RecordT or UnionT or AppT && Instances.ContainsKey(("Ord", TypeKey(left))) && Unify(right, left))
+        {
+            OrdInstanceComparisons[b] = left;
+            return PrimT.Bool;
         }
         return Error(ctx, b.Pos, $"operator '{b.Op}' is not defined on {Show(left)} and {Show(right)}");
     }

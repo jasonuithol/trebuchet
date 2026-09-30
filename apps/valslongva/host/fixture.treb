@@ -1,0 +1,40 @@
+module valslongva.host.fixture
+
+// A small world for the test root and the scenario tests.
+use valslongva.application.catalogueService
+
+fn gameDir() -> String ! Pure
+  "/home/viking/.local/share/Steam/steamapps/common/Valheim"
+
+fn seededFiles() -> Cell[Map[String, String]]
+  vdf = "\"libraryfolders\"\n{\n\t\"0\"\n\t{\n\t\t\"path\"\t\t\"/home/viking/.local/share/Steam\"\n\t}\n}\n"
+  Cell.new({"/home/viking/.steam/steam/steamapps/libraryfolders.vdf": vdf, gameDir() + "/valheim.x86_64": "elf"})
+
+fn loaderUrl() -> String ! Pure
+  "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/5.4.2202/"
+
+fn modUrl() -> String ! Pure
+  "https://thunderstore.io/package/download/viking/Longship/1.2.0/"
+
+fn oldModUrl() -> String ! Pure
+  "https://thunderstore.io/package/download/viking/Longship/1.1.0/"
+
+private fn version(full: String, number: String, deps: String, url: String, downloads: Int) -> String
+  "{\"name\": \"x\", \"full_name\": \"" + full + "-" + number + "\", \"version_number\": \"" + number + "\", \"dependencies\": [" + deps + "], \"description\": \"A longer ship\", \"download_url\": \"" + url + "\", \"downloads\": " + toString(downloads) + ", \"file_size\": 1000, \"website_url\": \"\", \"icon\": \"\", \"date_created\": \"2026-01-01T00:00:00Z\"}"
+
+private fn listing(owner: String, name: String, versions: String) -> String
+  full = owner + "-" + name
+  "{\"name\": \"" + name + "\", \"owner\": \"" + owner + "\", \"full_name\": \"" + full + "\", \"package_url\": \"https://thunderstore.io/c/valheim/p/" + owner + "/" + name + "/\", \"categories\": [\"Mods\"], \"is_deprecated\": false, \"is_pinned\": false, \"rating_score\": 3, \"date_updated\": \"2026-02-01T00:00:00Z\", \"uuid4\": \"x\", \"versions\": [" + versions + "]}"
+
+fn listingText() -> String ! Pure
+  loader = listing("denikson", "BepInExPack_Valheim", version("denikson-BepInExPack_Valheim", "5.4.2202", "", loaderUrl(), 5000))
+  ship = listing("viking", "Longship", version("viking-Longship", "1.2.0", "\"denikson-BepInExPack_Valheim-5.4.2202\"", modUrl(), 70) + ", " + version("viking-Longship", "1.1.0", "\"denikson-BepInExPack_Valheim-5.4.2202\"", oldModUrl(), 30))
+  "[" + loader + ", " + ship + "]"
+
+fn fixturePages() -> Map[String, String] ! Pure
+  {listingUrl(): listingText()}
+
+fn fixtureArchives() -> Map[String, Vector[String]] ! Pure
+  loader = ["manifest.json", "icon.png", "BepInExPack_Valheim/winhttp.dll", "BepInExPack_Valheim/doorstop_config.ini", "BepInExPack_Valheim/start_game_bepinex.sh", "BepInExPack_Valheim/BepInEx/core/BepInEx.dll"]
+  ship = ["manifest.json", "icon.png", "README.md", "plugins/Longship.dll", "config/viking.longship.cfg"]
+  {loaderUrl(): loader, modUrl(): ship, oldModUrl(): ship}

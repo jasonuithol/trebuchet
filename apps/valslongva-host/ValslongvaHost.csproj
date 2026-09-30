@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>valslongva</AssemblyName>
+    <RootNamespace>Valslongva</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Generated/ and Externs/ are their own projects; keep their sources out of this one's glob. -->
+    <Compile Remove="Generated/**;Externs/**" />
+    <None Remove="Generated/**;Externs/**" />
+    <Content Remove="Generated/**;Externs/**" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Regenerate Generated/ with the treb emit command in README.md. -->
+    <ProjectReference Include="Generated/Generated.csproj" />
+    <ProjectReference Include="Externs/Externs.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The browser UI lives with the Trebuchet sources and ships next to the executable. -->
+    <Content Include="../valslongva/ui/**" Link="ui/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

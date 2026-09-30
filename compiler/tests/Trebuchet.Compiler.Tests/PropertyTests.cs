@@ -18,6 +18,17 @@ public class PropertyTests
         throw new InvalidOperationException("examples directory not found");
     }
 
+    /// <summary>The mod manager's domain properties and its end-to-end scenarios over the fakes, under the interpreter.</summary>
+    [Fact]
+    public void ValslongvaPropertiesAndScenariosPass()
+    {
+        var runner = new PropertyRunner(ModuleSet.Load(Path.Combine(ExamplesDir(), "..", "apps", "valslongva")));
+        Assert.Empty(runner.Diagnostics);
+        var outcomes = runner.RunAll();
+        Assert.True(outcomes.Count >= 25, "expected the app's properties to be found");
+        Assert.All(outcomes, o => Assert.True(o.Passed, PropertyRunner.Report(new[] { o })));
+    }
+
     [Fact]
     public void TheSamplePropertiesHold()
     {

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>valslöngva</title>
+<style>
+  :root { --ink: #1f2428; --muted: #6b7680; --rule: #d9dee3; --panel: #fff; --bg: #f4f5f7; --accent: #2c5f8a; --accent-ink: #fff; --ok: #1d5c3f; --ok-bg: #e6f4ee; --bad: #a33; --bad-bg: #fbe9e7; --warn: #8a5a12; --warn-bg: #fbf1dc; }
+  @media (prefers-color-scheme: dark) { :root { --ink: #e6e9ec; --muted: #9aa4ad; --rule: #3a4148; --panel: #22272c; --bg: #171a1d; --accent: #6aa6d8; --accent-ink: #10171d; --ok: #8fd3ad; --ok-bg: #1d3328; --bad: #f2a29a; --bad-bg: #3a2220; --warn: #e6c27a; --warn-bg: #3a2f18; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color: var(--ink); background: var(--bg); }
+  main { max-width: 1060px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: .01em; }
+  h1 small { font-size: 13px; color: var(--muted); font-weight: normal; margin-left: 10px; }
+  .sub { color: var(--muted); margin: 2px 0 0; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; }
+  .status { display: grid; grid-template-columns: 1fr auto; gap: 12px 24px; align-items: center; margin-bottom: 16px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+  .facts b { color: var(--ink); font-weight: 600; }
+  .play { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; padding: 7px 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button.small { padding: 3px 9px; font-size: 13px; }
+  button.danger { color: var(--bad); }
+  input, select { font: inherit; padding: 7px 9px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
+  .msg { margin: 0 0 14px; padding: 9px 12px; border-radius: 6px; font-size: 14px; }
+  .msg.err { background: var(--bad-bg); color: var(--bad); }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .msg.warn { background: var(--warn-bg); color: var(--warn); }
+  .tabs { display: flex; gap: 4px; margin: 4px 0 12px; border-bottom: 1px solid var(--rule); }
+  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .toolbar input[type=search] { flex: 1 1 240px; }
+  label.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .card { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; }
+  .card img { width: 56px; height: 56px; border-radius: 6px; background: var(--bg); object-fit: cover; }
+  .card .name { font-weight: 600; }
+  .card .owner { color: var(--muted); font-weight: normal; }
+  .card .desc { font-size: 13px; color: var(--muted); margin: 2px 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .meta { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--bg); border: 1px solid var(--rule); }
+  .tag.on { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+  .tag.off { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+  .tag.dep { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; font-size: 13px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  .empty { color: var(--muted); padding: 14px; }
+  .settings { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .settings input { flex: 1 1 320px; }
+  .busy { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  code { font-family: ui-monospace, monospace; font-size: 13px; }
+  @media (max-width: 640px) { .card { grid-template-columns: 44px 1fr; } .card .actions { grid-column: 1 / -1; justify-content: flex-start; } .status { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main id="root"></main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+const PAGE = 25;
+
+async function api(method, path, body) {
+  const res = await fetch(path, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 204) return null;
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  if (!res.ok) throw new Error((data && (data.message || data.panic || data.error)) || res.statusText);
+  return data;
+}
+
+const fmtCount = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + "k" : String(n);
+const fmtDate = s => s ? new Date(s).toLocaleDateString([], { dateStyle: "medium" }) : "";
+const fmtWhen = s => s ? new Date(s).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "never";
+
+function App() {
+  const [status, setStatus] = useState(null);
+  const [tab, setTab] = useState("browse");
+  const [msg, setMsg] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("downloads");
+  const [deprecated, setDeprecated] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(null);
+  const [installed, setInstalled] = useState([]);
+  const [gamePath, setGamePath] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+
+  const refreshStatus = useCallback(async () => {
+    try {
+      const s = await api("GET", "/status");
+      setStatus(s);
+      setGamePath(s.gameDir || "");
+      if (!s.gameDir) setShowSettings(true);
+    } catch (e) { setMsg({ kind: "err", text: e.message }); }
+  }, []);
+
+  const loadPage = useCallback(async () => {
+    setBusy(b => b || "Loading the catalogue (the first time takes a while)");
+    try {
+      const p = await api("GET", `/search?query=${encodeURIComponent(query)}&sort=${sort}&deprecated=${deprecated}&offset=${offset}&limit=${PAGE}`);
+      setPage(p);
+    } catch (e) { setMsg({ kind: "err", text: e.message }); }
+    finally { setBusy(b => b && b.startsWith("Loading the catalogue") ? null : b); }
+  }, [query, sort, deprecated, offset]);
+
+  const loadInstalled = useCallback(async () => {
+    try { setInstalled(await api("GET", "/installed")); } catch (e) { setInstalled([]); }
+  }, []);
+
+  useEffect(() => { refreshStatus(); }, []);
+  useEffect(() => { const t = setTimeout(loadPage, 250); return () => clearTimeout(t); }, [loadPage]);
+  useEffect(() => { if (status && status.gameDir) loadInstalled(); }, [status]);
+
+  async function run(label, fn, done) {
+    setMsg(null); setBusy(label);
+    try {
+      const result = await fn();
+      setMsg({ kind: "ok", text: done ? done(result) : label + " done" });
+      await Promise.all([refreshStatus(), loadInstalled(), loadPage()]);
+    } catch (e) { setMsg({ kind: "err", text: e.message }); }
+    finally { setBusy(null); }
+  }
+
+  const install = name => run(`Installing ${name}`, () => api("POST", "/install", { name }), r => r.length ? `Installed ${r.join(", ")}` : `${name} is already up to date`);
+  const uninstall = name => run(`Removing ${name}`, () => api("POST", "/uninstall", { name }), () => `Removed ${name}; its config files were kept`);
+  const enable = (name, on) => run(on ? `Enabling ${name}` : `Disabling ${name}`, () => api("POST", on ? "/enable" : "/disable", { name }));
+  const loader = () => run("Installing BepInEx", () => api("POST", "/loader"), r => r.length ? `Installed ${r.join(", ")}` : "BepInEx is already up to date");
+  const launch = mode => run(`Starting Valheim (${mode})`, () => api("POST", "/launch", { mode }), () => `Valheim is starting in ${mode} mode`);
+  const savePath = () => run("Saving the game folder", () => api("POST", "/gamepath", { path: gamePath }), s => s.gameDir ? `Using ${s.gameDir}` : (s.gameProblem || "No game folder"));
+  const refresh = () => run("Refreshing the catalogue", () => api("POST", "/refresh"), s => `Catalogue has ${s.cataloguePackages} packages`);
+
+  const ready = status && status.gameDir;
+  const pages = page ? Math.max(1, Math.ceil(page.total / PAGE)) : 1;
+  const pageNo = Math.floor(offset / PAGE) + 1;
+
+  return (
+    <>
+      <header>
+        <div>
+          <h1>valslöngva <small>a Valheim mod manager, written in Trebuchet</small></h1>
+          <p className="sub">Browse Thunderstore, install with one click, play with or without mods.</p>
+        </div>
+        {status && <div className="sub">{status.os} · v{status.version}</div>}
+      </header>
+
+      <div className="panel status">
+        <div className="facts">
+          <span>Game: {ready ? <b>{status.gameDir}</b> : <b style={{ color: "var(--bad)" }}>{status ? status.gameProblem : "…"}</b>}</span>
+          <span>BepInEx: <b>{status ? (status.loaderPresent ? (status.loader || "present") : "not installed") : "…"}</b></span>
+          <span>Mods: <b>{status ? status.installed : "…"}</b></span>
+          <span>Catalogue: <b>{status && status.catalogueFetchedAt ? `${fmtCount(status.cataloguePackages)} packages, ${fmtWhen(status.catalogueFetchedAt)}` : "not loaded yet"}</b></span>
+          <button className="small" onClick={() => setShowSettings(s => !s)}>{showSettings ? "Hide settings" : "Settings"}</button>
+        </div>
+        <div className="play">
+          {status && !status.loaderPresent && <button disabled={!ready || !!busy} onClick={loader}>Install BepInEx</button>}
+          <button className="primary" disabled={!ready || !!busy || !(status && status.loaderPresent)} onClick={() => launch("modded")}>Play modded</button>
+          <button disabled={!ready || !!busy} onClick={() => launch("vanilla")}>Play vanilla</button>
+        </div>
+        {showSettings && (
+          <div className="settings" style={{ gridColumn: "1 / -1" }}>
+            <span className="sub">Valheim folder</span>
+            <input value={gamePath} onChange={e => setGamePath(e.target.value)} placeholder="leave empty to search the Steam libraries" />
+            <button disabled={!!busy} onClick={savePath}>Save</button>
+            <button disabled={!!busy} onClick={refresh}>Refresh catalogue</button>
+            {status && status.candidates && status.candidates.length > 0 && <span className="sub">Looked in: {status.candidates.join(", ")}</span>}
+          </div>
+        )}
+      </div>
+
+      {busy && <div className="msg warn"><span className="busy"></span>{busy}…</div>}
+      {msg && !busy && <div className={`msg ${msg.kind}`}>{msg.text}</div>}
+
+      <div className="tabs">
+        <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>Browse</button>
+        <button className={tab === "installed" ? "on" : ""} onClick={() => setTab("installed")}>Installed ({installed.length})</button>
+      </div>
+
+      {tab === "browse" && (
+        <>
+          <div className="toolbar">
+            <input type="search" placeholder="Search mods" value={query} onChange={e => { setQuery(e.target.value); setOffset(0); }} />
+            <select value={sort} onChange={e => { setSort(e.target.value); setOffset(0); }}>
+              <option value="downloads">Most downloaded</option>
+              <option value="rating">Highest rated</option>
+              <option value="updated">Recently updated</option>
+              <option value="name">Name</option>
+            </select>
+            <label className="check"><input type="checkbox" checked={deprecated} onChange={e => { setDeprecated(e.target.checked); setOffset(0); }} /> Show deprecated</label>
+          </div>
+          {!page ? <div className="empty">Loading…</div> : page.items.length === 0 ? <div className="empty">Nothing matches.</div> : (
+            <div className="list">
+              {page.items.map(s => (
+                <div className="card" key={s.fullName}>
+                  {s.icon ? <img src={s.icon} alt="" loading="lazy" /> : <div />}
+                  <div>
+                    <div className="name">{s.name} <span className="owner">by {s.owner}</span> {s.isDeprecated && <span className="tag dep">deprecated</span>} {s.installedVersion && <span className={`tag ${s.enabled ? "on" : "off"}`}>{s.enabled ? "installed" : "disabled"} {s.installedVersion}</span>}</div>
+                    <div className="desc">{s.description}</div>
+                    <div className="meta">
+                      <span>v{s.latestVersion}</span><span>{fmtCount(s.downloads)} downloads</span><span>{s.ratingScore} ★</span><span>{fmtDate(s.dateUpdated)}</span>
+                      {s.dependencies.length > 0 && <span>{s.dependencies.length} dependenc{s.dependencies.length === 1 ? "y" : "ies"}</span>}
+                      {s.categories.slice(0, 3).map(c => <span className="tag" key={c}>{c}</span>)}
+                    </div>
+                  </div>
+                  <div className="actions">
+                    {!s.installedVersion && <button className="primary small" disabled={!ready || !!busy} onClick={() => install(s.fullName)}>Install</button>}
+                    {s.installedVersion && s.installedVersion !== s.latestVersion && <button className="primary small" disabled={!!busy} onClick={() => install(s.fullName)}>Update to {s.latestVersion}</button>}
+                    {s.installedVersion && <button className="small danger" disabled={!!busy} onClick={() => uninstall(s.fullName)}>Uninstall</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {page && page.total > PAGE && (
+            <div className="pager">
+              <span>{page.total} packages</span>
+              <button className="small" disabled={offset === 0} onClick={() => setOffset(offset - PAGE)}>Previous</button>
+              <span>page {pageNo} of {pages}</span>
+              <button className="small" disabled={pageNo >= pages} onClick={() => setOffset(offset + PAGE)}>Next</button>
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === "installed" && (
+        installed.length === 0 ? <div className="empty">{ready ? "No mods installed through valslöngva yet." : "Set the game folder first."}</div> : (
+          <table>
+            <thead><tr><th>Package</th><th>Version</th><th>Latest</th><th>Installed</th><th>State</th><th></th></tr></thead>
+            <tbody>
+              {installed.map(m => (
+                <tr key={m.pkg}>
+                  <td>{m.pkg}</td>
+                  <td>{m.version}</td>
+                  <td>{m.latestVersion && m.latestVersion !== m.version ? <button className="primary small" disabled={!!busy} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button> : (m.latestVersion || "")}</td>
+                  <td>{fmtDate(m.installedAt)}</td>
+                  <td><span className={`tag ${m.enabled ? "on" : "off"}`}>{m.enabled ? "enabled" : "disabled"}</span></td>
+                  <td className="actions">
+                    <button className="small" disabled={!!busy} onClick={() => enable(m.pkg, !m.enabled)}>{m.enabled ? "Disable" : "Enable"}</button>
+                    <button className="small danger" disabled={!!busy} onClick={() => uninstall(m.pkg)}>Uninstall</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

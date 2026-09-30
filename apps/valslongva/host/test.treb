@@ -1,0 +1,31 @@
+module valslongva.host.test
+
+// Everything in memory: a fake Steam library with the game in it, a two-package Thunderstore,
+// and a process log instead of a launch. treb serve --root test runs the UI against it.
+use valslongva.application.settings
+use valslongva.application.locator
+use valslongva.application.catalogueService
+use valslongva.application.installer
+use valslongva.application.launcher
+use valslongva.infrastructure.fakes
+use valslongva.host.fixture
+use valslongva.api.api
+
+root test
+  platform: FakePlatform("linux", "/home/viking", "/home/viking/.local/share/valslongva")
+  clock: FixedClock(Instant.parse("2026-09-30T10:00:00Z"))
+  files: seededFiles()
+  fs: FakeFileSystem
+  pages: fixturePages()
+  http: FakeHttp
+  entries: fixtureArchives()
+  archive: FakeArchive
+  log: emptyLog()
+  processes: FakeProcesses
+  cache: emptyCache()
+  settings: SettingsStore
+  locator: Locator
+  catalogue: CatalogueService
+  installer: Installer
+  launcher: Launcher
+  api: Api

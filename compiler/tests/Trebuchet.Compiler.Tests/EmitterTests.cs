@@ -35,17 +35,19 @@ public class EmitterTests
         return EmitAndBuildDir(dir, name, false);
     }
 
-    private static Assembly EmitAndBuildDir(string dir, string sample, bool host)
+    private static Assembly EmitAndBuildDir(string dir, string sample, bool host, string? externsProject = null)
     {
         var modules = ModuleSet.Load(dir);
         var checker = TypeChecker.CheckWithEffects(modules);
         Assert.Empty(checker.Diagnostics);
-        var files = new CSharpEmitter(modules, checker).Emit(CSharpEmitter.FindRuntimeProject(), host);
         var outDir = Path.Combine(Path.GetTempPath(), "treb-emit-" + sample + "-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(outDir);
+        var references = externsProject is null ? null : new[] { Path.GetRelativePath(outDir, Path.GetFullPath(externsProject)) };
+        var files = new CSharpEmitter(modules, checker).Emit(CSharpEmitter.FindRuntimeProject(), host, references: references);
         foreach (var (name, content) in files) File.WriteAllText(Path.Combine(outDir, name), content);
 
-        var psi = new ProcessStartInfo("dotnet", "build -nologo -v q") { WorkingDirectory = outDir, RedirectStandardOutput = true, RedirectStandardError = true };
+        // no node reuse: a lingering MSBuild worker would inherit our pipes and ReadToEnd would never return
+        var psi = new ProcessStartInfo("dotnet", "build -nologo -v q -nodeReuse:false -p:UseSharedCompilation=false") { WorkingDirectory = outDir, RedirectStandardOutput = true, RedirectStandardError = true };
         var proc = Process.Start(psi)!;
         var output = proc.StandardOutput.ReadToEnd() + proc.StandardError.ReadToEnd();
         proc.WaitForExit();
@@ -313,6 +315,17 @@ public class EmitterTests
         var asm = EmitAndBuild("text");
         var demo = asm.GetType("Generated.Text")!.GetMethod("demo")!;
         Assert.Equal(InterpreterTests.TextExpected, (string)demo.Invoke(null, null)!);
+    }
+
+    /// <summary>The flagship app: shape-typed constructor arguments, Ord instance comparisons, typed None,
+    /// Unit-returning externs, and interface wrappers for suspending shape members all meet the C# compiler here.</summary>
+    [Fact]
+    public void ValslongvaEmitsAndBuildsWithItsHostExterns()
+    {
+        var root = Path.GetFullPath(Path.Combine(ExamplesDir(), "..", "apps"));
+        var asm = EmitAndBuildDir(Path.Combine(root, "valslongva"), "valslongva", host: true, externsProject: Path.Combine(root, "valslongva-host", "Externs", "Externs.csproj"));
+        Assert.NotNull(asm.GetType("Generated.Api"));
+        Assert.NotNull(asm.GetType("Generated.FakeFileSystem")!.GetInterface("FileSystem"));
     }
 
     [Fact]

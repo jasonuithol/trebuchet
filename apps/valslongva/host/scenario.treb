@@ -1,0 +1,100 @@
+module valslongva.host.scenario
+
+// End-to-end through the fakes: install a mod, get its loader for free, disable it, launch.
+// A scenario writes, so it is a handler; treb test runs a parameterless property once.
+use valslongva.domain.library
+use valslongva.application.settings
+use valslongva.application.locator
+use valslongva.application.catalogueService
+use valslongva.application.installer
+use valslongva.application.launcher
+use valslongva.infrastructure.fakes
+use valslongva.host.fixture
+use valslongva.api.api
+
+record World
+  api: Api
+  fs: FakeFileSystem
+  processes: FakeProcesses
+
+fn world() -> World
+  platform = FakePlatform("linux", "/home/viking", "/home/viking/.local/share/valslongva")
+  clock = FixedClock(Instant.parse("2026-09-30T10:00:00Z"))
+  fs = FakeFileSystem(seededFiles())
+  http = FakeHttp(fixturePages(), fs)
+  archive = FakeArchive(fixtureArchives(), fs)
+  processes = FakeProcesses(emptyLog())
+  settings = SettingsStore(fs, platform)
+  locator = Locator(fs, platform, settings)
+  catalogue = CatalogueService(http, fs, platform, clock, emptyCache())
+  installer = Installer(fs, http, archive, platform, clock, catalogue, locator)
+  launcher = Launcher(fs, processes, platform, locator, installer)
+  World(Api(installer, catalogue, launcher, locator, settings, platform, fs), fs, processes)
+
+handler prop_findsTheGameInTheSteamLibrary() -> Bool
+  w = world()
+  match w.api.getStatus()
+    Ok(s) => s.gameDir == Some(gameDir()) and not s.loaderPresent and s.installed == 0
+    Error(_) => false
+
+handler prop_installingAModBringsItsLoader() -> Bool
+  w = world()
+  match w.api.postInstall("viking-Longship")
+    Error(_) => false
+    Ok(done) =>
+      files = w.fs.snapshot()
+      checks =
+        - done == ["denikson-BepInExPack_Valheim-5.4.2202", "viking-Longship-1.2.0"]
+        - contains(files, gameDir() + "/BepInEx/core/BepInEx.dll")
+        - contains(files, gameDir() + "/BepInEx/plugins/viking-Longship/Longship.dll")
+        - contains(files, gameDir() + "/BepInEx/plugins/viking-Longship/manifest.json")
+        - contains(files, gameDir() + "/BepInEx/config/viking.longship.cfg")
+        - not contains(files, gameDir() + "/manifest.json")
+      all(checks, \c -> c)
+
+handler prop_secondInstallIsANoOp() -> Bool
+  w = world()
+  match (w.api.postInstall("viking-Longship"), w.api.postInstall("viking-Longship"))
+    (Ok(_), Ok(again)) => again == []
+    _ => false
+
+handler prop_disableMovesTheFolderAndEnableBringsItBack() -> Bool
+  w = world()
+  match (w.api.postInstall("viking-Longship"), w.api.postDisable("viking-Longship"))
+    (Ok(_), Ok(_)) =>
+      moved = w.fs.snapshot()
+      away = not contains(moved, gameDir() + "/BepInEx/plugins/viking-Longship/Longship.dll") and contains(moved, gameDir() + "/valslongva/disabled/viking-Longship/Longship.dll")
+      match w.api.postEnable("viking-Longship")
+        Ok(_) => away and contains(w.fs.snapshot(), gameDir() + "/BepInEx/plugins/viking-Longship/Longship.dll")
+        Error(_) => false
+    _ => false
+
+handler prop_uninstallRemovesTheModButKeepsItsConfig() -> Bool
+  w = world()
+  match (w.api.postInstall("viking-Longship"), w.api.postUninstall("viking-Longship"))
+    (Ok(_), Ok(_)) =>
+      files = w.fs.snapshot()
+      not contains(files, gameDir() + "/BepInEx/plugins/viking-Longship/Longship.dll") and contains(files, gameDir() + "/BepInEx/config/viking.longship.cfg")
+    _ => false
+
+handler prop_moddedLaunchNeedsTheLoader() -> Bool
+  w = world()
+  match w.api.postLaunch("modded")
+    Error(Conflict(_)) => true
+    _ => false
+
+handler prop_linuxLaunchRunsTheScriptOrTheGame() -> Bool
+  w = world()
+  match (w.api.postLoader(), w.api.postLaunch("modded"), w.api.postLaunch("vanilla"))
+    (Ok(_), Ok(_), Ok(_)) => w.processes.entries() == ["run " + gameDir() + "/start_game_bepinex.sh in " + gameDir(), "run " + gameDir() + "/valheim.x86_64 in " + gameDir()]
+    _ => false
+
+handler prop_searchMarksWhatIsInstalled() -> Bool
+  w = world()
+  match (w.api.postInstall("viking-Longship"), w.api.getSearch("longship", "downloads", false, 0, 10))
+    (Ok(_), Ok(page)) =>
+      hit = match first(page.items)
+        Some(s) => s.installedVersion == Some("1.2.0") and s.latestVersion == "1.2.0" and s.downloads == 100
+        None => false
+      page.total == 1 and hit
+    _ => false

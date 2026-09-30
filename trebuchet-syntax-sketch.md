@@ -289,7 +289,7 @@ fn concatAll[T: Monoid](xs: Vector[T]) -> T ! Pure
   fold(xs, Monoid.empty[T](), \a, b -> Monoid.combine(a, b))
 ```
 
-`Ord` is built in, with instances for Int, Float, String, Bool, and Instant; `instance Ord[Money]` adds one with a `compare`. On a parameter declared `T: Ord`, `<` and friends work, and `sort`, `minimum`, and `maximum` accept the vector. Equality and `toString` need no constraint: every type has them.
+`Ord` is built in, with instances for Int, Float, String, Bool, and Instant; `instance Ord[Money]` adds one with a `compare`. On a parameter declared `T: Ord`, `<` and friends work, and `sort`, `minimum`, and `maximum` accept the vector. The operators also work directly on a concrete type that has an instance: `Version(1, 2, 0) < Version(1, 10, 0)`. Equality and `toString` need no constraint: every type has them.
 
 ### Patterns
 
@@ -337,6 +337,10 @@ Records and unions may be recursive, directly (`Node(left: Tree[T], right: Tree[
 Strings: `length`, `contains`, `startsWith`, `endsWith`, `trim`, `toUpper`, `toLower`, `split`, `join`, `replace`, `substring`, `indexOf`, `lines`, `padLeft`, and the parsers `parseInt` and `parseFloat`; `indexOf` and the parsers return an `Option`, `substring` clamps, `split("abc", "")` is the characters. Literal escapes are `\n`, `\t`, `\r`, `\0`, `\"`, and `\\`.
 
 `json.encode(value)` and `json.decode[T](text)` are the JSON boundary. Field names bind leniently (`full_name` in a document fills `fullName`), a missing or null `Option` field is `None`, unknown fields are ignored, a nested single-field record is its bare value, a nullary variant is its name, a variant with fields carries `type`. A malformed document panics.
+
+`Instant.parse`, `Instant.now`, `Instant.plusSeconds(t, n)`, and `Instant.secondsBetween(a, b)` are the time builtins; `Instant` is `Ord`.
+
+A property that writes, such as an end-to-end scenario over fakes, is a `handler prop_*` rather than a `fn`; `treb test` runs a property with no parameters once.
 
 `sleep(ms)` is `! Suspend` and is the reference builtin for suspension; a function that calls it infers `Suspend`. There is no `spawn`; a Trebuchet body is sequential and concurrency is the host's, until parallelism is designed.
 
@@ -567,6 +571,9 @@ Note that a short record can be declared inline, `record OrderId(value: String)`
 10. Whether `\->` is the right spelling for a zero-argument lambda.
 11. Whether a service method may shadow a top-level function of the same name at all. The type checker caught a case where the shadow silently changed which function was called; forbidding it, or requiring qualification, may be better than the nearest-scope rule.
 12. ~~Whether a variant pattern needs an as-binding or named-field form~~: both exist (§5).
+13. Whether top-level constants exist (`loaderName = "..."` at module level). The mod manager spells them as nullary functions.
+14. Whether an expression may continue onto the next line (a long `and` chain, a `match` inside a call's arguments or a lambda). Today a `- item` vector with `all`, or a local function, stands in.
+15. Whether a module's last name segment should shadow a function of the same name (`plan`, `search`), or whether the checker should prefer the function when the name is called.
 
 ---
 

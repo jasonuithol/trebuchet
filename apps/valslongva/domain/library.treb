@@ -1,0 +1,62 @@
+module valslongva.domain.library
+
+// What is installed in one game folder: a fold over an append-only event log, one JSON
+// line per event. Files are game-relative paths so that uninstall knows what to remove.
+union LibraryEvent
+  ModInstalled(pkg: String, version: String, files: Vector[String], at: Instant)
+  ModRemoved(pkg: String, at: Instant)
+  ModDisabled(pkg: String, at: Instant)
+  ModEnabled(pkg: String, at: Instant)
+  LoaderInstalled(version: String, files: Vector[String], at: Instant)
+
+record InstalledMod
+  pkg: String
+  version: String
+  files: Vector[String]
+  enabled: Bool
+  installedAt: Instant
+
+record Library
+  loader: Option[String]
+  loaderFiles: Vector[String]
+  mods: Map[String, InstalledMod]
+
+fn emptyLibrary() -> Library ! Pure
+  Library(None, [], {})
+
+fn applyEvent(lib: Library, ev: LibraryEvent) -> Library ! Pure
+  match ev
+    ModInstalled(pkg, version, files, at) =>
+      lib with { mods: lib.mods.set(pkg, InstalledMod(pkg, version, files, true, at)) }
+    ModRemoved(pkg, ...) =>
+      lib with { mods: remove(lib.mods, pkg) }
+    ModDisabled(pkg, ...) =>
+      lib with { mods: setEnabled(lib.mods, pkg, false) }
+    ModEnabled(pkg, ...) =>
+      lib with { mods: setEnabled(lib.mods, pkg, true) }
+    LoaderInstalled(version, files, ...) =>
+      lib with { loader: Some(version), loaderFiles: files }
+
+private fn setEnabled(mods: Map[String, InstalledMod], pkg: String, enabled: Bool) -> Map[String, InstalledMod]
+  match mods.get(pkg)
+    None => mods
+    Some(m) => mods.set(pkg, m with { enabled: enabled })
+
+fn replayLibrary(events: Vector[LibraryEvent]) -> Library ! Pure
+  fold(events, emptyLibrary(), applyEvent)
+
+fn installedMods(lib: Library) -> Vector[InstalledMod] ! Pure
+  sortBy(values(lib.mods), \m -> m.pkg)
+
+fn isInstalled(lib: Library, pkg: String) -> Bool ! Pure
+  contains(lib.mods, pkg)
+
+fn prop_removeUndoesInstall(pkg: String, version: String, files: Vector[String], at: Instant) -> Bool ! Pure
+  lib = applyEvent(applyEvent(emptyLibrary(), ModInstalled(pkg, version, files, at)), ModRemoved(pkg, at))
+  lib == emptyLibrary()
+
+fn prop_disableKeepsFiles(pkg: String, version: String, files: Vector[String], at: Instant) -> Bool ! Pure
+  lib = applyEvent(applyEvent(emptyLibrary(), ModInstalled(pkg, version, files, at)), ModDisabled(pkg, at))
+  match lib.mods.get(pkg)
+    Some(m) => m.files == files and not m.enabled
+    None => false

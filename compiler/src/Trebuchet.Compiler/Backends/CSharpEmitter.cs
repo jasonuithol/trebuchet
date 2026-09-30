@@ -37,15 +37,6 @@ public sealed class CSharpEmitter
         foreach (var m in modules.Modules)
             foreach (var d in m.Decls)
                 if (d is ShapeDecl sh) _shapes.Add(checker.ShapeTypeOf(sh));
-        foreach (var m in modules.Modules)
-            foreach (var d in m.Decls)
-                if (d is ServiceDecl s)
-                {
-                    var st = checker.ServiceTypeOf(s);
-                    foreach (var shape in _shapes.Where(h => checker.Satisfies(st, h)))
-                        foreach (var (name, member) in shape.Members)
-                            if (Suspends(member) && st.Methods.TryGetValue(name, out var impl)) _forcedAsync.Add(impl);
-                }
     }
 
     /// <summary>
@@ -80,13 +71,16 @@ public sealed class CSharpEmitter
     public static string RuntimeVersion =>
         (typeof(CSharpEmitter).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).FirstOrDefault() as System.Reflection.AssemblyInformationalVersionAttribute)?.InformationalVersion.Split('+')[0] ?? "0.1.0";
 
-    public IReadOnlyDictionary<string, string> Emit(string? runtimeProjectPath, bool host = false, bool lineDirectives = true)
+    public IReadOnlyDictionary<string, string> Emit(string? runtimeProjectPath, bool host = false, bool lineDirectives = true, IEnumerable<string>? references = null)
     {
         _lineDirectives = lineDirectives;
         var files = new Dictionary<string, string>();
         var runtimeRef = runtimeProjectPath is not null
             ? $"<ProjectReference Include=\"{runtimeProjectPath}\" />"
             : $"<PackageReference Include=\"Trebuchet.Runtime\" Version=\"{RuntimeVersion}\" />";
+        // the projects that implement this program's csharp externs
+        foreach (var r in references ?? Array.Empty<string>())
+            runtimeRef += $"\n                <ProjectReference Include=\"{r}\" />";
         foreach (var m in _modules.Modules)
             files[ClassName(m.Name) + ".cs"] = EmitModule(m);
         if (host) files["TrebuchetHost.cs"] = EmitHost();
@@ -442,9 +436,37 @@ public sealed class CSharpEmitter
             sb.AppendLine("    }");
         }
         foreach (var method in s.Methods) EmitFunction(sb, method, m, 1, isMethod: true);
+        // a shape member that may suspend, implemented by a method that does not: the method keeps its
+        // synchronous signature for callers that know the class, and the interface gets a wrapper
+        foreach (var shape in _shapes.Where(h => _checker.Satisfies(st, h)))
+            foreach (var (name, member) in shape.Members)
+                if (Suspends(member) && st.Methods.TryGetValue(name, out var impl) && !Suspends(impl))
+                {
+                    var ps = string.Join(", ", member.Params.Select((p, i) => $"{CsType(p)} {ParamName(member, i)}"));
+                    var args = string.Join(", ", member.Params.Select((_, i) => ParamName(member, i)));
+                    sb.AppendLine($"    {Ret(member)} {shape.Name}.{Id(name)}({ps}) => new ValueTask<{CsType(member.Return)}>({Id(name)}({args}));");
+                }
         sb.AppendLine("}");
         sb.AppendLine();
     }
+
+    /// <summary>True when a type still has an unresolved inference variable anywhere inside it.</summary>
+    internal static bool HasVars(TType t)
+    {
+        t = Prune(t);
+        return t switch
+        {
+            VarT => true,
+            AppT a => a.Args.Any(HasVars),
+            TupleT tt => tt.Items.Any(HasVars),
+            FnT f => f.Params.Any(HasVars) || HasVars(f.Return),
+            RecordT r => r.TypeArgs.Any(HasVars),
+            UnionT u => u.TypeArgs.Any(HasVars),
+            _ => false,
+        };
+    }
+
+    private static string ParamName(FnT f, int i) => f.ParamNames is { } names && i < names.Count && names[i] is { } n ? Id(n) : $"p{i}";
 
     private void EmitFunction(StringBuilder sb, FnDecl fn, Module m, int indent, bool isMethod)
     {
@@ -505,15 +527,26 @@ public sealed class CSharpEmitter
         var converted = $"Boundary.To<{CsType(payloadType)}>({call})";
         sb.AppendLine("        try");
         sb.AppendLine("        {");
-        sb.AppendLine(isResult ? $"            return ({CsType(type.Return)})ok({converted});" : $"            return {converted};");
+        if (Prune(payloadType) is PrimT { Name: "Unit" })
+        {
+            // a void or Task-returning host method: run it, then the value is unit
+            sb.AppendLine($"            {(suspends ? "await " : "")}{binding.Symbol}({args});");
+            sb.AppendLine(isResult ? $"            return ({CsType(type.Return)})ok(Unit.Value);" : "            return Unit.Value;");
+        }
+        else
+            sb.AppendLine(isResult ? $"            return ({CsType(type.Return)})ok({converted});" : $"            return {converted};");
         sb.AppendLine("        }");
+        // a panic crossing the boundary is still a panic, whatever the catch lines say
+        sb.AppendLine("        catch (TrebPanic) { throw; }");
+        var catchesEverything = false;
         foreach (var c in ex.Catches.Where(c => c.Target == "csharp"))
         {
             var unionType = CsType(((AppT)Prune(type.Return)).Args[1]);
             sb.AppendLine($"        catch ({c.ExceptionType} ex) {{ return ({CsType(type.Return)})error(({unionType})new {c.Variant}(ex.Message)); }}");
+            if (c.ExceptionType is "System.Exception" or "Exception") catchesEverything = true;
         }
-        sb.AppendLine("        catch (TrebPanic) { throw; }");
-        sb.AppendLine($"        catch (Exception ex) {{ throw new TrebPanic(\"extern {ex.Signature.Name}: \" + ex.Message, ex); }}");
+        if (!catchesEverything)
+            sb.AppendLine($"        catch (Exception ex) {{ throw new TrebPanic(\"extern {ex.Signature.Name}: \" + ex.Message, ex); }}");
         sb.AppendLine("    }");
         sb.AppendLine();
     }
@@ -899,6 +932,8 @@ public sealed class CSharpEmitter
                 {
                     var t = Prune(TypeOf(tn));
                     if (t is UnionT u) return $"(({_e.CsType(u)}){tn.Name}{GenericArgs(u.TypeArgs)}.Instance)";
+                    // a None whose type is known is typed, so generic inference around it (Cell.new(None), fold(xs, None, f)) sees Option<T>
+                    if (tn.Name == "None" && t is AppT { Ctor: "Option" } opt && !HasVars(opt.Args[0])) return $"Option<{_e.CsType(opt.Args[0])}>.None";
                     return tn.Name;
                 }
                 case TupleLit tl:
@@ -931,6 +966,8 @@ public sealed class CSharpEmitter
                     var lt = TypeOf(b.Left);
                     if (_e._checker.OrdComparisons.TryGetValue(b, out var ordParam))
                         return $"(__Ord_{ordParam}.compare({EmitExpr(b.Left, null)}, {EmitExpr(b.Right, lt)}) {op} 0)";
+                    if (_e._checker.OrdInstanceComparisons.TryGetValue(b, out var ordType))
+                        return $"({_e.DictExpr("Ord", ordType)}.compare({EmitExpr(b.Left, null)}, {EmitExpr(b.Right, lt)}) {op} 0)";
                     // == on a collection or a boxed value must be structural; C# operators on classes are reference equality
                     if (b.Op is "==" or "!=" && Prune(lt) is not PrimT)
                         return $"({(b.Op == "!=" ? "!" : "")}Equals({EmitExpr(b.Left, null)}, {EmitExpr(b.Right, lt)}))";

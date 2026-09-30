@@ -1,0 +1,58 @@
+module valslongva.application.search
+
+// Browsing: a page of summaries over the catalogue, marked with what the library holds.
+use valslongva.domain.catalogue
+use valslongva.domain.library
+use valslongva.domain.paging
+
+record ListingSummary
+  fullName: String
+  name: String
+  owner: String
+  description: String
+  latestVersion: String
+  downloads: Int
+  ratingScore: Int
+  categories: Vector[String]
+  icon: String
+  isDeprecated: Bool
+  dateUpdated: String
+  dependencies: Vector[String]
+  installedVersion: Option[String]
+  enabled: Bool
+
+fn summarise(l: Listing, lib: Library) -> Option[ListingSummary] ! Pure
+  match latest(l)
+    None => None
+    Some(v) =>
+      installed = lib.mods.get(l.fullName)
+      enabled = match installed
+        Some(m) => m.enabled
+        None => false
+      Some(ListingSummary(l.fullName, l.name, l.owner, v.description, v.versionNumber, totalDownloads(l), l.ratingScore, l.categories, v.icon, l.isDeprecated, l.dateUpdated, v.dependencies, map(installed, \m -> m.version), enabled))
+
+fn matches(s: ListingSummary, terms: Vector[String]) -> Bool ! Pure
+  haystack = toLower(s.fullName + " " + s.description)
+  all(terms, \t -> contains(haystack, t))
+
+fn ordered(xs: Vector[ListingSummary], sort: String) -> Vector[ListingSummary] ! Pure
+  match sort
+    "name" => sortBy(xs, \s -> toLower(s.name))
+    "rating" => reverse(sortBy(xs, \s -> s.ratingScore))
+    "updated" => reverse(sortBy(xs, \s -> s.dateUpdated))
+    _ => reverse(sortBy(xs, \s -> s.downloads))
+
+fn searchCatalogue(cat: Catalogue, lib: Library, query: String, sort: String, includeDeprecated: Bool, offset: Int, limit: Int) -> Page[ListingSummary] ! Pure
+  terms = filter(split(toLower(trim(query)), " "), \t -> length(t) > 0)
+  fn keep(acc: Vector[ListingSummary], l: Listing) -> Vector[ListingSummary]
+    match summarise(l, lib)
+      Some(s) => if (includeDeprecated or not s.isDeprecated) and matches(s, terms) then append(acc, s) else acc
+      None => acc
+  page(ordered(fold(cat.packages, [], keep), sort), offset, limit)
+
+fn prop_pageNeverExceedsLimit(cat: Catalogue, query: String, offset: Int, limit: Int) -> Bool ! Pure
+  length(searchCatalogue(cat, emptyLibrary(), query, "downloads", true, offset, limit).items) <= if limit < 0 then 0 else limit
+
+fn prop_everyHitMatchesEveryTerm(cat: Catalogue, query: String) -> Bool ! Pure
+  terms = filter(split(toLower(trim(query)), " "), \t -> length(t) > 0)
+  all(searchCatalogue(cat, emptyLibrary(), query, "name", true, 0, 1000).items, \s -> matches(s, terms))

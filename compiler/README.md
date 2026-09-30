@@ -29,6 +29,7 @@ dotnet run --project src/treb -- check ../examples/bookings  # type and effect c
 dotnet run --project src/treb -- effects ../examples/bookings # print every function's inferred effects
 dotnet run --project src/treb -- emit ../examples/bookings --out /tmp/gen && dotnet build /tmp/gen
 dotnet run --project src/treb -- emit ../examples/bookings --out /tmp/gen --host   # + IServiceCollection registration
+dotnet run --project src/treb -- emit ../apps/valslongva --out /tmp/gen --host --reference ../apps/valslongva-host/Externs/Externs.csproj   # + the project that implements the externs
 dotnet run --project src/treb -- emit ../examples/bookings --out /tmp/cpp --target cpp
 g++ -std=c++20 -Isrc/Trebuchet.Runtime.Cpp -I/tmp/cpp ../examples/bookings/cpp/driver.cpp -o /tmp/cpp/driver
 dotnet run --project src/treb -- serve ../examples/bookings --root dev --port 5080
@@ -182,7 +183,9 @@ an entity is not supported.
 `treb emit --host` adds `TrebuchetHost.cs`, with one `AddTrebuchet_<root>()` extension method
 per composition root. Every entry becomes a keyed factory registration (keyed by entry name)
 plus a `TryAdd` registration under its own type and, for services, under each shape it
-satisfies. A service's dependencies resolve from the container by declared type first and
+satisfies (a member the shape lets suspend but the method does not gets an explicit
+interface wrapper returning a `ValueTask`, so the class keeps its synchronous signature).
+A service's dependencies resolve from the container by declared type first and
 fall back to the root's entry, so anything the host registers *before* calling
 `AddTrebuchet_<root>()` replaces the root's default:
 
@@ -244,14 +247,18 @@ lambda when the local is generic, which then cannot recurse).
 `fold` pull. A function given to a lazy combinator may not `Suspend`. `?` also works on an
 `Option` inside a function that returns an `Option`. `examples/lazy/` is the sample.
 
-`treb test <dir> [--cases 100] [--seed N]` runs every function named `prop*` that returns
-`Bool`, generating arguments from the parameter types and shrinking a failing case before
-reporting it. `examples/properties/` has seven; the runner is `Trebuchet.Compiler.Testing`.
+`treb test <dir> [--cases 100] [--seed N] [--with Host.dll]` runs every function or handler
+named `prop*` that returns `Bool`, generating arguments from the parameter types and shrinking
+a failing case before reporting it; a property with no parameters runs once, which is how the
+mod manager's end-to-end scenarios (`handler prop_*` over fakes) are written.
+`examples/properties/` has seven; the runner is `Trebuchet.Compiler.Testing`.
 
 ## Shapes over types
 
 A shape with one type parameter is a type class. `instance Shape[Type]` supplies its members
-for a record, union, or primitive; `[T: Shape]` constrains a type parameter; `Shape.member(args)`
+for a record, union, or primitive; `[T: Shape]` constrains a type parameter; comparison
+operators work on a `T: Ord` parameter and on any concrete type with an `Ord` instance
+(`TypeChecker.OrdInstanceComparisons`); `Shape.member(args)`
 calls through the shape, with `Shape.member[T]()` when no argument fixes `T`. The checker
 resolves every constrained call to an instance after all bodies are checked, and both emitters
 pass the instance as a hidden trailing argument: on C# an interface `Shape<T>`, a class
@@ -318,6 +325,10 @@ and C++ cannot be polymorphic over async, the emitters produce a synchronous ver
 which is the same split the Prelude already has for `map` and `mapAsync`.
 
 ## Externs
+
+An extern whose result is `Unit` may bind a `void` or `Task` method. A `catch csharp
+"System.Exception"` line replaces the fallback catch rather than preceding it. Extern
+implementations in your own project reach the generated code through `--reference`.
 
 ```
 extern fn readTextFile(path: String) -> Result[String, FileError] ! Nondet Suspend
@@ -429,6 +440,8 @@ Semantics the interpreter fixed that the documents had left loose:
 - `fmt` keeps comments but normalises blank lines.
 - `json.decode` on C++, database access, and anything the Postgres adapter needs; the `dev`
   and `test` roots use the in-memory store.
+- Tuple-pattern exhaustiveness across arms: a match over `(Option, Option)` needs a `_` arm.
+- Top-level constants and expression continuation lines (syntax sketch §8, items 13 and 14).
 - Vector builtins `take`, `drop`, `at`, `sortBy`, `traverse` exist; there is no slicing syntax.
 - A set literal; `toSet([...])` builds one. Set builtins: `toSet`, `add`, `remove`, `contains`,
   `length`, `isEmpty`, `items`, `merge`, `intersect`, `difference` (`examples/collections/`).

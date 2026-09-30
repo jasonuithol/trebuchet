@@ -1,0 +1,65 @@
+module valslongva.infrastructure.host
+
+// Adapters over the externs. Each satisfies one port shape by having its members.
+use valslongva.application.ports
+use valslongva.infrastructure.externs
+
+service HostPlatform
+  fn os() -> String
+    hostOs()
+
+  fn home() -> String
+    hostHome()
+
+  fn dataDir() -> String
+    hostDataDir()
+
+service SystemClock
+  fn now() -> Instant
+    sys.clock()
+
+service HostFileSystem
+  fn readText(path: String) -> Result[String, IoError]
+    hostReadText(path)
+
+  fn writeText(path: String, text: String) -> Result[Unit, IoError]
+    hostWriteText(path, text)
+
+  fn appendText(path: String, text: String) -> Result[Unit, IoError]
+    hostAppendText(path, text)
+
+  fn exists(path: String) -> Bool
+    hostExists(path)
+
+  fn listFiles(dir: String) -> Result[Vector[String], IoError]
+    hostListFiles(dir)
+
+  fn copyFile(from: String, to: String) -> Result[Unit, IoError]
+    hostCopyFile(from, to)
+
+  fn deleteTree(path: String) -> Result[Unit, IoError]
+    hostDeleteTree(path)
+
+  fn moveTree(from: String, to: String) -> Result[Unit, IoError]
+    hostMoveTree(from, to)
+
+  fn ensureDir(path: String) -> Result[Unit, IoError]
+    hostEnsureDir(path)
+
+service HostHttp
+  fn getText(url: String) -> Result[String, HttpError]
+    hostHttpGetText(url)
+
+  fn download(url: String, path: String) -> Result[Unit, HttpError]
+    hostDownload(url, path)
+
+service HostArchive
+  fn extract(zip: String, dir: String) -> Result[Unit, IoError]
+    hostExtractZip(zip, dir)
+
+service HostProcesses
+  fn run(program: String, workingDir: String) -> Result[Unit, IoError]
+    hostRun(program, workingDir)
+
+  fn openUrl(url: String) -> Result[Unit, IoError]
+    hostOpenUrl(url)

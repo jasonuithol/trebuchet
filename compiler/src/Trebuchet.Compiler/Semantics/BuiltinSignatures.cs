@@ -39,7 +39,8 @@ public static class BuiltinSignatures
         }
 
         g.DefineValue("unit", new ValueSym(PrimT.Unit));
-        g.DefineValue("None", new ValueSym(new AppT("Option", new TType[] { new VarT("t") })));
+        // Generic: every use of None gets a fresh type variable, or the first use would fix it for the whole program
+        g.DefineValue("None", new ValueSym(new AppT("Option", new TType[] { new ParamT("T") }), Generic: true));
         Def("Some", "[T](T) -> Option[T]");
         Def("ok", "[T, E](T) -> Result[T, E]", "[E]() -> Result[Unit, E]");
         Def("error", "[T, E](E) -> Result[T, E]");
@@ -116,7 +117,8 @@ public static class BuiltinSignatures
 
         Namespace(g, "Cell", ("new", "[T](T) -> Cell[T] ! Nondet"));
         Namespace(g, "Seq", ("from", "[T](Vector[T]) -> Seq[T] ! Pure"), ("iterate", "[T](T, fn(T) -> T) -> Seq[T]"), ("range", "(Int, Int) -> Seq[Int] ! Pure"));
-        Namespace(g, "Instant", ("parse", "(String) -> Instant ! Pure"), ("now", "() -> Instant ! Nondet"));
+        Namespace(g, "Instant", ("parse", "(String) -> Instant ! Pure"), ("now", "() -> Instant ! Nondet"),
+            ("plusSeconds", "(Instant, Int) -> Instant ! Pure"), ("secondsBetween", "(Instant, Instant) -> Int ! Pure"));
         Namespace(g, "sys", ("clock", "() -> Instant ! Nondet"));
         Namespace(g, "env", ("get", "(String) -> String ! Nondet"));
         Namespace(g, "json", ("encode", "[T](T) -> String ! Pure"), ("decode", "[T](String) -> T ! Pure"));

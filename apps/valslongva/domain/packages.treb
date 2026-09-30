@@ -1,0 +1,40 @@
+module valslongva.domain.packages
+
+// Package identity. Thunderstore names a package Namespace-Name and a dependency
+// Namespace-Name-1.2.3; the name may itself contain hyphens, the namespace may not.
+use valslongva.domain.version
+
+record PackageRef(namespace: String, name: String)
+
+fn fullName(p: PackageRef) -> String ! Pure
+  p.namespace + "-" + p.name
+
+record Dependency(pkg: PackageRef, version: Version)
+
+fn parseDependency(s: String) -> Option[Dependency] ! Pure
+  match split(trim(s), "-")
+    [ns, ...rest] if length(rest) >= 2 =>
+      match (last(rest), parseVersion(getOr(last(rest), "")))
+        (Some(_), Some(v)) => Some(Dependency(PackageRef(ns, join(take(rest, length(rest) - 1), "-")), v))
+        _ => None
+    _ => None
+
+fn showDependency(d: Dependency) -> String ! Pure
+  fullName(d.pkg) + "-" + showVersion(d.version)
+
+// The loader itself is a Thunderstore package; installing it is a different job.
+fn loaderName() -> String ! Pure
+  "denikson-BepInExPack_Valheim"
+
+fn isLoader(name: String) -> Bool ! Pure
+  name == loaderName()
+
+fn prop_dependencyRoundTrips(ns: String, name: String, v: Version) -> Bool ! Pure
+  clean = \s -> replace(replace(trim(s), "-", ""), ".", "")
+  n = clean(ns)
+  m = clean(name)
+  if length(n) == 0 or length(m) == 0 or v.major < 0 or v.minor < 0 or v.patch < 0 then
+    true
+  else
+    d = Dependency(PackageRef(n, m), v)
+    parseDependency(showDependency(d)) == Some(d)

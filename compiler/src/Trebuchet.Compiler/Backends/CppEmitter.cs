@@ -870,6 +870,8 @@ public sealed class CppEmitter
                     var op = b.Op switch { "and" => "&&", "or" => "||", _ => b.Op };
                     if (_e._checker.OrdComparisons.TryGetValue(b, out var ordParam))
                         return $"(__Ord_{ordParam}.compare({EmitExpr(b.Left, null)}, {EmitExpr(b.Right, TypeOf(b.Left))}) {op} 0)";
+                    if (_e._checker.OrdInstanceComparisons.TryGetValue(b, out var ordType))
+                        return $"({_e.DictExpr("Ord", ordType)}.compare({EmitExpr(b.Left, null)}, {EmitExpr(b.Right, TypeOf(b.Left))}) {op} 0)";
                     var lt = TypeOf(b.Left);
                     return $"({EmitExpr(b.Left, null)} {op} {EmitExpr(b.Right, lt)})";
                 }

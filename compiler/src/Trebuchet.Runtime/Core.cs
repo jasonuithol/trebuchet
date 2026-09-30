@@ -115,6 +115,8 @@ public static class Instant
             ? d
             : throw new TrebPanic($"Instant.parse: cannot parse \"{s}\"");
     public static DateTimeOffset now() => DateTimeOffset.UtcNow;
+    public static DateTimeOffset plusSeconds(DateTimeOffset t, long seconds) => t.AddSeconds(seconds);
+    public static long secondsBetween(DateTimeOffset from, DateTimeOffset to) => (long)(to - from).TotalSeconds;
 }
 
 public static class sys

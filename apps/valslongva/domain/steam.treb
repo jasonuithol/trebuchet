@@ -1,0 +1,26 @@
+module valslongva.domain.steam
+
+// Where Steam keeps its games. libraryfolders.vdf lists every library; Valheim, app 892970,
+// sits under steamapps/common/Valheim in one of them.
+fn appId() -> String ! Pure
+  "892970"
+
+fn libraryPaths(vdf: String) -> Vector[String] ! Pure
+  fn pathOf(line: String) -> Option[String]
+    match split(line, "\"")
+      [_, "path", _, value, ..._] => Some(replace(value, "\\\\", "\\"))
+      _ => None
+  fn keep(acc: Vector[String], line: String) -> Vector[String]
+    match pathOf(line)
+      Some(p) => append(acc, p)
+      None => acc
+  fold(lines(vdf), [], keep)
+
+fn gameCandidates(libraries: Vector[String]) -> Vector[String] ! Pure
+  map(libraries, \lib -> replace(lib, "\\", "/") + "/steamapps/common/Valheim")
+
+fn runUrl() -> String ! Pure
+  "steam://rungameid/" + appId()
+
+fn prop_everyLibraryYieldsOneCandidate(libs: Vector[String]) -> Bool ! Pure
+  length(gameCandidates(libs)) == length(libs)

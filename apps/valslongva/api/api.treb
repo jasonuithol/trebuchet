@@ -1,0 +1,121 @@
+module valslongva.api.api
+
+// The HTTP edge. Method names are routes: getStatus is GET /status, postInstall is POST
+// /install. Scalars bind from the query string or the JSON body. Calls into the installer
+// and launcher are supervised: a panic there is an Internal error, not a dead server.
+use valslongva.domain.catalogue
+use valslongva.domain.library
+use valslongva.domain.paging
+use valslongva.application.ports
+use valslongva.application.errors
+use valslongva.application.settings
+use valslongva.application.locator
+use valslongva.application.catalogueService
+use valslongva.application.search
+use valslongva.application.installer
+use valslongva.application.launcher
+
+record Status
+  os: String
+  version: String
+  gameDir: Option[String]
+  gameProblem: Option[String]
+  candidates: Vector[String]
+  loader: Option[String]
+  loaderPresent: Bool
+  installed: Int
+  catalogueFetchedAt: Option[Instant]
+  cataloguePackages: Int
+
+record InstalledView
+  pkg: String
+  version: String
+  enabled: Bool
+  latestVersion: Option[String]
+  installedAt: Instant
+
+record PackageDetail
+  summary: ListingSummary
+  versions: Vector[String]
+  packageUrl: String
+
+fn appVersion() -> String ! Pure
+  "0.1.0"
+
+service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem)
+  private fn catalogueStamp() -> Option[Instant]
+    map(catalogue.loaded(), \c -> c.fetchedAt)
+
+  private fn cataloguePackages() -> Int
+    match catalogue.loaded()
+      Some(c) => length(c.packages)
+      None => 0
+
+  private fn libraryOrEmpty() -> Library
+    match installer.library()
+      Ok(lib) => lib
+      Error(_) => emptyLibrary()
+
+  fn getStatus() -> Result[Status, AppError]
+    match locator.gameDir()
+      Error(e) =>
+        ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, 0, catalogueStamp(), cataloguePackages()))
+      Ok(dir) =>
+        lib = installer.library()?
+        present = fs.exists(dir + "/BepInEx/core/BepInEx.dll")
+        ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, present, length(lib.mods), catalogueStamp(), cataloguePackages()))
+
+  fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
+    cat = catalogue.current()?
+    ok(searchCatalogue(cat, libraryOrEmpty(), query, sort, deprecated, offset, if limit > 200 then 200 else limit))
+
+  fn getPackage(name: String) -> Result[PackageDetail, AppError]
+    cat = catalogue.current()?
+    match lookup(cat, name)
+      None => error(AppError.NotFound("no package named " + name))
+      Some(l) =>
+        match summarise(l, libraryOrEmpty())
+          None => error(AppError.Conflict(name + " has no versions"))
+          Some(s) => ok(PackageDetail(s, map(l.versions, \v -> v.versionNumber), l.packageUrl))
+
+  fn getInstalled() -> Result[Vector[InstalledView], AppError]
+    lib = installer.library()?
+    cat = catalogue.loaded()
+    fn latestOf(pkg: String) -> Option[String]
+      match cat
+        None => None
+        Some(c) =>
+          match lookup(c, pkg)
+            None => None
+            Some(l) => map(latest(l), \v -> v.versionNumber)
+    ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt)))
+
+  fn postInstall(name: String) -> Result[Vector[String], AppError]
+    outcome = supervise installer.install(name)
+    outcome.mapError(crashed)?
+
+  fn postLoader() -> Result[Vector[String], AppError]
+    outcome = supervise installer.installLoader()
+    outcome.mapError(crashed)?
+
+  fn postUninstall(name: String) -> Result[Unit, AppError]
+    installer.uninstall(name)
+
+  fn postEnable(name: String) -> Result[Unit, AppError]
+    installer.setEnabled(name, true)
+
+  fn postDisable(name: String) -> Result[Unit, AppError]
+    installer.setEnabled(name, false)
+
+  fn postLaunch(mode: String) -> Result[String, AppError]
+    outcome = supervise launcher.launch(mode)
+    outcome.mapError(crashed)?
+
+  fn postGamePath(path: String) -> Result[Status, AppError]
+    chosen = if length(trim(path)) == 0 then None else Some(replace(trim(path), "\\", "/"))
+    settings.save(Settings(chosen))?
+    getStatus()
+
+  fn postRefresh() -> Result[Status, AppError]
+    catalogue.refresh()?
+    getStatus()

@@ -1,0 +1,70 @@
+module valslongva.infrastructure.externs
+
+// The host boundary. Each extern names a static method of Valslongva.Host, a small C# class
+// in apps/valslongva-host/Externs; exceptions become the Failed or Unreachable variant. The
+// dev server binds these by reflection from the assembly given to treb serve --with.
+use valslongva.application.ports
+
+extern fn hostOs() -> String ! Nondet
+  csharp "Valslongva.Host.Os"
+
+extern fn hostHome() -> String ! Nondet
+  csharp "Valslongva.Host.Home"
+
+extern fn hostDataDir() -> String ! Nondet
+  csharp "Valslongva.Host.DataDir"
+
+extern fn hostReadText(path: String) -> Result[String, IoError] ! Nondet Suspend
+  csharp "Valslongva.Host.ReadText"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostWriteText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
+  csharp "Valslongva.Host.WriteText"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostAppendText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
+  csharp "Valslongva.Host.AppendText"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostExists(path: String) -> Bool ! Nondet
+  csharp "Valslongva.Host.Exists"
+
+extern fn hostListFiles(dir: String) -> Result[Vector[String], IoError] ! Nondet
+  csharp "Valslongva.Host.ListFiles"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostCopyFile(from: String, to: String) -> Result[Unit, IoError] ! Nondet Write
+  csharp "Valslongva.Host.CopyFile"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostDeleteTree(path: String) -> Result[Unit, IoError] ! Nondet Write
+  csharp "Valslongva.Host.DeleteTree"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostMoveTree(from: String, to: String) -> Result[Unit, IoError] ! Nondet Write
+  csharp "Valslongva.Host.MoveTree"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostEnsureDir(path: String) -> Result[Unit, IoError] ! Nondet Write
+  csharp "Valslongva.Host.EnsureDir"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostHttpGetText(url: String) -> Result[String, HttpError] ! Nondet Suspend
+  csharp "Valslongva.Host.HttpGetText"
+  catch csharp "System.Exception" -> Unreachable
+
+extern fn hostDownload(url: String, path: String) -> Result[Unit, HttpError] ! Nondet Write Suspend
+  csharp "Valslongva.Host.Download"
+  catch csharp "System.Exception" -> Unreachable
+
+extern fn hostExtractZip(zip: String, dir: String) -> Result[Unit, IoError] ! Nondet Write Suspend
+  csharp "Valslongva.Host.ExtractZip"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostRun(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
+  csharp "Valslongva.Host.Run"
+  catch csharp "System.Exception" -> Failed
+
+extern fn hostOpenUrl(url: String) -> Result[Unit, IoError] ! Nondet Write
+  csharp "Valslongva.Host.OpenUrl"
+  catch csharp "System.Exception" -> Failed

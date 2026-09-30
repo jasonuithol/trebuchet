@@ -494,6 +494,8 @@ public static class Unifier
     {
         UnionT { TypeArgs.Count: > 0 } u when u.TypeArgs.All(a => a is ParamT) => InstantiateUnion(u, u.TypeParams.Select(p => (TType)new VarT(p.ToLowerInvariant())).ToList()),
         RecordT { TypeArgs.Count: > 0 } r when r.TypeArgs.All(a => a is ParamT) => InstantiateRecord(r, r.TypeParams.Select(p => (TType)new VarT(p.ToLowerInvariant())).ToList()),
+        // a builtin generic value such as None: Option[T] with T fresh per use
+        AppT a when a.Args.Any(x => x is ParamT) => new AppT(a.Ctor, a.Args.Select(x => x is ParamT p ? new VarT(p.Name.ToLowerInvariant()) : x).ToList()),
         _ => t,
     };
 

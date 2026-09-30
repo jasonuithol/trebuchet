@@ -1,0 +1,38 @@
+module valslongva.application.launcher
+
+use valslongva.domain.launch
+use valslongva.domain.doorstop
+use valslongva.application.ports
+use valslongva.application.errors
+use valslongva.application.locator
+use valslongva.application.installer
+
+service Launcher(fs: FileSystem, processes: Processes, platform: Platform, locator: Locator, installer: Installer)
+  fn launch(modeName: String) -> Result[String, AppError]
+    mode = match parseMode(modeName)
+      Some(m) => ok(m)
+      None => error(AppError.BadRequest("mode must be modded or vanilla"))
+    chosen = mode?
+    game = locator.gameDir()?
+    if chosen == Mode.Modded and not fs.exists(game + "/BepInEx/core/BepInEx.dll") then
+      error(AppError.Conflict("BepInEx is not installed; install the loader first"))
+    else
+      l = launchFor(platform.os(), game, chosen)
+      configured = match l.doorstop
+        Some(enabled) => setDoorstop(game, enabled)
+        None => ok(unit)
+      configured?
+      started = match l.command
+        Run(program, dir) => processes.run(program, dir).mapError(io)
+        Open(url) => processes.openUrl(url).mapError(io)
+      started?
+      ok(if chosen == Mode.Modded then "modded" else "vanilla")
+
+  private fn setDoorstop(game: String, enabled: Bool) -> Result[Unit, AppError]
+    ini = game + "/doorstop_config.ini"
+    current = if fs.exists(ini) then
+      fs.readText(ini).mapError(io)
+    else
+      ok("")
+    text = current?
+    fs.writeText(ini, setDoorstopEnabled(text, enabled)).mapError(io)

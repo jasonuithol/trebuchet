@@ -237,6 +237,11 @@ public sealed class Interpreter
 
     private Value EvalBinary(BinaryExpr b, Env env)
     {
+        if (Checker is not null && Checker.OrdInstanceComparisons.TryGetValue(b, out var ordType))
+        {
+            var cmp = Builtins.CompareWith(this, DictionaryFor("Ord", ordType, env, b.Pos), Eval(b.Left, env), Eval(b.Right, env));
+            return BoolValue.Of(b.Op switch { "<" => cmp < 0, "<=" => cmp <= 0, ">" => cmp > 0, ">=" => cmp >= 0, _ => throw new TrebPanic($"{b.Pos}: unexpected operator {b.Op}") });
+        }
         if (Checker is not null && Checker.OrdComparisons.TryGetValue(b, out var ordParam))
         {
             var dict = env.TryGet($"__Ord_{ordParam}", out var d) ? d : throw new TrebPanic($"{b.Pos}: no Ord dictionary for {ordParam} in scope");

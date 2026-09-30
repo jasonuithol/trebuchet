@@ -1,0 +1,32 @@
+module valslongva.domain.doorstop
+
+// BepInEx starts through Unity Doorstop. On Windows the game loads winhttp.dll and reads
+// doorstop_config.ini, whose [General] enabled flag is the vanilla/modded switch. Editing
+// the file is pure text work; the launcher decides when to do it.
+fn setDoorstopEnabled(ini: String, enabled: Bool) -> String ! Pure
+  value = if enabled then "true" else "false"
+  fn isFlag(line: String) -> Bool
+    t = trim(line)
+    startsWith(t, "enabled=") or startsWith(t, "enabled =") or t == "enabled"
+  fn rewrite(line: String) -> String
+    if isFlag(line) then "enabled = " + value else line
+  rewritten = map(lines(ini), rewrite)
+  if any(lines(ini), isFlag) then
+    join(rewritten, "\n")
+  else
+    join(concat(["[General]", "enabled = " + value], lines(ini)), "\n")
+
+fn isDoorstopEnabled(ini: String) -> Bool ! Pure
+  match find(lines(ini), \line -> startsWith(trim(line), "enabled"))
+    Some(line) =>
+      match indexOf(line, "=")
+        Some(i) => trim(toLower(substring(line, i + 1, length(line)))) == "true"
+        None => false
+    None => false
+
+fn prop_setThenRead(ini: String, enabled: Bool) -> Bool ! Pure
+  isDoorstopEnabled(setDoorstopEnabled(ini, enabled)) == enabled
+
+fn prop_setIsIdempotent(ini: String, enabled: Bool) -> Bool ! Pure
+  once = setDoorstopEnabled(ini, enabled)
+  setDoorstopEnabled(once, enabled) == once

@@ -13,10 +13,11 @@ static int Usage()
           treb effects <dir>              print the inferred effects of every function
           treb test <dir> [--cases 100] [--seed N]
                                           run every prop* function with generated arguments
-          treb emit <dir> --out <outdir> [--host] [--target cpp] [--no-lines]
+          treb emit <dir> --out <outdir> [--host] [--target cpp] [--no-lines] [--reference Host.csproj]
                                           lower to a C# project against Trebuchet.Runtime;
                                           --host adds IServiceCollection registration per root
                                           --no-lines omits #line directives (stack traces then name the .cs files)
+                                          --reference adds project references (comma-separated) for extern implementations
           treb serve <dir> [--root dev] [--api api] [--port 5080] [--with Host.dll]
                                           run an API service from a composition root over HTTP;
                                           --with loads an assembly whose static methods implement externs
@@ -72,7 +73,9 @@ if (command == "emit")
             var runtimeProject = Trebuchet.Compiler.Backends.CSharpEmitter.FindRuntimeProject();
             var runtime = runtimeProject is null ? null : Path.GetRelativePath(outDir, runtimeProject);
             if (runtime is null) Console.WriteLine($"Generated.csproj references the Trebuchet.Runtime {Trebuchet.Compiler.Backends.CSharpEmitter.RuntimeVersion} package; add the feed that holds it with 'dotnet nuget add source'");
-            generated = new Trebuchet.Compiler.Backends.CSharpEmitter(modules, checker).Emit(runtime, host: args.Contains("--host"), lineDirectives: !args.Contains("--no-lines"));
+            var references = options.GetValueOrDefault("reference", "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(r => Path.GetRelativePath(outDir, Path.GetFullPath(r))).ToList();
+            generated = new Trebuchet.Compiler.Backends.CSharpEmitter(modules, checker).Emit(runtime, host: args.Contains("--host"), lineDirectives: !args.Contains("--no-lines"), references: references);
         }
         foreach (var (name, content) in generated) File.WriteAllText(Path.Combine(outDir, name), content);
         Console.WriteLine($"{generated.Count} file(s) written to {outDir}");

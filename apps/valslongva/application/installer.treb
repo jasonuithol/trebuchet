@@ -1,0 +1,106 @@
+module valslongva.application.installer
+
+// The one-click path: plan, then for each step download, extract, place, and record.
+// The library is an append-only JSON-lines log next to the game; every call replays it.
+use valslongva.domain.packages
+use valslongva.domain.catalogue
+use valslongva.domain.library
+use valslongva.domain.layout
+use valslongva.domain.plan
+use valslongva.application.ports
+use valslongva.application.errors
+use valslongva.application.catalogueService
+use valslongva.application.locator
+
+service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platform, clock: Clock, catalogue: CatalogueService, locator: Locator)
+  private fn logPath(game: String) -> String
+    game + "/valslongva/library.jsonl"
+
+  fn library() -> Result[Library, AppError]
+    game = locator.gameDir()?
+    libraryAt(game)
+
+  private fn libraryAt(game: String) -> Result[Library, AppError]
+    if fs.exists(logPath(game)) then
+      text = fs.readText(logPath(game)).mapError(io)?
+      events = traverse(filter(lines(text), \l -> length(trim(l)) > 0), \l -> decodeEvent(l))?
+      ok(replayLibrary(events))
+    else
+      ok(emptyLibrary())
+
+  // A line we cannot read is a corrupt log, reported rather than skipped.
+  private fn decodeEvent(line: String) -> Result[LibraryEvent, AppError]
+    decoded = supervise json.decode[LibraryEvent](line)
+    decoded.mapError(crashed)
+
+  private fn note(game: String, ev: LibraryEvent) -> Result[Unit, AppError]
+    fs.ensureDir(game + "/valslongva").mapError(io)?
+    fs.appendText(logPath(game), json.encode(ev) + "\n").mapError(io)
+
+  // Everything the package needs, newest versions, in dependency order. Returns what was done.
+  fn install(name: String) -> Result[Vector[String], AppError]
+    game = locator.gameDir()?
+    cat = catalogue.current()?
+    lib = libraryAt(game)?
+    steps = planInstall(cat, lib, name).mapError(planning)?
+    traverse(steps, \s -> perform(game, lib, s))?
+    ok(stepNames(steps))
+
+  fn installLoader() -> Result[Vector[String], AppError]
+    install(loaderName())
+
+  private fn cached(step: InstallStep) -> Result[String, AppError]
+    zip = platform.dataDir() + "/cache/" + step.pkg + "-" + step.version.versionNumber + ".zip"
+    if fs.exists(zip) then
+      ok(zip)
+    else
+      fs.ensureDir(platform.dataDir() + "/cache").mapError(io)?
+      http.download(step.version.downloadUrl, zip).mapError(net)?
+      ok(zip)
+
+  private fn perform(game: String, lib: Library, step: InstallStep) -> Result[Unit, AppError]
+    zip = cached(step)?
+    tmp = platform.dataDir() + "/tmp/" + step.pkg
+    fs.deleteTree(tmp).mapError(io)?
+    fs.ensureDir(tmp).mapError(io)?
+    archive.extract(zip, tmp).mapError(io)?
+    files = fs.listFiles(tmp).mapError(io)?
+    placements = match step.kind
+      Loader => placeLoader(files)
+      Mod => placeMod(step.pkg, files)
+    // an update replaces the package folder wholesale; configs are merged, never removed
+    removed = match step.kind
+      Loader => ok(unit)
+      Mod => fs.deleteTree(game + "/" + modFolder(step.pkg)).mapError(io)
+    removed?
+    traverse(placements, \p -> fs.copyFile(tmp + "/" + p.source, game + "/" + p.target).mapError(io))?
+    fs.deleteTree(tmp).mapError(io)?
+    targets = map(placements, \p -> p.target)
+    ev = match step.kind
+      Loader => LibraryEvent.LoaderInstalled(step.version.versionNumber, targets, clock.now())
+      Mod => LibraryEvent.ModInstalled(step.pkg, step.version.versionNumber, targets, clock.now())
+    note(game, ev)
+
+  fn uninstall(name: String) -> Result[Unit, AppError]
+    game = locator.gameDir()?
+    lib = libraryAt(game)?
+    match lib.mods.get(name)
+      None => error(AppError.NotFound(name + " is not installed"))
+      Some(_) =>
+        fs.deleteTree(game + "/" + modFolder(name)).mapError(io)?
+        fs.deleteTree(game + "/" + disabledFolder(name)).mapError(io)?
+        note(game, LibraryEvent.ModRemoved(name, clock.now()))
+
+  fn setEnabled(name: String, enabled: Bool) -> Result[Unit, AppError]
+    game = locator.gameDir()?
+    lib = libraryAt(game)?
+    match lib.mods.get(name)
+      None => error(AppError.NotFound(name + " is not installed"))
+      Some(m) =>
+        if m.enabled == enabled then
+          ok(unit)
+        else
+          from = if enabled then disabledFolder(name) else modFolder(name)
+          to = if enabled then modFolder(name) else disabledFolder(name)
+          fs.moveTree(game + "/" + from, game + "/" + to).mapError(io)?
+          note(game, if enabled then LibraryEvent.ModEnabled(name, clock.now()) else LibraryEvent.ModDisabled(name, clock.now()))

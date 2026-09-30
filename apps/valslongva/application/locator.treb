@@ -1,0 +1,37 @@
+module valslongva.application.locator
+
+// Finding the game: a saved path wins, else every Steam library is tried.
+use valslongva.domain.steam
+use valslongva.application.ports
+use valslongva.application.errors
+use valslongva.application.settings
+
+service Locator(fs: FileSystem, platform: Platform, settings: SettingsStore)
+  fn gameDir() -> Result[String, AppError]
+    s = settings.load()?
+    match s.gamePath
+      Some(p) =>
+        if looksLikeValheim(p) then
+          ok(p)
+        else
+          error(AppError.NotFound("no Valheim at " + p))
+      None =>
+        match find(candidates(), \d -> looksLikeValheim(d))
+          Some(d) => ok(d)
+          None => error(AppError.NotFound("Valheim was not found in any Steam library; set its folder"))
+
+  fn candidates() -> Vector[String]
+    vdf = steamRoot() + "/steamapps/libraryfolders.vdf"
+    listed = if fs.exists(vdf) then
+      match fs.readText(vdf)
+        Ok(text) => libraryPaths(text)
+        Error(_) => []
+    else
+      []
+    gameCandidates(concat(listed, [steamRoot()]))
+
+  fn looksLikeValheim(dir: String) -> Bool
+    fs.exists(dir + "/valheim.x86_64") or fs.exists(dir + "/valheim.exe")
+
+  private fn steamRoot() -> String
+    if platform.os() == "windows" then "C:/Program Files (x86)/Steam" else platform.home() + "/.steam/steam"

@@ -46,6 +46,7 @@ public static class Serve
         var routes = new List<Route>();
         foreach (var m in api.Type.Decl.Methods)
         {
+            if (m.IsPrivate) continue; // helpers are not routes
             var (verb, path) = SplitName(m.Signature.Name);
             api.Env.TryGet(m.Signature.Name, out var callable);
             routes.Add(new Route(verb, path, m, callable));

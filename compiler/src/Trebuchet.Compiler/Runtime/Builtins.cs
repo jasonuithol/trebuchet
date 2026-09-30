@@ -312,6 +312,8 @@ public static class Builtins
                 : throw new TrebPanic($"Instant.parse: cannot parse \"{s}\"");
         }));
         instant.Define("now", new Builtin("Instant.now", (_, _) => new InstantValue(DateTimeOffset.UtcNow)));
+        instant.Define("plusSeconds", new Builtin("Instant.plusSeconds", (_, a) => new InstantValue(((InstantValue)Arg(a, 0, "Instant.plusSeconds")).V.AddSeconds(((IntValue)Arg(a, 1, "Instant.plusSeconds")).V))));
+        instant.Define("secondsBetween", new Builtin("Instant.secondsBetween", (_, a) => new IntValue((long)(((InstantValue)Arg(a, 1, "Instant.secondsBetween")).V - ((InstantValue)Arg(a, 0, "Instant.secondsBetween")).V).TotalSeconds)));
         g.Define("Instant", new NamespaceValue("Instant", instant));
         var sys = new Env(null, "sys");
         sys.Define("clock", new Builtin("sys.clock", (_, _) => new InstantValue(DateTimeOffset.UtcNow)));

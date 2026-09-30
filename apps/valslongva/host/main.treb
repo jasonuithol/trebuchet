@@ -1,0 +1,25 @@
+module valslongva.host.main
+
+// The real thing: host adapters over the externs, one catalogue cache for the process.
+use valslongva.application.settings
+use valslongva.application.locator
+use valslongva.application.catalogueService
+use valslongva.application.installer
+use valslongva.application.launcher
+use valslongva.infrastructure.host
+use valslongva.api.api
+
+root main
+  platform: HostPlatform
+  clock: SystemClock
+  fs: HostFileSystem
+  http: HostHttp
+  archive: HostArchive
+  processes: HostProcesses
+  cache: emptyCache()
+  settings: SettingsStore
+  locator: Locator
+  catalogue: CatalogueService
+  installer: Installer
+  launcher: Launcher
+  api: Api

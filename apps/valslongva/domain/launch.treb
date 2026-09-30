@@ -1,0 +1,39 @@
+module valslongva.domain.launch
+
+// Two ways to start the game. On Windows the doorstop flag in the game folder decides and
+// Steam does the launching; on Linux the loader ships a script that preloads doorstop, so
+// modded runs the script and vanilla runs the executable, both with Steam already running.
+use valslongva.domain.steam
+
+union Mode
+  Modded
+  Vanilla
+
+union Command
+  Run(program: String, workingDir: String)
+  Open(url: String)
+
+record Launch
+  doorstop: Option[Bool]
+  command: Command
+
+fn launchFor(os: String, gameDir: String, mode: Mode) -> Launch ! Pure
+  modded = mode == Mode.Modded
+  if os == "windows" then
+    Launch(Some(modded), Command.Open(runUrl()))
+  else if modded then
+    Launch(None, Command.Run(gameDir + "/start_game_bepinex.sh", gameDir))
+  else
+    Launch(None, Command.Run(gameDir + "/valheim.x86_64", gameDir))
+
+fn parseMode(s: String) -> Option[Mode] ! Pure
+  match toLower(trim(s))
+    "modded" => Some(Mode.Modded)
+    "vanilla" => Some(Mode.Vanilla)
+    _ => None
+
+fn prop_windowsAlwaysSetsDoorstop(gameDir: String, modded: Bool) -> Bool ! Pure
+  launchFor("windows", gameDir, if modded then Mode.Modded else Mode.Vanilla).doorstop == Some(modded)
+
+fn prop_linuxNeverTouchesDoorstop(gameDir: String, modded: Bool) -> Bool ! Pure
+  launchFor("linux", gameDir, if modded then Mode.Modded else Mode.Vanilla).doorstop == None

@@ -1,0 +1,64 @@
+module valslongva.domain.layout
+
+// The install convention: one folder per package. A mod zip's plugins/ tree goes under
+// BepInEx/plugins/<Namespace-Name>/, its config/ tree merges into BepInEx/config/, patchers
+// likewise under their own folder, and anything else (manifest, icon, README, a stray dll)
+// stays with the package folder. The loader zip has a BepInExPack_Valheim/ folder whose
+// contents are the game root. Paths use forward slashes on every platform.
+record Placement(source: String, target: String)
+
+fn modFolder(pkg: String) -> String ! Pure
+  "BepInEx/plugins/" + pkg
+
+fn disabledFolder(pkg: String) -> String ! Pure
+  "valslongva/disabled/" + pkg
+
+fn placeModFile(pkg: String, path: String) -> Placement ! Pure
+  fn after(prefix: String) -> String
+    substring(path, length(prefix), length(path))
+  target = if startsWith(path, "plugins/") then
+    modFolder(pkg) + "/" + after("plugins/")
+  else if startsWith(path, "config/") then
+    "BepInEx/config/" + after("config/")
+  else if startsWith(path, "patchers/") then
+    "BepInEx/patchers/" + pkg + "/" + after("patchers/")
+  else if startsWith(path, "BepInEx/plugins/") then
+    modFolder(pkg) + "/" + after("BepInEx/plugins/")
+  else if startsWith(path, "BepInEx/config/") then
+    path
+  else if startsWith(path, "BepInEx/patchers/") then
+    "BepInEx/patchers/" + pkg + "/" + after("BepInEx/patchers/")
+  else
+    modFolder(pkg) + "/" + path
+  Placement(path, target)
+
+fn placeMod(pkg: String, files: Vector[String]) -> Vector[Placement] ! Pure
+  map(files, \f -> placeModFile(pkg, f))
+
+fn placeLoaderFile(path: String) -> Option[Placement] ! Pure
+  prefix = "BepInExPack_Valheim/"
+  if startsWith(path, prefix) then
+    Some(Placement(path, substring(path, length(prefix), length(path))))
+  else
+    None
+
+fn placeLoader(files: Vector[String]) -> Vector[Placement] ! Pure
+  fn keep(acc: Vector[Placement], f: String) -> Vector[Placement]
+    match placeLoaderFile(f)
+      Some(p) => append(acc, p)
+      None => acc
+  fold(files, [], keep)
+
+// Every placed mod file lives under BepInEx/, and the plugin folder is the package's own.
+fn prop_modFilesStayUnderBepInEx(pkg: String, path: String) -> Bool ! Pure
+  clean = replace(replace(pkg, "/", ""), ".", "")
+  if length(clean) == 0 then true else startsWith(placeModFile(clean, path).target, "BepInEx/")
+
+fn prop_pluginFilesLandInTheirFolder(pkg: String, file: String) -> Bool ! Pure
+  clean = replace(pkg, "/", "")
+  if length(clean) == 0 then true else placeModFile(clean, "plugins/" + file).target == modFolder(clean) + "/" + file
+
+fn prop_loaderKeepsOnlyItsFolder(path: String) -> Bool ! Pure
+  match placeLoaderFile(path)
+    Some(p) => "BepInExPack_Valheim/" + p.target == path
+    None => not startsWith(path, "BepInExPack_Valheim/")

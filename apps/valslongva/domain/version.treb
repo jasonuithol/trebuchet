@@ -1,0 +1,40 @@
+module valslongva.domain.version
+
+// Package versions as Thunderstore writes them: major.minor.patch, compared numerically.
+record Version(major: Int, minor: Int, patch: Int)
+
+instance Ord[Version]
+  fn compare(a: Version, b: Version) -> Int
+    if a.major != b.major then
+      a.major - b.major
+    else if a.minor != b.minor then
+      a.minor - b.minor
+    else
+      a.patch - b.patch
+
+fn parseVersion(s: String) -> Option[Version] ! Pure
+  match map(split(trim(s), "."), parseInt)
+    [Some(a), Some(b), Some(c)] => Some(Version(a, b, c))
+    _ => None
+
+fn showVersion(v: Version) -> String ! Pure
+  toString(v.major) + "." + toString(v.minor) + "." + toString(v.patch)
+
+// True when what is installed satisfies what is required.
+fn satisfies(installed: String, required: String) -> Bool ! Pure
+  match (parseVersion(installed), parseVersion(required))
+    (Some(have), Some(need)) => have >= need
+    _ => installed == required
+
+fn prop_versionRoundTrips(a: Int, b: Int, c: Int) -> Bool ! Pure
+  v = Version(a, b, c)
+  if a < 0 or b < 0 or c < 0 then true else parseVersion(showVersion(v)) == Some(v)
+
+fn prop_versionOrderAgreesWithParts(a: Version, b: Version) -> Bool ! Pure
+  c = Ord.compare(a, b)
+  if a.major != b.major then
+    c < 0 == (a.major < b.major)
+  else if a.minor != b.minor then
+    c < 0 == (a.minor < b.minor)
+  else
+    c < 0 == (a.patch < b.patch)
