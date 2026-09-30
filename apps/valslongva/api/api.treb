@@ -94,19 +94,33 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
       Some(v) => if length(v.icon) == 0 then None else Some(v.icon)
       None => None
 
-  // A catalogue package whose name is the plugin's or the entry's name, exactly, ignoring case.
+  // A catalogue package for an unmanaged plugin. Names are loose evidence (the plugin DayNight4010
+  // ships in the package Ezvay-DayNight, and an older Ezvay-DayNight4010 exists), so among the
+  // packages whose name is the plugin's or a prefix of it, one that has the plugin's exact version
+  // wins; only then does an exact name count on its own.
   private fn suggestionFor(u: Unmanaged) -> Option[String]
     fn key(s: String) -> String
       toLower(replace(replace(s, "_", ""), " ", ""))
     wanted = match u.pluginName
       Some(n) => key(n)
       None => key(replace(u.entry, ".dll", ""))
+    fn related(l: Listing) -> Bool
+      k = key(l.name)
+      length(k) > 0 and (k == wanted or startsWith(wanted, k))
+    fn hasVersion(l: Listing) -> Bool
+      match u.pluginVersion
+        Some(v) => any(l.versions, \lv -> lv.versionNumber == v)
+        None => false
     match catalogue.loaded()
       None => None
       Some(c) =>
-        match find(c.packages, \l -> key(l.name) == wanted)
+        candidates = filter(c.packages, related)
+        match find(candidates, hasVersion)
           Some(l) => Some(l.fullName)
-          None => None
+          None =>
+            match find(candidates, \l -> key(l.name) == wanted)
+              Some(l) => Some(l.fullName)
+              None => None
 
   private fn view(u: Unmanaged) -> UnmanagedView
     suggestion = suggestionFor(u)

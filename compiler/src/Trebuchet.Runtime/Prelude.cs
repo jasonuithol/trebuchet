@@ -21,7 +21,12 @@ public static class Prelude
         throw new TrebPanic(payload is ArgumentError a ? a.message : payload?.ToString() ?? "panic", payload);
 
     public static Unit print<T>(T value) { Console.WriteLine(value); return Unit.Value; }
-    public static string toString<T>(T value) => value?.ToString() ?? "";
+    public static string toString<T>(T value) => value switch
+    {
+        // the same ISO-8601 text the interpreter prints, not the culture's date format
+        DateTimeOffset t => t.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", System.Globalization.CultureInfo.InvariantCulture),
+        _ => value?.ToString() ?? "",
+    };
 
     // ---- Result and Option
     public static Result<T, F> mapError<T, E, F>(Result<T, E> r, Func<E, F> f) =>
