@@ -11,7 +11,7 @@ the `Api` service's methods to routes.
 ## Getting it
 
 Builds for Linux and Windows are on the releases page:
-https://github.com/jasonuithol/trebuchet/releases/tag/valslongva-v0.1.0. Unpack, run, and the
+https://github.com/jasonuithol/trebuchet/releases/latest. Unpack, run, and the
 browser opens; Settings has "Install on this computer" for a launcher entry.
 
 ## Running it
