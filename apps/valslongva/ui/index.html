@@ -125,6 +125,7 @@ function App() {
   const [installed, setInstalled] = useState(() => cache.get("installed") || []);
   const [syncing, setSyncing] = useState("Refreshing"); // background work: shown, never blocking
   const [reload, setReload] = useState(0);
+  const [available, setAvailable] = useState(() => { const p = cache.get("page"); return p ? p.total : null; }); // every mod on offer, not just this search's matches
   const firstPage = useRef(true);
   const refreshedCatalogue = useRef(false);
   const bootVersion = useRef(null);
@@ -151,7 +152,7 @@ function App() {
     try {
       const p = await api("GET", `/search?query=${encodeURIComponent(query)}&sort=${sort}&deprecated=${deprecated}&offset=${offset}&limit=${PAGE}`);
       setPage(p);
-      if (isDefault) cache.set("page", p);
+      if (isDefault) { cache.set("page", p); setAvailable(p.total); }
       if (firstPage.current) {
         firstPage.current = false;
         const s = await refreshStatus(); // the first search loads the catalogue; now the status knows its age
@@ -274,9 +275,8 @@ function App() {
       <div className="panel status">
         <div className="facts">
           <span>Game: {ready ? <b>{status.gameDir}</b> : <b style={{ color: "var(--bad)" }}>{status ? status.gameProblem : "…"}</b>}</span>
-          <span>Mods: <b>{status ? status.installed : "…"}</b></span>
           <span>Catalogue: <b>{status && status.catalogueFetchedAt ? `${fmtCount(status.cataloguePackages)} packages, ${fmtWhen(status.catalogueFetchedAt)}` : "not loaded yet"}</b></span>
-          <button className="small" onClick={() => setShowSettings(s => !s)}>{showSettings ? "Hide settings" : "Settings"}</button>
+          <button className="small" onClick={() => setShowSettings(s => !s)}><span aria-hidden="true">⚙</span> {showSettings ? "Hide settings" : "Settings"}</button>
         </div>
         <div className="play">
           {status && <div className={`steam ${status.steam}`} title={steamText}><span className="glyph"></span><span>{steamText}</span></div>}
@@ -307,7 +307,7 @@ function App() {
       {msg && !busy && <div className={`msg ${msg.kind}`}>{msg.text}</div>}
 
       <div className="tabs">
-        <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>Browse</button>
+        <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>Browse{available !== null ? ` (${available.toLocaleString()})` : ""}</button>
         <button className={tab === "installed" ? "on" : ""} onClick={() => setTab("installed")}>Installed ({installed.length + (status && status.unmanaged ? status.unmanaged.length : 0)})</button>
       </div>
 

@@ -7,7 +7,7 @@ module valslongva.domain.release
 use valslongva.domain.version
 
 fn appVersion() -> String ! Pure
-        "0.2.0"
+        "0.2.1"
 
 record ReleaseAsset
         name: String
