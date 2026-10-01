@@ -8,6 +8,7 @@ use valslongva.application.catalogueService
 use valslongva.application.installer
 use valslongva.application.launcher
 use valslongva.application.steamStatus
+use valslongva.application.updater
 use valslongva.infrastructure.fakes
 use valslongva.host.fixture
 use valslongva.api.api
@@ -24,6 +25,7 @@ root test
         log: emptyLog()
         processes: FakeProcesses
         client: FakeSteam(true)
+        program: FakeProgram(false, releasesFeed(), emptyLog())
         cache: emptyCache()
         settings: SettingsStore
         locator: Locator
@@ -31,4 +33,5 @@ root test
         installer: Installer
         steam: SteamStatus
         launcher: Launcher
+        updater: Updater
         api: Api

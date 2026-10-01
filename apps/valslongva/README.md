@@ -64,6 +64,12 @@ undoes only that. `valslongva install` and `valslongva remove` do the same from 
   so nothing that was in the game folder is ever destroyed.
 - **Checks Steam first.** A process check says whether the client is running and the tail of its
   `logs/connection_log.txt` says whether it is signed in; the Play buttons wait for both.
+- **Keeps itself current.** A published build checks the GitHub releases when the page opens,
+  and when a newer one exists it downloads it, swaps itself, and restarts on the same port.
+  `VALSLONGVA_NO_UPDATE=1` turns that off; a developer's run never updates itself.
+- **Does not make you wait.** The page shows what it showed last time at once, a catalogue older
+  than six hours is served as it is and refreshed behind the page, and Steam's state is polled
+  every three seconds.
 - **Plays modded or vanilla.** On Windows the `doorstop_config.ini` flag decides and Steam
   launches the game; on Linux the loader's `start_game_bepinex.sh` preloads doorstop, so modded
   runs the script and vanilla runs the executable, with Steam already running.

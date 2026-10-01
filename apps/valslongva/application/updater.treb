@@ -1,0 +1,34 @@
+module valslongva.application.updater
+
+// Keeping the program itself current: ask the release feed, and when something newer exists
+// download it, unpack it, hand the folder to the host to swap in, and restart. Whether this
+// build may replace itself at all is the host's to say: a developer's run may not.
+
+use valslongva.domain.release
+use valslongva.application.ports
+use valslongva.application.errors
+
+service Updater(http: Http, fs: FileSystem, archive: Archive, platform: Platform, program: SelfInstall)
+        fn check() -> Result[Option[Update], AppError]
+                text = http.getText(program.feed()).mapError(net)?
+                decoded = supervise json.decode[Vector[Release]](text)
+                releases = decoded.mapError(crashed)?
+                ok(updateFor(appVersion(), platform.os(), releases))
+
+        fn update() -> Result[UpdateOutcome, AppError]
+                if not program.updatable() then
+                        ok(UpdateOutcome.NotUpdatable)
+                else
+                        found = check()?
+                        match found
+                                None => ok(UpdateOutcome.UpToDate)
+                                Some(u) =>
+                                        base = platform.dataDir() + "/update"
+                                        dir = base + "/" + u.version
+                                        fs.deleteTree(base).mapError(io)?
+                                        fs.ensureDir(dir).mapError(io)?
+                                        http.download(u.url, base + "/" + u.asset).mapError(net)?
+                                        archive.extract(base + "/" + u.asset, dir).mapError(io)?
+                                        program.replaceWith(dir).mapError(io)?
+                                        program.restart().mapError(io)?
+                                        ok(UpdateOutcome.Updated(u.version))

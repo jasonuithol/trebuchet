@@ -13,6 +13,14 @@ if (args.Length > 0 && args[0] is "install" or "remove")
     return;
 }
 var port = args.Length > 0 && int.TryParse(args[0], out var p) ? p : 5173;
+Valslongva.SelfUpdate.CleanUp();
+// Already running? Then the launcher was clicked twice: show the page that is there and leave.
+if (await AlreadyRunning(port))
+{
+    Console.WriteLine($"valslöngva is already running at http://localhost:{port}/ui/");
+    if (!args.Contains("--no-browser")) OpenBrowser($"http://localhost:{port}/ui/");
+    return;
+}
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory });
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
 builder.WebHost.UseUrls($"http://localhost:{port}");
@@ -21,6 +29,9 @@ builder.Services.ConfigureHttpJsonOptions(o => TrebuchetJson.Configure(o.Seriali
 var app = builder.Build();
 
 var api = app.Services.GetRequiredService<Api>();
+// an update swaps the files, then asks us to stop so the replacement can take the port
+Valslongva.SelfUpdate.StopServer = () => app.Lifetime.StopApplication();
+Valslongva.SelfUpdate.RestartArgs = new[] { port.ToString(), "--no-browser" };
 
 app.MapGet("/", () => Results.Redirect("/ui/"));
 var ui = Path.Combine(AppContext.BaseDirectory, "ui");
@@ -45,6 +56,8 @@ app.MapPost("/disable", async (Named body) => Respond(await api.postDisable(body
 app.MapPost("/launch", async (Launch body) => Respond(await api.postLaunch(body.mode)));
 app.MapPost("/gamepath", async (GamePath body) => Respond(await api.postGamePath(body.path)));
 app.MapPost("/refresh", async () => Respond(await api.postRefresh()));
+app.MapGet("/pulse", async () => Respond(await api.getPulse()));
+app.MapPost("/selfupdate", async () => Respond(await api.postSelfupdate()));
 // the application managing its own installation: host business, not the mod manager's
 app.MapGet("/setup", () => Results.Json(Valslongva.Setup.Status()));
 app.MapPost("/setup", (SetupRequest r) =>
@@ -57,6 +70,7 @@ var url = $"http://localhost:{port}/ui/";
 Console.WriteLine($"valslöngva at {url}");
 if (!args.Contains("--no-browser")) OpenBrowser(url);
 app.Run();
+if (Valslongva.SelfUpdate.RestartRequested) Valslongva.SelfUpdate.StartReplacement();
 
 static IResult Respond<T>(Result<T, AppError> result) => result switch
 {
@@ -66,6 +80,17 @@ static IResult Respond<T>(Result<T, AppError> result) => result switch
 };
 
 static int Status(AppError e) => e switch { BadRequest => 400, NotFound => 404, Conflict => 409, _ => 500 };
+
+static async Task<bool> AlreadyRunning(int port)
+{
+    try
+    {
+        using var probe = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+        var text = await probe.GetStringAsync($"http://localhost:{port}/status");
+        return text.Contains("\"gameDir\"");
+    }
+    catch (Exception) { return false; }
+}
 
 static void OpenBrowser(string url)
 {

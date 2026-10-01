@@ -73,6 +73,16 @@ service HostArchive
         fn extract(zip: String, dir: String) -> Result[Unit, IoError]
                 hostExtractZip(zip, dir)
 
+service HostProgram
+        fn updatable() -> Bool
+                hostUpdatable()
+        fn feed() -> String
+                hostFeed()
+        fn replaceWith(dir: String) -> Result[Unit, IoError]
+                hostReplaceWith(dir)
+        fn restart() -> Result[Unit, IoError]
+                hostRestart()
+
 service HostSteam
         fn running() -> Bool
                 hostSteamRunning()

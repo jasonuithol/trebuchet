@@ -155,10 +155,20 @@ public static class Host
         File.Move(part, path, overwrite: true);
     }
 
-    /// <summary>Extracts entry by entry: some packages are zipped on Windows with backslashes in entry names.</summary>
+    /// <summary>
+    /// Unpacks an archive. Zips go entry by entry, since some packages are zipped on Windows with
+    /// backslashes in entry names; a .tar.gz (the program's own Linux release) keeps its file modes.
+    /// </summary>
     public static Task ExtractZip(string zip, string dir) => Task.Run(() =>
     {
         Directory.CreateDirectory(dir);
+        if (zip.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) || zip.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase))
+        {
+            using var file = File.OpenRead(zip);
+            using var gz = new GZipStream(file, CompressionMode.Decompress);
+            System.Formats.Tar.TarFile.ExtractToDirectory(gz, dir, overwriteFiles: true);
+            return;
+        }
         var root = Path.GetFullPath(dir);
         using var archive = ZipFile.OpenRead(zip);
         foreach (var entry in archive.Entries)

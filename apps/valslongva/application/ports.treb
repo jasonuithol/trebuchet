@@ -35,6 +35,13 @@ shape Processes
         fn run(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
         fn openUrl(url: String) -> Result[Unit, IoError] ! Nondet Write
 
+// The running program as a thing that can be replaced: host business behind a shape.
+shape SelfInstall
+        fn updatable() -> Bool ! Nondet
+        fn feed() -> String ! Nondet
+        fn replaceWith(dir: String) -> Result[Unit, IoError] ! Nondet Write
+        fn restart() -> Result[Unit, IoError] ! Nondet Write
+
 shape SteamClient
         fn running() -> Bool ! Nondet
 

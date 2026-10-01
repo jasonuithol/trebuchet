@@ -24,19 +24,26 @@ service CatalogueService(http: Http, fs: FileSystem, platform: Platform, clock: 
         fn loaded() -> Option[Catalogue]
                 cache.get()
 
+        // Whatever is at hand, at once: memory, else the disk copy however old, and the network only
+        // when there is nothing. A stale catalogue is still a catalogue; refreshing it is a separate
+        // request the caller makes in the background.
         fn current() -> Result[Catalogue, AppError]
                 match cache.get()
-                        Some(cat) =>
-                                if isFresh(cat) then ok(cat) else refresh()
+                        Some(cat) => ok(cat)
                         None =>
                                 if fs.exists(listingPath()) and fs.exists(stampPath()) then
                                         text = fs.readText(listingPath()).mapError(io)?
                                         stamp = fs.readText(stampPath()).mapError(io)?
                                         cat = decode(text, Instant.parse(trim(stamp)))?
                                         cache.set(Some(cat))
-                                        if isFresh(cat) then ok(cat) else refresh()
+                                        ok(cat)
                                 else
                                         refresh()
+
+        fn stale() -> Bool
+                match cache.get()
+                        Some(cat) => not isFresh(cat)
+                        None => false
 
         fn refresh() -> Result[Catalogue, AppError]
                 text = http.getText(listingUrl()).mapError(net)?

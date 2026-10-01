@@ -85,6 +85,20 @@ service FakeArchive(entries: Map[String, Vector[String]], fs: FakeFileSystem)
                                 traverse(names, \n -> fs.writeText(dir + "/" + n, "bytes of " + n))?
                                 ok(unit)
 
+service FakeProgram(isUpdatable: Bool, feedUrl: String, journal: Cell[Vector[String]])
+        fn updatable() -> Bool
+                isUpdatable
+        fn feed() -> String
+                feedUrl
+        fn replaceWith(dir: String) -> Result[Unit, IoError]
+                journal.update(\l -> append(l, "replace " + dir))
+                ok(unit)
+        fn restart() -> Result[Unit, IoError]
+                journal.update(\l -> append(l, "restart"))
+                ok(unit)
+        fn entries() -> Vector[String]
+                journal.get()
+
 service FakeSteam(isRunning: Bool)
         fn running() -> Bool
                 isRunning

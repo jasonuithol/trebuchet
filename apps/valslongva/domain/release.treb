@@ -1,0 +1,79 @@
+module valslongva.domain.release
+
+// The program's own releases on GitHub, read through the same lenient JSON boundary as the
+// catalogue: tag_name binds tagName, browser_download_url binds browserDownloadUrl. Which
+// release is an update, and which file in it is ours, is a pure question.
+
+use valslongva.domain.version
+
+fn appVersion() -> String ! Pure
+        "0.2.0"
+
+record ReleaseAsset
+        name: String
+        browserDownloadUrl: String
+
+record Release
+        tagName: String
+        draft: Bool
+        prerelease: Bool
+        assets: Vector[ReleaseAsset]
+
+record Update
+        version: String
+        asset: String
+        url: String
+
+union UpdateOutcome
+        UpToDate
+        NotUpdatable
+        Updated(version: String)
+
+fn tagPrefix() -> String ! Pure
+        "valslongva-v"
+
+fn assetFor(os: String) -> String ! Pure
+        if os == "windows" then "valslongva-win-x64.zip" else "valslongva-linux-x64.tar.gz"
+
+fn releaseVersion(r: Release) -> Option[Version] ! Pure
+        if startsWith(r.tagName, tagPrefix()) then parseVersion(substring(r.tagName, length(tagPrefix()), length(r.tagName))) else None
+
+fn newer(a: String, b: String) -> Bool ! Pure
+        match (parseVersion(a), parseVersion(b))
+                (Some(x), Some(y)) => x > y
+                _ => false
+
+// The newest published release that is newer than what is running and carries this platform's file.
+fn updateFor(current: String, os: String, releases: Vector[Release]) -> Option[Update] ! Pure
+        wanted = assetFor(os)
+        fn candidate(r: Release) -> Option[Update]
+                match (releaseVersion(r), find(r.assets, \a -> a.name == wanted))
+                        (Some(v), Some(a)) => if r.draft or r.prerelease then None else Some(Update(showVersion(v), a.name, a.browserDownloadUrl))
+                        _ => None
+        fn better(acc: Option[Update], r: Release) -> Option[Update]
+                match candidate(r)
+                        None => acc
+                        Some(c) =>
+                                match acc
+                                        None => Some(c)
+                                        Some(best) => if newer(c.version, best.version) then Some(c) else acc
+        match fold(releases, None, better)
+                Some(best) => if newer(best.version, current) then Some(best) else None
+                None => None
+
+fn prop_neverOffersWhatIsNotNewer(current: Version, releases: Vector[Release]) -> Bool ! Pure
+        match updateFor(showVersion(current), "linux", releases)
+                Some(u) => newer(u.version, showVersion(current))
+                None => true
+
+fn prop_offersTheNewestOfTwo(a: Version, b: Version) -> Bool ! Pure
+        fn release(v: Version) -> Release
+                Release(tagPrefix() + showVersion(v), false, false, [ReleaseAsset(assetFor("linux"), "https://example.test/" + showVersion(v))])
+        valid = a.major >= 0 and a.minor >= 0 and a.patch >= 0 and b.major >= 0 and b.minor >= 0 and b.patch >= 0 and (a.major > 0 or a.minor > 0 or a.patch > 0) and (b.major > 0 or b.minor > 0 or b.patch > 0)
+        top = if a > b then a else b
+        if valid then map(updateFor("0.0.0", "linux", [release(a), release(b)]), \u -> u.version) == Some(showVersion(top)) else true
+
+fn prop_draftsAndOtherPlatformsAreIgnored(v: Version) -> Bool ! Pure
+        draft = Release(tagPrefix() + showVersion(v), true, false, [ReleaseAsset(assetFor("linux"), "x")])
+        other = Release(tagPrefix() + showVersion(v), false, false, [ReleaseAsset(assetFor("windows"), "x")])
+        updateFor("0.0.0", "linux", [draft, other]) == None

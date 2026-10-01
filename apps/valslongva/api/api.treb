@@ -4,6 +4,7 @@ module valslongva.api.api
 // /install. Scalars bind from the query string or the JSON body. Calls into the installer
 // and launcher are supervised: a panic there is an Internal error, not a dead server.
 use valslongva.domain.packages
+use valslongva.domain.release
 use valslongva.domain.steam
 use valslongva.domain.scan
 use valslongva.domain.catalogue
@@ -18,6 +19,7 @@ use valslongva.application.search
 use valslongva.application.installer
 use valslongva.application.launcher
 use valslongva.application.steamStatus
+use valslongva.application.updater
 
 record Status
         os: String
@@ -40,6 +42,12 @@ record Status
         unmanaged: Vector[UnmanagedView]
         catalogueFetchedAt: Option[Instant]
         cataloguePackages: Int
+        catalogueStale: Bool
+
+// What changes without the user touching anything: polled every few seconds.
+record Pulse
+        steam: SteamState
+        version: String
 
 record UnmanagedView
         entry: String
@@ -68,10 +76,7 @@ record PackageDetail
         versions: Vector[String]
         packageUrl: String
 
-fn appVersion() -> String ! Pure
-        "0.1.0"
-
-service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem, steam: SteamStatus)
+service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem, steam: SteamStatus, updater: Updater)
         private fn catalogueStamp() -> Option[Instant]
                 map(catalogue.loaded(), \c -> c.fetchedAt)
 
@@ -145,12 +150,12 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
         fn getStatus() -> Result[Status, AppError]
                 match locator.gameDir()
                         Error(e) =>
-                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages()))
+                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages(), catalogue.stale()))
                         Ok(dir) =>
                                 scanned = installer.scan()?
                                 lib = installer.library()?
                                 core = dir + "/BepInEx/core/BepInEx.dll"
-                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages()))
+                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages(), catalogue.stale()))
 
         fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
                 cat = catalogue.current()?
@@ -215,6 +220,14 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                 chosen = if length(trim(path)) == 0 then None else Some(replace(trim(path), "\\", "/"))
                 settings.save(Settings(chosen))?
                 getStatus()
+
+        fn getPulse() -> Result[Pulse, AppError]
+                ok(Pulse(steam.state(), appVersion()))
+
+        // Replace this program with a newer release if there is one; the host restarts it afterwards.
+        fn postSelfupdate() -> Result[UpdateOutcome, AppError]
+                outcome = supervise updater.update()
+                outcome.mapError(crashed)?
 
         fn postRefresh() -> Result[Status, AppError]
                 catalogue.refresh()?

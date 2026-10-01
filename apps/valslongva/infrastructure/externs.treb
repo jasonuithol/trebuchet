@@ -73,6 +73,20 @@ extern fn hostExtractZip(zip: String, dir: String) -> Result[Unit, IoError] ! No
         csharp "Valslongva.Host.ExtractZip"
         catch csharp "System.Exception" -> Failed
 
+extern fn hostUpdatable() -> Bool ! Nondet
+        csharp "Valslongva.SelfUpdate.Updatable"
+
+extern fn hostFeed() -> String ! Nondet
+        csharp "Valslongva.SelfUpdate.Feed"
+
+extern fn hostReplaceWith(dir: String) -> Result[Unit, IoError] ! Nondet Write
+        csharp "Valslongva.SelfUpdate.ReplaceWith"
+        catch csharp "System.Exception" -> Failed
+
+extern fn hostRestart() -> Result[Unit, IoError] ! Nondet Write
+        csharp "Valslongva.SelfUpdate.Restart"
+        catch csharp "System.Exception" -> Failed
+
 extern fn hostSteamRunning() -> Bool ! Nondet
         csharp "Valslongva.Host.SteamRunning"
 

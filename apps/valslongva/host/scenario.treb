@@ -9,6 +9,8 @@ use valslongva.application.catalogueService
 use valslongva.application.installer
 use valslongva.application.launcher
 use valslongva.application.steamStatus
+use valslongva.application.updater
+use valslongva.domain.release
 use valslongva.domain.steam
 use valslongva.domain.scan
 use valslongva.infrastructure.fakes
@@ -19,11 +21,15 @@ record World
         api: Api
         fs: FakeFileSystem
         processes: FakeProcesses
+        program: FakeProgram
 
 fn world() -> World
         worldWith(FakeSteam(true), seededFiles())
 
 fn worldWith(steamClient: FakeSteam, files: Cell[Map[String, String]]) -> World
+        worldFull(steamClient, files, FakeProgram(false, releasesFeed(), emptyLog()))
+
+fn worldFull(steamClient: FakeSteam, files: Cell[Map[String, String]], program: FakeProgram) -> World
         platform = FakePlatform("linux", "/home/viking", "/home/viking/.local/share/valslongva")
         clock = FixedClock(Instant.parse("2026-09-30T10:00:00Z"))
         fs = FakeFileSystem(files)
@@ -36,7 +42,42 @@ fn worldWith(steamClient: FakeSteam, files: Cell[Map[String, String]]) -> World
         installer = Installer(fs, http, archive, platform, clock, catalogue, locator)
         steam = SteamStatus(steamClient, fs, locator)
         launcher = Launcher(fs, processes, platform, locator, installer, steam)
-        World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam), fs, processes)
+        updater = Updater(http, fs, archive, platform, program)
+        World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam, updater), fs, processes, program)
+
+// A published build finds the newest real release, unpacks it, swaps itself, and restarts.
+handler prop_updatesItselfWhenANewerReleaseExists() -> Bool
+        w = worldFull(FakeSteam(true), seededFiles(), FakeProgram(true, releasesFeed(), emptyLog()))
+        dir = "/home/viking/.local/share/valslongva/update/9.9.9"
+        match w.api.postSelfupdate()
+                Ok(Updated(v)) => v == "9.9.9" and w.program.entries() == ["replace " + dir, "restart"] and contains(w.fs.snapshot(), dir + "/valslongva") and contains(w.fs.snapshot(), dir + "/ui/index.html")
+                _ => false
+
+handler prop_aDevelopersRunNeverReplacesItself() -> Bool
+        w = world()
+        match w.api.postSelfupdate()
+                Ok(NotUpdatable) => isEmpty(w.program.entries())
+                _ => false
+
+// An old catalogue on disk is served at once and reported stale; refreshing is a separate request.
+handler prop_servesAStaleCatalogueAndSaysSo() -> Bool
+        files = seededFiles()
+        data = "/home/viking/.local/share/valslongva"
+        files.update(\m -> m.set(data + "/catalogue.json", listingText()).set(data + "/catalogue.fetched", "2026-09-29T00:00:00Z"))
+        w = worldWith(FakeSteam(true), files)
+        served = match (w.api.getSearch("", "name", true, 0, 5), w.api.getStatus())
+                (Ok(page), Ok(s)) => page.total == 2 and s.catalogueStale and s.catalogueFetchedAt == Some(Instant.parse("2026-09-29T00:00:00Z"))
+                _ => false
+        refreshed = match w.api.postRefresh()
+                Ok(s) => not s.catalogueStale
+                Error(_) => false
+        served and refreshed
+
+handler prop_thePulseCarriesSteamAndTheVersion() -> Bool
+        w = worldWith(FakeSteam(false), seededFiles())
+        match w.api.getPulse()
+                Ok(p) => p.steam == SteamState.NotRunning and p.version == appVersion()
+                Error(_) => false
 
 handler prop_launchNeedsSteam() -> Bool
         w = worldWith(FakeSteam(false), seededFiles())

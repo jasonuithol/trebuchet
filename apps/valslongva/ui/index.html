@@ -90,7 +90,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
 
 <script type="text/babel">
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef } = React;
+
+// What the page showed last time, kept in the browser so the next visit paints at once.
+const cache = {
+  get(k) { try { return JSON.parse(localStorage.getItem("valslongva." + k) || "null"); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem("valslongva." + k, JSON.stringify(v)); } catch (e) { /* full or blocked: the page works without it */ } },
+};
 const PAGE = 25;
 
 async function api(method, path, body) {
@@ -107,7 +113,7 @@ const fmtDate = s => s ? new Date(s).toLocaleDateString([], { dateStyle: "medium
 const fmtWhen = s => s ? new Date(s).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "never";
 
 function App() {
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState(() => cache.get("status"));
   const [tab, setTab] = useState("browse");
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(null);
@@ -115,8 +121,13 @@ function App() {
   const [sort, setSort] = useState("downloads");
   const [deprecated, setDeprecated] = useState(false);
   const [offset, setOffset] = useState(0);
-  const [page, setPage] = useState(null);
-  const [installed, setInstalled] = useState([]);
+  const [page, setPage] = useState(() => cache.get("page"));
+  const [installed, setInstalled] = useState(() => cache.get("installed") || []);
+  const [syncing, setSyncing] = useState("Refreshing"); // background work: shown, never blocking
+  const [reload, setReload] = useState(0);
+  const firstPage = useRef(true);
+  const refreshedCatalogue = useRef(false);
+  const bootVersion = useRef(null);
   const [gamePath, setGamePath] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [confirming, setConfirming] = useState(null);
@@ -126,26 +137,67 @@ function App() {
     try {
       const s = await api("GET", "/status");
       setStatus(s);
+      cache.set("status", s);
       setGamePath(s.gameDir || "");
       if (!s.gameDir) setShowSettings(true);
-    } catch (e) { setMsg({ kind: "err", text: e.message }); }
+      return s;
+    } catch (e) { setMsg({ kind: "err", text: e.message }); return null; }
   }, []);
 
   const loadPage = useCallback(async () => {
-    setBusy(b => b || "Loading the catalogue (the first time takes a while)");
+    const isDefault = query === "" && sort === "downloads" && !deprecated && offset === 0;
+    // only block when there is nothing to show at all; a cached list stays on screen while the fresh one loads
+    if (firstPage.current && !cache.get("page")) setBusy(b => b || "Loading the catalogue (the first time takes a while)");
     try {
       const p = await api("GET", `/search?query=${encodeURIComponent(query)}&sort=${sort}&deprecated=${deprecated}&offset=${offset}&limit=${PAGE}`);
       setPage(p);
-      setStatus(s => (s && !s.catalogueFetchedAt) ? null : s); // the first search loads the catalogue; re-read the status line
-    } catch (e) { setMsg({ kind: "err", text: e.message }); }
+      if (isDefault) cache.set("page", p);
+      if (firstPage.current) {
+        firstPage.current = false;
+        const s = await refreshStatus(); // the first search loads the catalogue; now the status knows its age
+        if (!(s && s.catalogueStale)) setSyncing(null);
+      }
+    } catch (e) { setMsg({ kind: "err", text: e.message }); setSyncing(null); }
     finally { setBusy(b => b && b.startsWith("Loading the catalogue") ? null : b); }
-  }, [query, sort, deprecated, offset]);
+  }, [query, sort, deprecated, offset, reload]);
 
   const loadInstalled = useCallback(async () => {
-    try { setInstalled(await api("GET", "/installed")); } catch (e) { setInstalled([]); }
+    try { const list = await api("GET", "/installed"); setInstalled(list); cache.set("installed", list); } catch (e) { setInstalled([]); }
   }, []);
 
-  useEffect(() => { if (status === null) refreshStatus(); }, [status]);
+  useEffect(() => { refreshStatus(); }, []);
+
+  // A catalogue older than six hours is shown as it is, and replaced behind the page's back.
+  useEffect(() => {
+    if (!status || !status.catalogueStale || refreshedCatalogue.current) return;
+    refreshedCatalogue.current = true;
+    setSyncing("Updating the catalogue from Thunderstore");
+    api("POST", "/refresh")
+      .then(s => { setStatus(s); cache.set("status", s); setReload(n => n + 1); })
+      .catch(() => { /* offline: the old catalogue stays */ })
+      .finally(() => setSyncing(null));
+  }, [status]);
+
+  // Steam is changed by the user outside this page, so ask every three seconds. The same pulse
+  // carries the program's version: when it changes, the program has updated itself under us.
+  useEffect(() => {
+    const t = setInterval(async () => {
+      try {
+        const p = await api("GET", "/pulse");
+        setStatus(s => (s && s.steam !== p.steam) ? { ...s, steam: p.steam } : s);
+        if (bootVersion.current && p.version !== bootVersion.current) location.reload();
+        bootVersion.current = bootVersion.current || p.version;
+      } catch (e) { /* restarting, or stopped: keep asking */ }
+    }, 3000);
+    return () => clearInterval(t);
+  }, []);
+
+  // A newer release replaces this program without being asked; the pulse above reloads the page.
+  useEffect(() => {
+    api("POST", "/selfupdate")
+      .then(r => { if (r && r.type === "Updated") setMsg({ kind: "ok", text: `valslöngva ${r.version} is installed; restarting…` }); })
+      .catch(() => { /* no network, or GitHub said no: try again next start */ });
+  }, []);
   useEffect(() => { api("GET", "/setup").then(setSetup).catch(() => setSetup(null)); }, [status]);
   useEffect(() => { const t = setTimeout(loadPage, 250); return () => clearTimeout(t); }, [loadPage]);
   useEffect(() => { if (status && status.gameDir) loadInstalled(); }, [status]);
@@ -216,7 +268,7 @@ function App() {
         <div>
           <h1>valslöngva <small>a Valheim mod manager, written in Trebuchet</small></h1>
         </div>
-        {status && <div className="sub">{status.os} · v{status.version}</div>}
+        <div className="sub">{syncing && <span style={{ marginRight: 12 }}><span className="busy"></span>{syncing}…</span>}{status && <span>{status.os} · v{status.version}</span>}</div>
       </header>
 
       <div className="panel status">
