@@ -132,6 +132,7 @@ function App() {
   const [gamePath, setGamePath] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [confirming, setConfirming] = useState(null);
+  const [updateNote, setUpdateNote] = useState(null); // what the last update check said, shown in Settings
   const [setup, setSetup] = useState(null); // where this program lives and whether it is installed (host, not the mod manager) // a destructive-looking action waits for a second click
 
   const refreshStatus = useCallback(async () => {
@@ -194,11 +195,30 @@ function App() {
   }, []);
 
   // A newer release replaces this program without being asked; the pulse above reloads the page.
+  const describeUpdate = r =>
+    r && r.type === "Updated" ? `valslöngva ${r.version} is installed; restarting…`
+    : r === "UpToDate" ? "You have the latest version"
+    : r === "NotUpdatable" ? "This is a developer build; it does not update itself"
+    : "The update check gave no answer";
+
   useEffect(() => {
     api("POST", "/selfupdate")
-      .then(r => { if (r && r.type === "Updated") setMsg({ kind: "ok", text: `valslöngva ${r.version} is installed; restarting…` }); })
-      .catch(() => { /* no network, or GitHub said no: try again next start */ });
+      .then(r => { setUpdateNote(describeUpdate(r)); if (r && r.type === "Updated") setMsg({ kind: "ok", text: describeUpdate(r) }); })
+      .catch(e => setUpdateNote(`The automatic check failed: ${e.message}`)); // quiet here, visible in Settings
   }, []);
+
+  // The same check on request, and this time the answer is said out loud, failure included.
+  const checkForUpdates = async () => {
+    setMsg(null); setBusy("Checking for a newer valslöngva");
+    try {
+      const r = await api("POST", "/selfupdate");
+      setUpdateNote(describeUpdate(r));
+      setMsg({ kind: "ok", text: describeUpdate(r) });
+    } catch (e) {
+      setUpdateNote(`The check failed: ${e.message}`);
+      setMsg({ kind: "err", text: `Could not check for updates: ${e.message}` });
+    } finally { setBusy(null); }
+  };
   useEffect(() => { api("GET", "/setup").then(setSetup).catch(() => setSetup(null)); }, [status]);
   useEffect(() => { const t = setTimeout(loadPage, 250); return () => clearTimeout(t); }, [loadPage]);
   useEffect(() => { if (status && status.gameDir) loadInstalled(); }, [status]);
@@ -291,6 +311,10 @@ function App() {
             <button disabled={!!busy} onClick={savePath}>Save</button>
             <button disabled={!!busy} onClick={refresh}>Refresh catalogue</button>
             {status && status.candidates && status.candidates.length > 0 && <span className="sub">Looked in: {status.candidates.join(", ")}</span>}
+            <div style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+              <span className="sub">Version {status ? status.version : "…"}{updateNote ? ` · ${updateNote}` : ""}</span>
+              <button disabled={!!busy} onClick={checkForUpdates}>Check for updates</button>
+            </div>
             {setup && (
               <div style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
                 <span className="sub">This program: {setup.installed ? `installed at ${setup.path}` : "running from where it was downloaded"}</span>
