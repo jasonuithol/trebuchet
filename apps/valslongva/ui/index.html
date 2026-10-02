@@ -290,18 +290,22 @@ function App() {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       const ctx = new Ctx();
-      [0, 0.16].forEach(at => {
-        const osc = ctx.createOscillator(), gain = ctx.createGain();
-        osc.type = "sawtooth";
-        osc.frequency.value = 110;
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
-        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + at + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.12);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(ctx.currentTime + at);
-        osc.stop(ctx.currentTime + at + 0.13);
+      // a low sawtooth for the growl and a square an octave up so small speakers carry it too
+      [0, 0.2].forEach(at => {
+        [["sawtooth", 140, 0.6], ["square", 280, 0.3]].forEach(([type, hz, peak]) => {
+          const osc = ctx.createOscillator(), gain = ctx.createGain();
+          osc.type = type;
+          osc.frequency.value = hz;
+          gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+          gain.gain.exponentialRampToValueAtTime(peak, ctx.currentTime + at + 0.01);
+          gain.gain.setValueAtTime(peak, ctx.currentTime + at + 0.13);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.17);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(ctx.currentTime + at);
+          osc.stop(ctx.currentTime + at + 0.18);
+        });
       });
-      setTimeout(() => ctx.close(), 600);
+      setTimeout(() => ctx.close(), 800);
     } catch (e) { /* no audio: the shake still says it */ }
   }
 
