@@ -15,6 +15,11 @@ service FakeFileSystem(files: Cell[Map[String, String]])
         fn tailText(path: String, bytes: Int) -> Result[String, IoError]
                 readText(path)
 
+        fn readChunks(path: String) -> Seq[String]
+                match files.get().get(path)
+                        Some(text) => Seq.from([text])
+                        None => Seq.from([])
+
         fn writeText(path: String, text: String) -> Result[Unit, IoError]
                 files.update(\m -> m.set(path, text))
                 ok(unit)

@@ -52,8 +52,10 @@ record Catalogue
         byName: Map[String, Package]
         fetchedAt: Instant
 
-fn index(listings: Vector[Listing], fetchedAt: Instant) -> Catalogue ! Pure
-        packages = map(listings, condense)
+// The listings arrive as a lazy sequence and each is condensed as it is read, so the full
+// listings never exist all at once.
+fn index(listings: Seq[Listing], fetchedAt: Instant) -> Catalogue ! Pure
+        packages = toVector(map(listings, condense))
         Catalogue(packages, fold(packages, {}, \m, p -> m.set(p.fullName, p)), fetchedAt)
 
 fn lookup(cat: Catalogue, name: String) -> Option[Package] ! Pure

@@ -30,6 +30,15 @@ public static class Host
 
     public static Task<string> ReadText(string path) => File.ReadAllTextAsync(path);
 
+    /// <summary>A text file a piece at a time. Nothing is opened until the first piece is asked for.</summary>
+    public static IEnumerable<string> ReadChunks(string path)
+    {
+        using var reader = new StreamReader(path, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1 << 16);
+        var block = new char[1 << 17];
+        int n;
+        while ((n = reader.Read(block, 0, block.Length)) > 0) yield return new string(block, 0, n);
+    }
+
     public static async Task WriteText(string path, string text)
     {
         Parent(path);

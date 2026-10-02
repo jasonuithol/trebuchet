@@ -1246,6 +1246,8 @@ namespace env {
 namespace json {
     template <class T> std::string encode(const T& v) { return toString(v); }
     template <class T> T decode(const std::string&) { throw Panic("json.decode is not available in the C++ runtime yet"); }
+    template <class T> Seq<T> decodeSeq(const std::string&) { throw Panic("json.decodeSeq is not available in the C++ runtime yet"); }
+    template <class T> Seq<T> decodeChunks(const Seq<std::string>&) { throw Panic("json.decodeChunks is not available in the C++ runtime yet"); }
 }
 
 }  // namespace treb

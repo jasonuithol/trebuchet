@@ -13,6 +13,8 @@ union HttpError
 shape FileSystem
         fn readText(path: String) -> Result[String, IoError] ! Nondet Suspend
         fn tailText(path: String, bytes: Int) -> Result[String, IoError] ! Nondet Suspend
+        // a file's text a piece at a time, read only as it is pulled: for documents too big to hold
+        fn readChunks(path: String) -> Seq[String] ! Nondet
         fn writeText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
         fn appendText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
         fn exists(path: String) -> Bool ! Nondet

@@ -367,6 +367,12 @@ in `Runtime/JsonValues.cs` from the call's explicit type argument (the checker's
 `ExplicitTypeArgs`). A malformed document panics. `examples/json/` decodes a Thunderstore-like
 document and round-trips it.
 
+The converters read tokens directly and build no intermediate document. `json.decodeSeq[T](text)`
+yields a top-level array's elements lazily, and `json.decodeChunks[T](chunks)` does the same over
+a `Seq[String]` of pieces that may end mid-token, so a 170 MB listing decodes at a peak of about
+230 MB. An extern returning a host `IEnumerable<T>` crosses the boundary as a lazy `Seq[T]`. The
+interpreter implements both by joining and parsing; neither exists on C++.
+
 On .NET, every extern result passes through `Boundary.To<T>`: arrays and enumerables become
 `Vector`, dictionaries become `Map`, null becomes `None` when the declared type is `Option`
 (and a panic otherwise), and integers and dates widen to `long` and `DateTimeOffset`.

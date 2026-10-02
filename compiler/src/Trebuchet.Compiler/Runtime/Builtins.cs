@@ -333,6 +333,8 @@ public static class Builtins
         json.Define("encode", new Builtin("json.encode", (_, a) => new StringValue(JsonValues.ToJson(Arg(a, 0, "json.encode"))?.ToJsonString() ?? "null")));
         // decode needs its type argument; the interpreter supplies it from the checker at the call site
         json.Define("decode", new Builtin("json.decode", (_, _) => throw new TrebPanic("json.decode needs a type argument, json.decode[T](text)")));
+        json.Define("decodeSeq", new Builtin("json.decodeSeq", (_, _) => throw new TrebPanic("json.decodeSeq needs a type argument, json.decodeSeq[T](text)")));
+        json.Define("decodeChunks", new Builtin("json.decodeChunks", (_, _) => throw new TrebPanic("json.decodeChunks needs a type argument, json.decodeChunks[T](chunks)")));
         g.Define("json", new NamespaceValue("json", json));
 
         return g;

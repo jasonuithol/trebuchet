@@ -138,4 +138,105 @@ public static class json
         try { return System.Text.Json.JsonSerializer.Deserialize<T>(text, TrebuchetJson.Options) ?? throw new TrebPanic("json.decode: the document is null"); }
         catch (System.Text.Json.JsonException ex) { throw new TrebPanic("json.decode: " + ex.Message); }
     }
+
+    /// <summary>
+    /// The elements of a top-level JSON array, one at a time: each is decoded when the sequence is
+    /// pulled and can be dropped before the next, so a consumer that condenses as it goes never
+    /// holds the whole array. A malformed document panics at the element that is wrong.
+    /// </summary>
+    public static Seq<T> decodeSeq<T>(string text) => new(() => Elements<T>(text));
+
+    /// <summary>
+    /// The same, over a document that arrives in pieces: text is taken a chunk at a time, only as
+    /// far as the next element needs, so a file far larger than memory can be decoded and neither
+    /// the document nor the array is ever whole in memory. A chunk may end anywhere, mid-token included.
+    /// </summary>
+    public static Seq<T> decodeChunks<T>(Seq<string> chunks) => new(() => ChunkedElements<T>(chunks));
+
+    private static IEnumerable<T> ChunkedElements<T>(Seq<string> chunks)
+    {
+        using var source = chunks.GetEnumerator();
+        var encoder = System.Text.Encoding.UTF8.GetEncoder(); // stateful: a surrogate pair may straddle two chunks
+        var buffer = new byte[1 << 16];
+        int start = 0, end = 0;
+        var state = new System.Text.Json.JsonReaderState();
+        var started = false;
+        var final = false;
+        while (true)
+        {
+            var step = NextChunked<T>(buffer, ref start, end, final, ref state, ref started, out var item);
+            if (step == Step.Item) { yield return item; continue; }
+            if (step == Step.End) yield break;
+            if (final) throw new TrebPanic("json.decodeChunks: the document ends in the middle of a value");
+            string? chunk = null;
+            try { if (source.MoveNext()) chunk = source.Current; }
+            catch (TrebPanic) { throw; }
+            catch (Exception ex) { throw new TrebPanic("json.decodeChunks: " + ex.Message); }
+            if (chunk is null) { final = true; continue; }
+            // make room: slide what is unread to the front, grow if the next chunk still does not fit
+            var need = encoder.GetByteCount(chunk.AsSpan(), flush: false);
+            if (start > 0) { Buffer.BlockCopy(buffer, start, buffer, 0, end - start); end -= start; start = 0; }
+            if (end + need > buffer.Length) Array.Resize(ref buffer, Math.Max(buffer.Length * 2, end + need));
+            end += encoder.GetBytes(chunk.AsSpan(), buffer.AsSpan(end), flush: false);
+        }
+    }
+
+    private enum Step { Item, End, NeedMore }
+
+    private static Step NextChunked<T>(byte[] buffer, ref int start, int end, bool final, ref System.Text.Json.JsonReaderState state, ref bool started, out T item)
+    {
+        item = default!;
+        try
+        {
+            var reader = new System.Text.Json.Utf8JsonReader(buffer.AsSpan(start, end - start), final, state);
+            if (!started)
+            {
+                if (!reader.Read()) return Step.NeedMore;
+                if (reader.TokenType != System.Text.Json.JsonTokenType.StartArray) throw new TrebPanic("json.decodeChunks: the document is not an array");
+                started = true;
+                start += (int)reader.BytesConsumed;
+                state = reader.CurrentState;
+                reader = new System.Text.Json.Utf8JsonReader(buffer.AsSpan(start, end - start), final, state);
+            }
+            if (!reader.Read()) return Step.NeedMore;
+            if (reader.TokenType == System.Text.Json.JsonTokenType.EndArray) return Step.End;
+            // is the whole element here? look ahead on a copy before committing to read it
+            var probe = reader;
+            if (!probe.TrySkip()) return Step.NeedMore;
+            item = System.Text.Json.JsonSerializer.Deserialize<T>(ref reader, TrebuchetJson.Options) ?? throw new TrebPanic("json.decodeChunks: an element is null");
+            start += (int)reader.BytesConsumed;
+            state = reader.CurrentState;
+            return Step.Item;
+        }
+        catch (System.Text.Json.JsonException ex) { throw new TrebPanic("json.decodeChunks: " + ex.Message); }
+    }
+
+    private static IEnumerable<T> Elements<T>(string text)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        var state = new System.Text.Json.JsonReaderState();
+        var offset = 0;
+        var started = false;
+        while (NextElement<T>(bytes, ref offset, ref state, ref started, out var item)) yield return item;
+    }
+
+    private static bool NextElement<T>(byte[] bytes, ref int offset, ref System.Text.Json.JsonReaderState state, ref bool started, out T item)
+    {
+        try
+        {
+            var reader = new System.Text.Json.Utf8JsonReader(bytes.AsSpan(offset), isFinalBlock: true, state);
+            if (!started)
+            {
+                if (!reader.Read() || reader.TokenType != System.Text.Json.JsonTokenType.StartArray) throw new TrebPanic("json.decodeSeq: the document is not an array");
+                started = true;
+            }
+            if (!reader.Read()) throw new TrebPanic("json.decodeSeq: the array is not closed");
+            if (reader.TokenType == System.Text.Json.JsonTokenType.EndArray) { item = default!; return false; }
+            item = System.Text.Json.JsonSerializer.Deserialize<T>(ref reader, TrebuchetJson.Options) ?? throw new TrebPanic("json.decodeSeq: an element is null");
+            offset += (int)reader.BytesConsumed;
+            state = reader.CurrentState;
+            return true;
+        }
+        catch (System.Text.Json.JsonException ex) { throw new TrebPanic("json.decodeSeq: " + ex.Message); }
+    }
 }

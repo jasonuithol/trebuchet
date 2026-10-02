@@ -35,3 +35,25 @@ fn demo() -> String ! Pure
                 Deprecated => "deprecated"
         back = json.decode[Package](json.encode(p))
         p.name + " by " + p.owner.name + " " + status + " " + toString(p.ratingScore) + " " + latest + " roundtrip=" + if back == p then "same" else "different"
+
+union Change
+        Added(name: String, count: Int)
+        Removed(name: String)
+
+// A large array need not be held: decodeSeq yields its elements as they are pulled, so only
+// the two taken here are ever decoded.
+fn firstTwo() -> String ! Pure
+        text = "[{\"full_name\": \"a-b-1.0.0\", \"version_number\": \"1.0.0\", \"dependencies\": [], \"file_size\": 1}, {\"full_name\": \"a-b-2.0.0\", \"version_number\": \"2.0.0\", \"dependencies\": [\"x-y-1.0.0\"], \"file_size\": 2, \"website_url\": \"https://example.test\"}, {\"full_name\": \"a-b-3.0.0\", \"version_number\": \"3.0.0\", \"dependencies\": [], \"file_size\": 3}]"
+        versions = json.decodeSeq[PackageVersion](text)
+        join(toVector(map(take(versions, 2), \v -> v.versionNumber + ":" + getOr(v.websiteUrl, "-"))), " ")
+
+// A variant's tag may follow its fields, and unknown fields are skipped wherever they sit.
+fn tagLast() -> String ! Pure
+        match json.decode[Change]("{\"name\": \"x\", \"extra\": {\"deep\": [1, 2]}, \"count\": 2, \"type\": \"Added\"}")
+                Added(name, count) => "added " + name + " " + toString(count)
+                Removed(name) => "removed " + name
+
+// A document that arrives in pieces, cut wherever the pieces happen to end.
+fn inPieces() -> String ! Pure
+        pieces = ["[{\"full_name\": \"a-b-1.0.0\", \"versi", "on_number\": \"1.0.0\", \"dependencies\": [], \"file_size\": 1}, {\"full_na", "me\": \"a-b-2.0.0\", \"version_number\": \"2.0", ".0\", \"dependencies\": [\"x-y-1.0.0\"], \"file_size\": 2}", "]"]
+        join(toVector(map(json.decodeChunks[PackageVersion](Seq.from(pieces)), \v -> v.versionNumber + "/" + toString(v.fileSize))), " ")

@@ -334,6 +334,11 @@ public class EmitterTests
         var asm = EmitAndBuild("json");
         var demo = asm.GetType("Generated.Thunder")!.GetMethod("demo")!;
         Assert.Equal(InterpreterTests.JsonExpected, (string)demo.Invoke(null, null)!);
+        // token-level reading: a lazy array, and a variant whose tag follows its fields
+        Assert.Equal(InterpreterTests.JsonFirstTwoExpected, (string)asm.GetType("Generated.Thunder")!.GetMethod("firstTwo")!.Invoke(null, null)!);
+        Assert.Equal(InterpreterTests.JsonTagLastExpected, (string)asm.GetType("Generated.Thunder")!.GetMethod("tagLast")!.Invoke(null, null)!);
+        // a document in pieces, cut mid-token, decoded without ever being whole
+        Assert.Equal(InterpreterTests.JsonInPiecesExpected, (string)asm.GetType("Generated.Thunder")!.GetMethod("inPieces")!.Invoke(null, null)!);
     }
 
     [Fact]

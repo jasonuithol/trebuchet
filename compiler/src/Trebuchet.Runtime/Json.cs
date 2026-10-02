@@ -98,37 +98,97 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
         return Convert.ChangeType(s, k, CultureInfo.InvariantCulture);
     }
 
-    /// <summary>Builds a record or variant from a JSON object by matching constructor parameters to properties by name.</summary>
-    internal static object Construct(Type t, JsonElement obj, JsonSerializerOptions options)
+    /// <summary>What reading a record or variant needs to know about its type, worked out once.</summary>
+    internal sealed class Shape
     {
-        var ctor = Ctor(t) ?? throw new JsonException($"{t.Name} has no public constructor");
-        var ps = ctor.GetParameters();
-        if (ps.Length == 0)
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, Shape> Cache = new();
+        public static Shape Of(Type t) => Cache.GetOrAdd(t, static type => new Shape(type));
+
+        public readonly Type Type;
+        public readonly ConstructorInfo Ctor;
+        public readonly ParameterInfo[] Params;
+        private readonly byte[][] _exact;
+        private readonly Dictionary<string, int> _byNormalised = new();
+        private readonly object?[] _absent;
+        private readonly bool[] _mayBeAbsent;
+
+        private Shape(Type t)
         {
-            var instance = t.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
-            return instance?.GetValue(null) ?? ctor.Invoke(Array.Empty<object>());
+            Type = t;
+            Ctor = TrebuchetJsonConverter.Ctor(t) ?? throw new JsonException($"{t.Name} has no public constructor");
+            Params = Ctor.GetParameters();
+            _exact = Params.Select(p => System.Text.Encoding.UTF8.GetBytes(p.Name!)).ToArray();
+            _absent = new object?[Params.Length];
+            _mayBeAbsent = new bool[Params.Length];
+            for (var i = 0; i < Params.Length; i++)
+            {
+                _byNormalised[TrebuchetJson.Normalise(Params[i].Name!)] = i;
+                var pt = Params[i].ParameterType;
+                if (pt.IsGenericType && pt.GetGenericTypeDefinition() == typeof(Option<>))
+                {
+                    _absent[i] = pt.GetField("None")!.GetValue(null);
+                    _mayBeAbsent[i] = true;
+                }
+            }
         }
-        var args = new object?[ps.Length];
-        for (var i = 0; i < ps.Length; i++)
+
+        /// <summary>The parameter a property names: exact bytes first (no allocation), then leniently, so full_name finds fullName.</summary>
+        public int IndexOf(ref Utf8JsonReader reader)
         {
-            var found = false;
-            var wanted = TrebuchetJson.Normalise(ps[i].Name!);
-            foreach (var prop in obj.EnumerateObject())
-            {
-                // exact or lenient: snake_case documents bind lowerCamel fields
-                if (prop.Name != ps[i].Name && TrebuchetJson.Normalise(prop.Name) != wanted) continue;
-                args[i] = prop.Value.Deserialize(ps[i].ParameterType, options);
-                found = true;
-                break;
-            }
-            if (!found)
-            {
-                var pt = ps[i].ParameterType;
-                if (pt.IsGenericType && pt.GetGenericTypeDefinition() == typeof(Option<>)) args[i] = pt.GetField("None")!.GetValue(null);
-                else throw new JsonException($"missing field '{ps[i].Name}' for {t.Name}");
-            }
+            for (var i = 0; i < _exact.Length; i++)
+                if (reader.ValueTextEquals(_exact[i])) return i;
+            return _byNormalised.TryGetValue(TrebuchetJson.Normalise(reader.GetString()!), out var index) ? index : -1;
         }
-        return ctor.Invoke(args);
+
+        public object Instance()
+        {
+            if (Params.Length > 0) throw new JsonException($"{Type.Name} needs its fields");
+            return Type.GetField("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) ?? Ctor.Invoke(Array.Empty<object>());
+        }
+
+        public object Build(object?[] args, bool[] seen)
+        {
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (seen[i]) continue;
+                if (!_mayBeAbsent[i]) throw new JsonException($"missing field '{Params[i].Name}' for {Type.Name}");
+                args[i] = _absent[i];
+            }
+            return Ctor.Invoke(args);
+        }
+    }
+
+    /// <summary>
+    /// Reads a record or variant straight from the tokens: each property goes to the constructor
+    /// parameter it names, unknown properties are skipped, absent Options are None. No document
+    /// is built, so a large array of records costs its records and nothing else.
+    /// </summary>
+    internal static object ReadObject(ref Utf8JsonReader reader, Type t, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException($"expected an object for {t.Name}");
+        var shape = Shape.Of(t);
+        var args = new object?[shape.Params.Length];
+        var seen = new bool[shape.Params.Length];
+        while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
+        {
+            var i = shape.IndexOf(ref reader);
+            reader.Read();
+            if (i < 0 || seen[i]) { reader.Skip(); continue; }
+            args[i] = JsonSerializer.Deserialize(ref reader, shape.Params[i].ParameterType, options);
+            seen[i] = true;
+        }
+        return shape.Params.Length == 0 ? shape.Instance() : shape.Build(args, seen);
+    }
+
+    /// <summary>Reads an array's elements one at a time; null is an empty array.</summary>
+    internal static List<T> ReadArray<T>(ref Utf8JsonReader reader, JsonSerializerOptions options)
+    {
+        var items = new List<T>();
+        if (reader.TokenType == JsonTokenType.Null) return items;
+        if (reader.TokenType != JsonTokenType.StartArray) throw new JsonException("expected an array");
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+            items.Add(JsonSerializer.Deserialize<T>(ref reader, options)!);
+        return items;
     }
 
     /// <summary>A record with several fields: read by lenient field name with Option defaults, written with the declared names.</summary>
@@ -138,9 +198,7 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
 
         public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            var obj = JsonElement.ParseValue(ref reader);
-            if (obj.ValueKind != JsonValueKind.Object) throw new JsonException($"expected an object for {typeof(T).Name}");
-            return (T)Construct(typeof(T), obj, options);
+            return (T)ReadObject(ref reader, typeof(T), options);
         }
 
         public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
@@ -164,11 +222,7 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
         public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             object? inner;
-            if (reader.TokenType == JsonTokenType.StartObject)
-            {
-                var obj = JsonElement.ParseValue(ref reader);
-                return (T)Construct(typeof(T), obj, options);
-            }
+            if (reader.TokenType == JsonTokenType.StartObject) return (T)ReadObject(ref reader, typeof(T), options);
             inner = JsonSerializer.Deserialize(ref reader, _field.Prop.PropertyType, options);
             return (T)_ctor.Invoke(new[] { inner });
         }
@@ -217,16 +271,34 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
             {
                 var name = reader.GetString()!;
                 if (!Variants.TryGetValue(name, out var nullary)) throw new JsonException($"unknown variant '{name}' of {typeof(T).Name}");
-                return (T)Construct(nullary, default, options);
+                return (T)Shape.Of(nullary).Instance();
             }
-            var obj = JsonElement.ParseValue(ref reader);
+            if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException($"expected a variant name or an object for {typeof(T).Name}");
+            // the tag may come after the fields: look ahead on a copy of the reader, then read for real
             Type variant = typeof(T);
-            if (obj.TryGetProperty("type", out var tag) && tag.ValueKind == JsonValueKind.String)
+            var tag = TagOf(reader);
+            if (tag is not null)
             {
-                if (!Variants.TryGetValue(tag.GetString()!, out variant!)) throw new JsonException($"unknown variant '{tag.GetString()}' of {typeof(T).Name}");
+                if (!Variants.TryGetValue(tag, out variant!)) throw new JsonException($"unknown variant '{tag}' of {typeof(T).Name}");
             }
             else if (variant.IsAbstract) throw new JsonException($"{typeof(T).Name} needs a 'type' field");
-            return (T)Construct(variant, obj, options);
+            return (T)ReadObject(ref reader, variant, options);
+        }
+
+        /// <summary>The object's "type" property, found on a copy of the reader so the original stays at the object's start.</summary>
+        private static string? TagOf(Utf8JsonReader scan)
+        {
+            var depth = scan.CurrentDepth;
+            while (scan.Read())
+            {
+                if (scan.TokenType == JsonTokenType.EndObject && scan.CurrentDepth == depth) return null;
+                if (scan.TokenType != JsonTokenType.PropertyName || scan.CurrentDepth != depth + 1) continue;
+                var isTag = scan.ValueTextEquals("type");
+                scan.Read();
+                if (isTag) return scan.TokenType == JsonTokenType.String ? scan.GetString() : null;
+                scan.Skip();
+            }
+            return null;
         }
 
         public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
@@ -265,7 +337,7 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
     private sealed class VectorConverter<T> : JsonConverter<Vector<T>>
     {
         public override Vector<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-            Vector<T>.From(JsonSerializer.Deserialize<List<T>>(ref reader, options) ?? new List<T>());
+            Vector<T>.From(ReadArray<T>(ref reader, options));
 
         public override void Write(Utf8JsonWriter writer, Vector<T> value, JsonSerializerOptions options)
         {
@@ -278,7 +350,7 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
     private sealed class SetConverter<T> : JsonConverter<Set<T>> where T : notnull
     {
         public override Set<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-            Set<T>.From(JsonSerializer.Deserialize<List<T>>(ref reader, options) ?? new List<T>());
+            Set<T>.From(ReadArray<T>(ref reader, options));
 
         public override void Write(Utf8JsonWriter writer, Set<T> value, JsonSerializerOptions options)
         {
@@ -295,15 +367,32 @@ public sealed class TrebuchetJsonConverter : JsonConverterFactory
         public override Map<K, V> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             var m = Map<K, V>.Empty;
-            var el = JsonElement.ParseValue(ref reader);
-            if (el.ValueKind == JsonValueKind.Object)
+            if (reader.TokenType == JsonTokenType.StartObject)
             {
-                foreach (var p in el.EnumerateObject())
-                    m = m.Set((K)KeyFromString(p.Name, typeof(K)), p.Value.Deserialize<V>(options)!);
+                while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    var key = (K)KeyFromString(reader.GetString()!, typeof(K));
+                    reader.Read();
+                    m = m.Set(key, JsonSerializer.Deserialize<V>(ref reader, options)!);
+                }
                 return m;
             }
-            foreach (var pair in el.EnumerateArray())
-                m = m.Set(pair.GetProperty("key").Deserialize<K>(options)!, pair.GetProperty("value").Deserialize<V>(options)!);
+            if (reader.TokenType != JsonTokenType.StartArray) throw new JsonException("expected an object or an array of key and value pairs for a Map");
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+            {
+                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException("expected a {key, value} pair");
+                K? key = default; V? value = default; var hasKey = false; var hasValue = false;
+                while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    var isKey = reader.ValueTextEquals("key"); var isValue = reader.ValueTextEquals("value");
+                    reader.Read();
+                    if (isKey) { key = JsonSerializer.Deserialize<K>(ref reader, options); hasKey = true; }
+                    else if (isValue) { value = JsonSerializer.Deserialize<V>(ref reader, options); hasValue = true; }
+                    else reader.Skip();
+                }
+                if (!hasKey || !hasValue) throw new JsonException("a Map pair needs key and value");
+                m = m.Set(key!, value!);
+            }
             return m;
         }
 

@@ -31,6 +31,8 @@ service HostFileSystem
         fn tailText(path: String, bytes: Int) -> Result[String, IoError]
                 hostTailText(path, bytes)
 
+        fn readChunks(path: String) -> Seq[String]
+                hostReadChunks(path)
         fn writeText(path: String, text: String) -> Result[Unit, IoError]
                 hostWriteText(path, text)
 

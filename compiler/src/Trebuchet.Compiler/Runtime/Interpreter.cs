@@ -358,6 +358,31 @@ public sealed class Interpreter
             catch (System.Text.Json.JsonException ex) { throw new TrebPanic($"{c.Pos}: json.decode: {ex.Message}"); }
             return JsonValues.FromJson(this, decodeArgs[0], node, "json.decode");
         }
+        if (c.Callee is MemberExpr { Name: "decodeSeq" or "decodeChunks", Target: TypeNameExpr { Name: "json" } or NameExpr { Name: "json" } } && Checker is not null && Checker.ExplicitTypeArgs.TryGetValue(c, out var seqArgs))
+        {
+            // the interpreter parses the document when the sequence is first pulled, then binds element by element;
+            // chunks are simply joined, since the interpreter is not where memory matters
+            var source = positional.Count > 0 ? positional[0] : throw new TrebPanic($"{c.Pos}: json.decodeSeq needs its document");
+            string Document() => source switch
+            {
+                StringValue sv2 => sv2.V,
+                SeqValue chunks => string.Concat(chunks.Items().Select(v => v is StringValue s ? s.V : throw new TrebPanic($"{c.Pos}: json.decodeChunks needs chunks of text"))),
+                ListValue list => string.Concat(list.Items.Select(v => v is StringValue s ? s.V : throw new TrebPanic($"{c.Pos}: json.decodeChunks needs chunks of text"))),
+                _ => throw new TrebPanic($"{c.Pos}: json.decodeSeq needs a String"),
+            };
+            var elementType = seqArgs[0];
+            var pos = c.Pos;
+            IEnumerable<Value> Elements()
+            {
+                System.Text.Json.Nodes.JsonNode? node;
+                try { node = System.Text.Json.Nodes.JsonNode.Parse(Document()); }
+                catch (System.Text.Json.JsonException ex) { throw new TrebPanic($"{pos}: json.decodeSeq: {ex.Message}"); }
+                if (node is not System.Text.Json.Nodes.JsonArray array) throw new TrebPanic($"{pos}: json.decodeSeq: the document is not an array");
+                var i = 0;
+                foreach (var element in array) yield return JsonValues.FromJson(this, elementType, element, $"json.decodeSeq[{i++}]");
+            }
+            return new SeqValue(Elements);
+        }
         if (Checker is not null && Checker.ClassCalls.TryGetValue(c, out var cc))
             return Member(DictionaryFor(cc.Shape, cc.Type, env, c.Pos), cc.Member, env, positional, c.Pos, named);
         if (c.Callee is MemberExpr mem)

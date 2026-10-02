@@ -351,6 +351,23 @@ public class InterpreterTests
         Assert.Equal(new StringValue(JsonExpected), it.Call(demo, Array.Empty<Value>()));
     }
 
+    public const string JsonFirstTwoExpected = "1.0.0:- 2.0.0:https://example.test";
+    public const string JsonTagLastExpected = "added x 2";
+    public const string JsonInPiecesExpected = "1.0.0/1 2.0.0/2";
+
+    [Fact]
+    public void JsonStreamsAndReadsTagsLastInTheInterpreter()
+    {
+        var modules = ModuleSet.Load(Path.Combine(ExamplesDir(), "json"));
+        var it = new Interpreter(modules);
+        it.EnvOf(modules.Find("thunder")!).TryGet("firstTwo", out var firstTwo);
+        it.EnvOf(modules.Find("thunder")!).TryGet("tagLast", out var tagLast);
+        Assert.Equal(new StringValue(JsonFirstTwoExpected), it.Call(firstTwo, Array.Empty<Value>()));
+        Assert.Equal(new StringValue(JsonTagLastExpected), it.Call(tagLast, Array.Empty<Value>()));
+        it.EnvOf(modules.Find("thunder")!).TryGet("inPieces", out var inPieces);
+        Assert.Equal(new StringValue(JsonInPiecesExpected), it.Call(inPieces, Array.Empty<Value>()));
+    }
+
     public const string CollectionsDemoExpected = "3 unique; both=2 either=4 onlyA=red hasRed=yes afterRemove=2 equal=yes empty=yes vec=yes map=yes";
 
     [Fact]

@@ -16,9 +16,11 @@ service CatalogueService(http: Http, fs: FileSystem, platform: Platform, clock: 
         private fn isFresh(cat: Catalogue) -> Bool
                 Instant.secondsBetween(cat.fetchedAt, clock.now()) < 6 * 3600
 
-        private fn decode(text: String, fetchedAt: Instant) -> Result[Catalogue, AppError]
-                packages = supervise json.decode[Vector[Listing]](text)
-                ok(index(packages.mapError(crashed)?, fetchedAt))
+        // The listing is never whole in memory: the file is read a piece at a time, each listing is
+        // decoded as its text arrives and condensed at once. A malformed document is a panic, caught here.
+        private fn decodeFile(path: String, fetchedAt: Instant) -> Result[Catalogue, AppError]
+                built = supervise index(json.decodeChunks[Listing](fs.readChunks(path)), fetchedAt)
+                built.mapError(crashed)
 
         // What is loaded, without loading anything.
         fn loaded() -> Option[Catalogue]
@@ -32,9 +34,8 @@ service CatalogueService(http: Http, fs: FileSystem, platform: Platform, clock: 
                         Some(cat) => ok(cat)
                         None =>
                                 if fs.exists(listingPath()) and fs.exists(stampPath()) then
-                                        text = fs.readText(listingPath()).mapError(io)?
                                         stamp = fs.readText(stampPath()).mapError(io)?
-                                        cat = decode(text, Instant.parse(trim(stamp)))?
+                                        cat = decodeFile(listingPath(), Instant.parse(trim(stamp)))?
                                         cache.set(Some(cat))
                                         ok(cat)
                                 else
@@ -45,15 +46,14 @@ service CatalogueService(http: Http, fs: FileSystem, platform: Platform, clock: 
                         Some(cat) => not isFresh(cat)
                         None => false
 
-        // The listing is 170 MB: it is streamed to a file beside the old one and read from there, never
+        // The listing is 170 MB: it is streamed to a file beside the old one and decoded from there in pieces, never
         // held as a response in memory, and it replaces the old copy only once it has decoded.
         fn refresh() -> Result[Catalogue, AppError]
                 now = clock.now()
                 staged = listingPath() + ".new"
                 fs.ensureDir(platform.dataDir()).mapError(io)?
                 http.download(listingUrl(), staged).mapError(net)?
-                text = fs.readText(staged).mapError(io)?
-                cat = decode(text, now)?
+                cat = decodeFile(staged, now)?
                 fs.moveTree(staged, listingPath()).mapError(io)?
                 fs.writeText(stampPath(), toString(now)).mapError(io)?
                 cache.set(Some(cat))

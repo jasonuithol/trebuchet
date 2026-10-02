@@ -35,6 +35,15 @@ public static class Boundary
                 foreach (var item in items) list.Add(convert.Invoke(null, new[] { item }));
                 return (T)target.GetMethod("From")!.Invoke(null, new object[] { list })!;
             }
+            // a host enumerable stays lazy: nothing is read until the sequence is pulled
+            if (def == typeof(Seq<>) && value is IEnumerable lazyItems)
+            {
+                var elem = args[0];
+                var typed = typeof(IEnumerable<>).MakeGenericType(elem).IsInstanceOfType(value)
+                    ? value
+                    : typeof(System.Linq.Enumerable).GetMethod(nameof(System.Linq.Enumerable.Cast))!.MakeGenericMethod(elem).Invoke(null, new object[] { lazyItems })!;
+                return (T)target.GetMethod("From")!.Invoke(null, new[] { typed })!;
+            }
             if (def == typeof(Set<>) && value is IEnumerable setItems)
             {
                 var elem = args[0];

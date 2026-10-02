@@ -22,6 +22,9 @@ extern fn hostTailText(path: String, bytes: Int) -> Result[String, IoError] ! No
         csharp "Valslongva.Host.TailText"
         catch csharp "System.Exception" -> Failed
 
+extern fn hostReadChunks(path: String) -> Seq[String] ! Nondet
+        csharp "Valslongva.Host.ReadChunks"
+
 extern fn hostWriteText(path: String, text: String) -> Result[Unit, IoError] ! Nondet Write Suspend
         csharp "Valslongva.Host.WriteText"
         catch csharp "System.Exception" -> Failed

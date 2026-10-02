@@ -336,7 +336,7 @@ Records and unions may be recursive, directly (`Node(left: Tree[T], right: Tree[
 
 Strings: `length`, `contains`, `startsWith`, `endsWith`, `trim`, `toUpper`, `toLower`, `split`, `join`, `replace`, `substring`, `indexOf`, `lines`, `padLeft`, and the parsers `parseInt` and `parseFloat`; `indexOf` and the parsers return an `Option`, `substring` clamps, `split("abc", "")` is the characters. Literal escapes are `\n`, `\t`, `\r`, `\0`, `\"`, and `\\`.
 
-`json.encode(value)` and `json.decode[T](text)` are the JSON boundary. Field names bind leniently (`full_name` in a document fills `fullName`), a missing or null `Option` field is `None`, unknown fields are ignored, a nested single-field record is its bare value, a nullary variant is its name, a variant with fields carries `type`. A malformed document panics.
+`json.encode(value)` and `json.decode[T](text)` are the JSON boundary. Field names bind leniently (`full_name` in a document fills `fullName`), a missing or null `Option` field is `None`, unknown fields are ignored, a nested single-field record is its bare value, a nullary variant is its name, a variant with fields carries `type`. A malformed document panics. For a large array, `json.decodeSeq[T](text)` yields the elements lazily as a `Seq[T]`, and `json.decodeChunks[T](chunks)` does so over a `Seq[String]` of pieces of the document, which may end anywhere; with either, a consumer that folds as it goes never holds the whole array.
 
 `Instant.parse`, `Instant.now`, `Instant.plusSeconds(t, n)`, and `Instant.secondsBetween(a, b)` are the time builtins; `Instant` is `Ord`.
 

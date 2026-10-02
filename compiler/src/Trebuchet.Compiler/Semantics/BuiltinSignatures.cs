@@ -121,7 +121,7 @@ public static class BuiltinSignatures
             ("plusSeconds", "(Instant, Int) -> Instant ! Pure"), ("secondsBetween", "(Instant, Instant) -> Int ! Pure"));
         Namespace(g, "sys", ("clock", "() -> Instant ! Nondet"));
         Namespace(g, "env", ("get", "(String) -> String ! Nondet"));
-        Namespace(g, "json", ("encode", "[T](T) -> String ! Pure"), ("decode", "[T](String) -> T ! Pure"));
+        Namespace(g, "json", ("encode", "[T](T) -> String ! Pure"), ("decode", "[T](String) -> T ! Pure"), ("decodeSeq", "[T](String) -> Seq[T] ! Pure"), ("decodeChunks", "[T](Seq[String]) -> Seq[T] ! Pure"));
         return g;
     }
 
