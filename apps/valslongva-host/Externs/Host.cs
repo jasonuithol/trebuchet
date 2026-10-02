@@ -140,6 +140,20 @@ public static class Host
 
     public static Task<string> HttpGetText(string url) => Http.GetStringAsync(url);
 
+    private static readonly HttpClient NoRedirects = new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
+
+    /// <summary>Where an address redirects to, without going there. Throws when it does not redirect.</summary>
+    public static async Task<string> HttpRedirect(string url)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.UserAgent.ParseAdd("valslongva/0.2 (+https://github.com/jasonuithol/trebuchet)");
+        using var response = await NoRedirects.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        var code = (int)response.StatusCode;
+        if (code is < 300 or >= 400 || response.Headers.Location is not { } location)
+            throw new HttpRequestException($"{url} did not redirect (HTTP {code})");
+        return (location.IsAbsoluteUri ? location : new Uri(new Uri(url), location)).ToString();
+    }
+
     /// <summary>Downloads to a .part file and renames it, so a half-written archive is never mistaken for a whole one.</summary>
     public static async Task Download(string url, string path)
     {

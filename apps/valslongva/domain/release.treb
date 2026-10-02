@@ -1,23 +1,13 @@
 module valslongva.domain.release
 
-// The program's own releases on GitHub, read through the same lenient JSON boundary as the
-// catalogue: tag_name binds tagName, browser_download_url binds browserDownloadUrl. Which
-// release is an update, and which file in it is ours, is a pure question.
+// The program's own releases. GitHub's releases/latest address redirects to the newest tag, with
+// no API and so no rate limit; the tag names the version and the files' addresses follow from
+// it. Whether that tag is an update for this build is a pure question.
 
 use valslongva.domain.version
 
 fn appVersion() -> String ! Pure
         "0.2.1"
-
-record ReleaseAsset
-        name: String
-        browserDownloadUrl: String
-
-record Release
-        tagName: String
-        draft: Bool
-        prerelease: Bool
-        assets: Vector[ReleaseAsset]
 
 record Update
         version: String
@@ -35,45 +25,56 @@ fn tagPrefix() -> String ! Pure
 fn assetFor(os: String) -> String ! Pure
         if os == "windows" then "valslongva-win-x64.zip" else "valslongva-linux-x64.tar.gz"
 
-fn releaseVersion(r: Release) -> Option[Version] ! Pure
-        if startsWith(r.tagName, tagPrefix()) then parseVersion(substring(r.tagName, length(tagPrefix()), length(r.tagName))) else None
-
 fn newer(a: String, b: String) -> Bool ! Pure
         match (parseVersion(a), parseVersion(b))
                 (Some(x), Some(y)) => x > y
                 _ => false
 
-// The newest published release that is newer than what is running and carries this platform's file.
-fn updateFor(current: String, os: String, releases: Vector[Release]) -> Option[Update] ! Pure
-        wanted = assetFor(os)
-        fn candidate(r: Release) -> Option[Update]
-                match (releaseVersion(r), find(r.assets, \a -> a.name == wanted))
-                        (Some(v), Some(a)) => if r.draft or r.prerelease then None else Some(Update(showVersion(v), a.name, a.browserDownloadUrl))
-                        _ => None
-        fn better(acc: Option[Update], r: Release) -> Option[Update]
-                match candidate(r)
-                        None => acc
-                        Some(c) =>
-                                match acc
-                                        None => Some(c)
-                                        Some(best) => if newer(c.version, best.version) then Some(c) else acc
-        match fold(releases, None, better)
-                Some(best) => if newer(best.version, current) then Some(best) else None
+// The tag a release page's address ends in: .../releases/tag/valslongva-v1.2.3
+fn tagOf(location: String) -> Option[String] ! Pure
+        marker = "/releases/tag/"
+        match indexOf(location, marker)
                 None => None
+                Some(i) =>
+                        rest = substring(location, i + length(marker), length(location))
+                        tag = match split(rest, "?")
+                                [first, ..._] => first
+                                _ => rest
+                        if length(tag) > 0 and not contains(tag, "/") then Some(tag) else None
 
-fn prop_neverOffersWhatIsNotNewer(current: Version, releases: Vector[Release]) -> Bool ! Pure
-        match updateFor(showVersion(current), "linux", releases)
+fn versionOfTag(tag: String) -> Option[Version] ! Pure
+        if startsWith(tag, tagPrefix()) then parseVersion(substring(tag, length(tagPrefix()), length(tag))) else None
+
+// Where the latest release redirects to decides everything: a tag of ours, newer than what is
+// running, yields the address of this platform's file beside it. Anything else is no update.
+fn updateFromLatest(current: String, os: String, location: String) -> Option[Update] ! Pure
+        match tagOf(location)
+                None => None
+                Some(tag) =>
+                        match versionOfTag(tag)
+                                None => None
+                                Some(v) =>
+                                        if newer(showVersion(v), current) then
+                                                Some(Update(showVersion(v), assetFor(os), replace(location, "/releases/tag/" + tag, "/releases/download/" + tag + "/" + assetFor(os))))
+                                        else
+                                                None
+
+fn prop_neverOffersWhatIsNotNewer(current: Version, latest: Version) -> Bool ! Pure
+        location = "https://example.test/o/r/releases/tag/" + tagPrefix() + showVersion(latest)
+        match updateFromLatest(showVersion(current), "linux", location)
                 Some(u) => newer(u.version, showVersion(current))
                 None => true
 
-fn prop_offersTheNewestOfTwo(a: Version, b: Version) -> Bool ! Pure
-        fn release(v: Version) -> Release
-                Release(tagPrefix() + showVersion(v), false, false, [ReleaseAsset(assetFor("linux"), "https://example.test/" + showVersion(v))])
-        valid = a.major >= 0 and a.minor >= 0 and a.patch >= 0 and b.major >= 0 and b.minor >= 0 and b.patch >= 0 and (a.major > 0 or a.minor > 0 or a.patch > 0) and (b.major > 0 or b.minor > 0 or b.patch > 0)
-        top = if a > b then a else b
-        if valid then map(updateFor("0.0.0", "linux", [release(a), release(b)]), \u -> u.version) == Some(showVersion(top)) else true
+fn prop_aNewerTagYieldsItsOwnDownloadAddress(v: Version) -> Bool ! Pure
+        valid = v.major >= 0 and v.minor >= 0 and v.patch >= 0 and (v.major > 0 or v.minor > 0 or v.patch > 0)
+        tag = tagPrefix() + showVersion(v)
+        wanted = Some(Update(showVersion(v), "valslongva-win-x64.zip", "https://example.test/o/r/releases/download/" + tag + "/valslongva-win-x64.zip"))
+        if valid then updateFromLatest("0.0.0", "windows", "https://example.test/o/r/releases/tag/" + tag) == wanted else true
 
-fn prop_draftsAndOtherPlatformsAreIgnored(v: Version) -> Bool ! Pure
-        draft = Release(tagPrefix() + showVersion(v), true, false, [ReleaseAsset(assetFor("linux"), "x")])
-        other = Release(tagPrefix() + showVersion(v), false, false, [ReleaseAsset(assetFor("windows"), "x")])
-        updateFor("0.0.0", "linux", [draft, other]) == None
+fn prop_someoneElsesTagIsNeverAnUpdate(name: String, v: Version) -> Bool ! Pure
+        clean = replace(replace(name, "/", ""), "?", "")
+        tag = "other" + clean + "-v" + showVersion(v)
+        updateFromLatest("0.0.0", "linux", "https://example.test/o/r/releases/tag/" + tag) == None
+
+fn prop_anAddressWithoutATagIsNoUpdate(text: String) -> Bool ! Pure
+        if contains(text, "/releases/tag/") then true else updateFromLatest("0.0.0", "linux", text) == None

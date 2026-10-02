@@ -64,7 +64,7 @@ undoes only that. `valslongva install` and `valslongva remove` do the same from 
   so nothing that was in the game folder is ever destroyed.
 - **Checks Steam first.** A process check says whether the client is running and the tail of its
   `logs/connection_log.txt` says whether it is signed in; the Play buttons wait for both.
-- **Keeps itself current.** A published build checks the GitHub releases when the page opens,
+- **Keeps itself current.** A published build asks where GitHub's latest-release address redirects when the page opens,
   and when a newer one exists it downloads it, swaps itself, and restarts on the same port.
   `VALSLONGVA_NO_UPDATE=1` turns that off; a developer's run never updates itself.
 - **Does not make you wait.** The page shows what it showed last time at once, a catalogue older

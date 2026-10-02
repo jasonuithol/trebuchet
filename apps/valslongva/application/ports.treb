@@ -26,6 +26,7 @@ shape FileSystem
 
 shape Http
         fn getText(url: String) -> Result[String, HttpError] ! Nondet Suspend
+        fn redirectOf(url: String) -> Result[String, HttpError] ! Nondet Suspend
         fn download(url: String, path: String) -> Result[Unit, HttpError] ! Nondet Write Suspend
 
 shape Archive

@@ -33,19 +33,17 @@ fn listingText() -> String ! Pure
         "[" + loader + ", " + ship + "]"
 
 fn releasesFeed() -> String ! Pure
-        "https://example.test/valslongva/releases"
+        "https://example.test/valslongva/releases/latest"
+
+// Where the feed redirects: the newest tag.
+fn latestLocation() -> String ! Pure
+        "https://example.test/valslongva/releases/tag/valslongva-v9.9.9"
 
 fn updateUrl() -> String ! Pure
-        "https://example.test/valslongva/9.9.9/valslongva-linux-x64.tar.gz"
-
-// GitHub's shape, trimmed: a draft that must be ignored, an old release, and a new one.
-fn releasesText() -> String ! Pure
-        fn release(tag: String, draft: String, url: String) -> String
-                "{\"tag_name\": \"" + tag + "\", \"draft\": " + draft + ", \"prerelease\": false, \"name\": \"x\", \"assets\": [{\"name\": \"valslongva-linux-x64.tar.gz\", \"size\": 1, \"browser_download_url\": \"" + url + "\"}, {\"name\": \"valslongva-win-x64.zip\", \"size\": 1, \"browser_download_url\": \"" + url + ".zip\"}]}"
-        "[" + release("valslongva-v10.0.0", "true", "https://example.test/draft") + ", " + release("valslongva-v0.1.0", "false", "https://example.test/old") + ", " + release("valslongva-v9.9.9", "false", updateUrl()) + ", " + release("unrelated-v99.0.0", "false", "https://example.test/other") + "]"
+        "https://example.test/valslongva/releases/download/valslongva-v9.9.9/valslongva-linux-x64.tar.gz"
 
 fn fixturePages() -> Map[String, String] ! Pure
-        {listingUrl(): listingText(), releasesFeed(): releasesText()}
+        {listingUrl(): listingText(), releasesFeed(): latestLocation()}
 
 fn fixtureArchives() -> Map[String, Vector[String]] ! Pure
         loader = ["manifest.json", "icon.png", "BepInExPack_Valheim/winhttp.dll", "BepInExPack_Valheim/doorstop_config.ini", "BepInExPack_Valheim/start_game_bepinex.sh", "BepInExPack_Valheim/BepInEx/core/BepInEx.dll"]

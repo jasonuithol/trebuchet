@@ -8,7 +8,8 @@ namespace Valslongva;
 
 public static class SelfUpdate
 {
-    public const string DefaultFeed = "https://api.github.com/repos/jasonuithol/trebuchet/releases?per_page=30";
+    /// <summary>GitHub redirects this to the newest release's tag page: no API, so no rate limit.</summary>
+    public const string DefaultFeed = "https://github.com/jasonuithol/trebuchet/releases/latest";
 
     /// <summary>Set by the web host: stops the server so the port is free for the replacement.</summary>
     public static Action? StopServer;
@@ -28,7 +29,7 @@ public static class SelfUpdate
         && !File.Exists(Path.Combine(AppContext.BaseDirectory, "valslongva.dll"))
         && Environment.GetEnvironmentVariable("VALSLONGVA_NO_UPDATE") is null;
 
-    /// <summary>Where releases are listed. VALSLONGVA_RELEASES_URL overrides it, for testing against a local feed.</summary>
+    /// <summary>The address that redirects to the latest release. VALSLONGVA_RELEASES_URL overrides it, for testing against a local feed.</summary>
     public static string Feed() => Environment.GetEnvironmentVariable("VALSLONGVA_RELEASES_URL") is { Length: > 0 } url ? url : DefaultFeed;
 
     /// <summary>Puts the unpacked release in place of the running program: the executable and its ui folder.</summary>

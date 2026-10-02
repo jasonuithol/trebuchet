@@ -65,6 +65,11 @@ extern fn hostHttpGetText(url: String) -> Result[String, HttpError] ! Nondet Sus
         csharp "Valslongva.Host.HttpGetText"
         catch csharp "System.Exception" -> Unreachable
 
+// Where an address redirects to, without following it.
+extern fn hostHttpRedirect(url: String) -> Result[String, HttpError] ! Nondet Suspend
+        csharp "Valslongva.Host.HttpRedirect"
+        catch csharp "System.Exception" -> Unreachable
+
 extern fn hostDownload(url: String, path: String) -> Result[Unit, HttpError] ! Nondet Write Suspend
         csharp "Valslongva.Host.Download"
         catch csharp "System.Exception" -> Unreachable

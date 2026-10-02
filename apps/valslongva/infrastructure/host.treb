@@ -65,6 +65,8 @@ service HostFileSystem
 service HostHttp
         fn getText(url: String) -> Result[String, HttpError]
                 hostHttpGetText(url)
+        fn redirectOf(url: String) -> Result[String, HttpError]
+                hostHttpRedirect(url)
 
         fn download(url: String, path: String) -> Result[Unit, HttpError]
                 hostDownload(url, path)

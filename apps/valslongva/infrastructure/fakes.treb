@@ -71,6 +71,10 @@ service FakeHttp(pages: Map[String, String], fs: FakeFileSystem)
                         Some(text) => ok(text)
                         None => error(HttpError.Unreachable("no page " + url))
 
+        // a page whose text is an address stands for a redirect to it
+        fn redirectOf(url: String) -> Result[String, HttpError]
+                getText(url)
+
         fn download(url: String, path: String) -> Result[Unit, HttpError]
                 fs.writeText(path, "zip:" + url).mapError(\e -> HttpError.Unreachable("cannot write " + path))
 
