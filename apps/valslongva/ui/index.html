@@ -114,7 +114,7 @@ const fmtWhen = s => s ? new Date(s).toLocaleString([], { dateStyle: "medium", t
 
 function App() {
   const [status, setStatus] = useState(() => cache.get("status"));
-  const [tab, setTab] = useState("browse");
+  const [tab, setTab] = useState("installed");
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(null);
   const [query, setQuery] = useState("");
@@ -294,9 +294,8 @@ function App() {
 
       <div className="panel status">
         <div className="facts">
-          <span>Game: {ready ? <b>{status.gameDir}</b> : <b style={{ color: "var(--bad)" }}>{status ? status.gameProblem : "…"}</b>}</span>
-          <span>Catalogue: <b>{status && status.catalogueFetchedAt ? `${fmtCount(status.cataloguePackages)} packages, ${fmtWhen(status.catalogueFetchedAt)}` : "not loaded yet"}</b></span>
           <button className="small" onClick={() => setShowSettings(s => !s)}><span aria-hidden="true">⚙</span> {showSettings ? "Hide settings" : "Settings"}</button>
+          {status && !ready && <span style={{ color: "var(--bad)" }}>Valheim was not found. Set its folder in Settings.</span>}
         </div>
         <div className="play">
           {status && <div className={`steam ${status.steam}`} title={steamText}><span className="glyph"></span><span>{steamText}</span></div>}
@@ -306,11 +305,15 @@ function App() {
         <LoaderLine s={status} />
         {showSettings && (
           <div className="settings" style={{ gridColumn: "1 / -1" }}>
+            <div style={{ flexBasis: "100%" }} className="sub">Game: {ready ? <b style={{ color: "var(--ink)" }}>{status.gameDir}</b> : <b style={{ color: "var(--bad)" }}>{status ? status.gameProblem : "…"}</b>}</div>
             <span className="sub">Valheim folder</span>
             <input value={gamePath} onChange={e => setGamePath(e.target.value)} placeholder="leave empty to search the Steam libraries" />
             <button disabled={!!busy} onClick={savePath}>Save</button>
-            <button disabled={!!busy} onClick={refresh}>Refresh catalogue</button>
-            {status && status.candidates && status.candidates.length > 0 && <span className="sub">Looked in: {status.candidates.join(", ")}</span>}
+            {status && status.candidates && status.candidates.length > 0 && <span className="sub" style={{ flexBasis: "100%" }}>Looked in: {status.candidates.join(", ")}</span>}
+            <div style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+              <span className="sub">Catalogue: {status && status.catalogueFetchedAt ? `${fmtCount(status.cataloguePackages)} packages, fetched ${fmtWhen(status.catalogueFetchedAt)}` : "not loaded yet"}</span>
+              <button disabled={!!busy} onClick={refresh}>Refresh catalogue</button>
+            </div>
             <div style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
               <span className="sub">Version {status ? status.version : "…"}{updateNote ? ` · ${updateNote}` : ""}</span>
               <button disabled={!!busy} onClick={checkForUpdates}>Check for updates</button>
@@ -331,8 +334,8 @@ function App() {
       {msg && !busy && <div className={`msg ${msg.kind}`}>{msg.text}</div>}
 
       <div className="tabs">
-        <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>Browse{available !== null ? ` (${available.toLocaleString()})` : ""}</button>
         <button className={tab === "installed" ? "on" : ""} onClick={() => setTab("installed")}>Installed ({installed.length + (status && status.unmanaged ? status.unmanaged.length : 0)})</button>
+        <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>Browse{available !== null ? ` (${available.toLocaleString()})` : ""}</button>
       </div>
 
       {tab === "browse" && (
@@ -373,7 +376,12 @@ function App() {
         <div className="msg ok">Found and adopted from the game folder: {status.adopted.join(", ")}</div>
       )}
       {tab === "installed" && (
-        installed.length === 0 ? <div className="empty">{ready ? "No mods managed by valslöngva yet." : "Set the game folder first."}</div> : (
+        installed.length === 0 ? (
+          <div className="empty" style={{ textAlign: "center", padding: "36px 14px" }}>
+            <div style={{ marginBottom: 14 }}>{ready ? "No mods installed yet." : "Set the game folder in Settings first."}</div>
+            <button className="primary" style={{ fontSize: 18, padding: "12px 28px" }} onClick={() => setTab("browse")}>Add Mods</button>
+          </div>
+        ) : (
           <div className="list">
             {installed.map(m => {
               const s = m.summary || { fullName: m.pkg, name: m.pkg, owner: "", description: "not in the catalogue (yet)", packageUrl: "", latestVersion: m.latestVersion || m.version, downloads: 0, ratingScore: 0, categories: [], icon: "", isDeprecated: false, dateUpdated: "", dependencies: [], installedVersion: m.version, enabled: m.enabled };
