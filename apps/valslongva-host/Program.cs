@@ -29,6 +29,22 @@ builder.Services.ConfigureHttpJsonOptions(o => TrebuchetJson.Configure(o.Seriali
 var app = builder.Build();
 
 var api = app.Services.GetRequiredService<Api>();
+
+// Decoding the catalogue makes a few hundred megabytes of short-lived strings and buffers. Once a
+// request that loads or refreshes it has answered, compact the heap and hand the memory back.
+var settled = 0L;
+app.Use(async (context, next) =>
+{
+    await next();
+    var path = context.Request.Path.Value ?? "";
+    if (path == "/refresh" || (path == "/search" && Interlocked.Exchange(ref settled, 1) == 0))
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(2000); // let the request that held the document finish letting go of it
+            System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        });
+});
 // an update swaps the files, then asks us to stop so the replacement can take the port
 Valslongva.SelfUpdate.StopServer = () => app.Lifetime.StopApplication();
 Valslongva.SelfUpdate.RestartArgs = new[] { port.ToString(), "--no-browser" };
@@ -60,6 +76,7 @@ app.MapGet("/pulse", async () => Respond(await api.getPulse()));
 app.MapPost("/selfupdate", async () => Respond(await api.postSelfupdate()));
 // the application managing its own installation: host business, not the mod manager's
 app.MapGet("/setup", () => Results.Json(Valslongva.Setup.Status()));
+app.MapGet("/memory", () => Results.Json(new { managedMb = GC.GetTotalMemory(false) / 1048576, workingSetMb = Environment.WorkingSet / 1048576, serverGc = System.Runtime.GCSettings.IsServerGC }));
 app.MapPost("/setup", (SetupRequest r) =>
 {
     try { return Results.Json(new { path = r.action == "remove" ? Valslongva.Setup.Remove() : Valslongva.Setup.Install(), Valslongva.Setup.IsInstalled }); }

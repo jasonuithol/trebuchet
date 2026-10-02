@@ -53,7 +53,7 @@ private fn visit(cat: Catalogue, lib: Library, walk: Walk, pkg: String, required
                         Some(l) => ok(l)
                         None => error(PlanError.UnknownPackage(pkg))
                 listing2 = listing?
-                version = match latest(listing2)
+                version = match listing2.latest
                         Some(v) => ok(v)
                         None => error(PlanError.NoVersions(pkg))
                 version2 = version?
@@ -66,7 +66,7 @@ private fn visit(cat: Catalogue, lib: Library, walk: Walk, pkg: String, required
                 else
                         resolve(cat, lib, walk, pkg, listing2, version2)
 
-private fn resolve(cat: Catalogue, lib: Library, walk: Walk, pkg: String, listing: Listing, version: ListingVersion) -> Result[Walk, PlanError]
+private fn resolve(cat: Catalogue, lib: Library, walk: Walk, pkg: String, listing: Package, version: ListingVersion) -> Result[Walk, PlanError]
         fn parse(d: String) -> Result[Dependency, PlanError]
                 match parseDependency(d)
                         Some(dep) => ok(dep)

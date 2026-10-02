@@ -22,15 +22,15 @@ record ListingSummary
         enabled: Bool
         packageUrl: String
 
-fn summarise(l: Listing, lib: Library) -> Option[ListingSummary] ! Pure
-        match latest(l)
+fn summarise(l: Package, lib: Library) -> Option[ListingSummary] ! Pure
+        match l.latest
                 None => None
                 Some(v) =>
                         installed = lib.mods.get(l.fullName)
                         enabled = match installed
                                 Some(m) => m.enabled
                                 None => false
-                        Some(ListingSummary(l.fullName, l.name, l.owner, v.description, v.versionNumber, totalDownloads(l), l.ratingScore, l.categories, v.icon, l.isDeprecated, l.dateUpdated, v.dependencies, map(installed, \m -> m.version), enabled, l.packageUrl))
+                        Some(ListingSummary(l.fullName, l.name, l.owner, v.description, v.versionNumber, l.downloads, l.ratingScore, l.categories, v.icon, l.isDeprecated, l.dateUpdated, v.dependencies, map(installed, \m -> m.version), enabled, l.packageUrl))
 
 fn matches(s: ListingSummary, terms: Vector[String]) -> Bool ! Pure
         haystack = toLower(s.fullName + " " + s.description)
@@ -45,7 +45,7 @@ fn ordered(xs: Vector[ListingSummary], sort: String) -> Vector[ListingSummary] !
 
 fn searchCatalogue(cat: Catalogue, lib: Library, query: String, sort: String, includeDeprecated: Bool, offset: Int, limit: Int) -> Page[ListingSummary] ! Pure
         terms = filter(split(toLower(trim(query)), " "), \t -> length(t) > 0)
-        fn keep(acc: Vector[ListingSummary], l: Listing) -> Vector[ListingSummary]
+        fn keep(acc: Vector[ListingSummary], l: Package) -> Vector[ListingSummary]
                 match summarise(l, lib)
                         Some(s) => if (includeDeprecated or not s.isDeprecated) and matches(s, terms) then append(acc, s) else acc
                         None => acc

@@ -6,12 +6,15 @@
     <AssemblyName>valslongva</AssemblyName>
     <RootNamespace>Valslongva</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.2.1</Version>
+    <Version>0.2.2</Version>
     <!-- one file, no runtime to install: see publish.sh -->
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
+    <!-- a desktop program, not a server: the server collector keeps one heap per core and held 3-4 GB here -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
   <ItemGroup>

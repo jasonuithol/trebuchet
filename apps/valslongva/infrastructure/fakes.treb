@@ -75,8 +75,12 @@ service FakeHttp(pages: Map[String, String], fs: FakeFileSystem)
         fn redirectOf(url: String) -> Result[String, HttpError]
                 getText(url)
 
+        // a page downloads as its text; anything else as a marker the fake archive can unpack
         fn download(url: String, path: String) -> Result[Unit, HttpError]
-                fs.writeText(path, "zip:" + url).mapError(\e -> HttpError.Unreachable("cannot write " + path))
+                body = match pages.get(url)
+                        Some(text) => text
+                        None => "zip:" + url
+                fs.writeText(path, body).mapError(\e -> HttpError.Unreachable("cannot write " + path))
 
 // Unpacks a marker written by FakeHttp into the entries registered for that URL.
 service FakeArchive(entries: Map[String, Vector[String]], fs: FakeFileSystem)

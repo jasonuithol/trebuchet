@@ -45,12 +45,16 @@ service CatalogueService(http: Http, fs: FileSystem, platform: Platform, clock: 
                         Some(cat) => not isFresh(cat)
                         None => false
 
+        // The listing is 170 MB: it is streamed to a file beside the old one and read from there, never
+        // held as a response in memory, and it replaces the old copy only once it has decoded.
         fn refresh() -> Result[Catalogue, AppError]
-                text = http.getText(listingUrl()).mapError(net)?
                 now = clock.now()
-                cat = decode(text, now)?
+                staged = listingPath() + ".new"
                 fs.ensureDir(platform.dataDir()).mapError(io)?
-                fs.writeText(listingPath(), text).mapError(io)?
+                http.download(listingUrl(), staged).mapError(net)?
+                text = fs.readText(staged).mapError(io)?
+                cat = decode(text, now)?
+                fs.moveTree(staged, listingPath()).mapError(io)?
                 fs.writeText(stampPath(), toString(now)).mapError(io)?
                 cache.set(Some(cat))
                 ok(cat)

@@ -91,7 +91,7 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                         Some(c) =>
                                 match lookup(c, loaderName())
                                         None => None
-                                        Some(l) => latest(l)
+                                        Some(l) => l.latest
 
         private fn loaderLatest() -> Option[String]
                 map(loaderVersion(), \v -> v.versionNumber)
@@ -111,12 +111,12 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                 wanted = match u.pluginName
                         Some(n) => key(n)
                         None => key(replace(u.entry, ".dll", ""))
-                fn related(l: Listing) -> Bool
+                fn related(l: Package) -> Bool
                         k = key(l.name)
                         length(k) > 0 and (k == wanted or startsWith(wanted, k))
-                fn hasVersion(l: Listing) -> Bool
+                fn hasVersion(l: Package) -> Bool
                         match u.pluginVersion
-                                Some(v) => any(l.versions, \lv -> lv.versionNumber == v)
+                                Some(v) => contains(l.versions, v)
                                 None => false
                 match catalogue.loaded()
                         None => None
@@ -135,10 +135,10 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                         (Some(name), Some(c)) => lookup(c, name)
                         _ => None
                 known = match (listing, u.pluginVersion)
-                        (Some(l), Some(v)) => any(l.versions, \lv -> lv.versionNumber == v)
+                        (Some(l), Some(v)) => contains(l.versions, v)
                         _ => false
                 newest = match listing
-                        Some(l) => map(latest(l), \lv -> lv.versionNumber)
+                        Some(l) => map(l.latest, \lv -> lv.versionNumber)
                         None => None
                 UnmanagedView(u.entry, u.isFolder, u.pluginName, u.pluginVersion, u.guid, suggestion, known, newest)
 
@@ -168,20 +168,20 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                         Some(l) =>
                                 match summarise(l, libraryOrEmpty())
                                         None => error(AppError.Conflict(name + " has no versions"))
-                                        Some(s) => ok(PackageDetail(s, map(l.versions, \v -> v.versionNumber), l.packageUrl))
+                                        Some(s) => ok(PackageDetail(s, l.versions, l.packageUrl))
 
         fn getInstalled() -> Result[Vector[InstalledView], AppError]
                 installer.scan()?
                 lib = installer.library()?
                 cat = catalogue.loaded()
-                fn listingOf(pkg: String) -> Option[Listing]
+                fn listingOf(pkg: String) -> Option[Package]
                         match cat
                                 None => None
                                 Some(c) => lookup(c, pkg)
                 fn latestOf(pkg: String) -> Option[String]
                         match listingOf(pkg)
                                 None => None
-                                Some(l) => map(latest(l), \v -> v.versionNumber)
+                                Some(l) => map(l.latest, \v -> v.versionNumber)
                 fn summaryOf(pkg: String) -> Option[ListingSummary]
                         match listingOf(pkg)
                                 None => None
