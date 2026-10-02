@@ -71,6 +71,10 @@
   .loader .what small { display: block; color: var(--muted); font-size: 12px; }
   .steam { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-right: 6px; }
   .steam .glyph { width: 26px; height: 26px; background-color: #6b7680; -webkit-mask: url(https://cdn.jsdelivr.net/npm/simple-icons@13/icons/steam.svg) center / contain no-repeat; mask: url(https://cdn.jsdelivr.net/npm/simple-icons@13/icons/steam.svg) center / contain no-repeat; transition: background-color .4s; }
+  .steam { padding: 4px 8px; border-radius: 6px; border: 1px solid transparent; }
+  .steam.nudge { animation: shake .45s cubic-bezier(.36,.07,.19,.97) both; border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
+  @keyframes shake { 10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); } 30%, 50%, 70% { transform: translateX(-7px); } 40%, 60% { transform: translateX(7px); } }
+  @media (prefers-reduced-motion: reduce) { .steam.nudge { animation: none; } }
   .steam.Connected .glyph { background-color: #2a9d5c; }
   .steam.NotConnected .glyph { background-color: #d09a2b; }
   .steam.NotRunning .glyph { background-color: #8a8f94; opacity: .5; }
@@ -279,6 +283,33 @@ function App() {
 
   const ready = status && status.gameDir;
   const steamOk = status && status.steam === "Connected";
+  const [nudge, setNudge] = useState(0); // counts refusals, so the shake restarts on every press
+
+  // The "no" of a game show: two short low buzzes, made on the spot so there is no sound file.
+  function buzz() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      [0, 0.16].forEach(at => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.value = 110;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+        gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + at + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.12);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(ctx.currentTime + at);
+        osc.stop(ctx.currentTime + at + 0.13);
+      });
+      setTimeout(() => ctx.close(), 600);
+    } catch (e) { /* no audio: the shake still says it */ }
+  }
+
+  // Steam first: without a signed-in client the game cannot start, so say so where the eye should go.
+  const play = mode => {
+    if (!steamOk) { buzz(); setNudge(n => n + 1); return; }
+    launch(mode);
+  };
   const steamText = { Connected: "Steam connected", NotConnected: "Steam running, not signed in", NotRunning: "Steam not running" }[status ? status.steam : ""] || "";
   const pages = page ? Math.max(1, Math.ceil(page.total / PAGE)) : 1;
   const pageNo = Math.floor(offset / PAGE) + 1;
@@ -298,9 +329,9 @@ function App() {
           {status && !ready && <span style={{ color: "var(--bad)" }}>Valheim was not found. Set its folder in Settings.</span>}
         </div>
         <div className="play">
-          {status && <div className={`steam ${status.steam}`} title={steamText}><span className="glyph"></span><span>{steamText}</span></div>}
-          <button className="primary" disabled={!ready || !steamOk || !!busy || !(status && status.loaderPresent)} onClick={() => launch("modded")}>Play modded</button>
-          <button disabled={!ready || !steamOk || !!busy} onClick={() => launch("vanilla")}>Play vanilla</button>
+          {status && <div key={nudge} className={`steam ${status.steam}${nudge > 0 && !steamOk ? " nudge" : ""}`} title={steamText}><span className="glyph"></span><span>{steamText}</span></div>}
+          <button className="primary" disabled={!ready || !!busy || !(status && status.loaderPresent)} onClick={() => play("modded")}>Play modded</button>
+          <button disabled={!ready || !!busy} onClick={() => play("vanilla")}>Play vanilla</button>
         </div>
         <LoaderLine s={status} />
         {showSettings && (
