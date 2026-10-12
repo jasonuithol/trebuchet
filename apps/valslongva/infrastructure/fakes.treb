@@ -124,6 +124,9 @@ service FakeProcesses(log: Cell[Vector[String]])
         fn openUrl(url: String) -> Result[Unit, IoError]
                 log.update(\l -> append(l, "open " + url))
                 ok(unit)
+        fn startSteam() -> Result[Unit, IoError]
+                log.update(\l -> append(l, "start steam"))
+                ok(unit)
 
         fn entries() -> Vector[String]
                 log.get()

@@ -232,6 +232,14 @@ public static class Host
         Process.Start(info)?.Dispose();
     }
 
+    /// <summary>Starts the Steam client. The steam: scheme reaches it wherever it is installed; a plain `steam` on Linux is the fallback.</summary>
+    public static void StartSteam()
+    {
+        if (OperatingSystem.IsWindows()) { Process.Start(new ProcessStartInfo("steam://open/main") { UseShellExecute = true })?.Dispose(); return; }
+        try { Process.Start(new ProcessStartInfo("xdg-open", new[] { "steam://open/main" }) { UseShellExecute = false })?.Dispose(); }
+        catch (Exception) { Process.Start(new ProcessStartInfo("steam") { UseShellExecute = false })?.Dispose(); }
+    }
+
     public static void OpenUrl(string url)
     {
         if (OperatingSystem.IsWindows()) Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();

@@ -309,11 +309,26 @@ function App() {
     } catch (e) { /* no audio: the shake still says it */ }
   }
 
-  // Steam first: without a signed-in client the game cannot start, so say so where the eye should go.
+  // Steam first: without a signed-in client the game cannot start. Not running at all? Start it and
+  // play once the pulse says it is signed in. Running but not signed in? That is the user's to do.
+  const [pending, setPending] = useState(null); // the mode waiting on Steam
+  const startSteam = async mode => {
+    setMsg(null); setBusy("Starting Steam");
+    try {
+      await api("POST", "/steam");
+      setPending(mode || null);
+      setMsg({ kind: "warn", text: mode ? `Steam is starting; ${mode} play will begin once it is signed in` : "Steam is starting" });
+    } catch (e) { buzz(); setNudge(n => n + 1); setMsg({ kind: "err", text: `Could not start Steam: ${e.message}` }); }
+    finally { setBusy(null); }
+  };
   const play = mode => {
+    if (status && status.steam === "NotRunning") { startSteam(mode); return; }
     if (!steamOk) { buzz(); setNudge(n => n + 1); return; }
     launch(mode);
   };
+  useEffect(() => {
+    if (pending && steamOk) { const mode = pending; setPending(null); launch(mode); }
+  }, [steamOk, pending]);
   const steamText = { Connected: "Steam connected", NotConnected: "Steam running, not signed in", NotRunning: "Steam not running" }[status ? status.steam : ""] || "";
   const pages = page ? Math.max(1, Math.ceil(page.total / PAGE)) : 1;
   const pageNo = Math.floor(offset / PAGE) + 1;
@@ -333,7 +348,8 @@ function App() {
           {status && !ready && <span style={{ color: "var(--bad)" }}>Valheim was not found. Set its folder in Settings.</span>}
         </div>
         <div className="play">
-          {status && <div key={nudge} className={`steam ${status.steam}${nudge > 0 && !steamOk ? " nudge" : ""}`} title={steamText}><span className="glyph"></span><span>{steamText}</span></div>}
+          {status && <div key={nudge} className={`steam ${status.steam}${nudge > 0 && !steamOk ? " nudge" : ""}`} title={steamText}><span className="glyph"></span><span>{pending ? "Waiting for Steam…" : steamText}</span></div>}
+          {status && status.steam === "NotRunning" && !pending && <button className="small" disabled={!!busy} onClick={() => startSteam(null)}>Start Steam</button>}
           <button className="primary" disabled={!ready || !!busy || !(status && status.loaderPresent)} onClick={() => play("modded")}>Play modded</button>
           <button disabled={!ready || !!busy} onClick={() => play("vanilla")}>Play vanilla</button>
         </div>

@@ -72,6 +72,7 @@ app.MapPost("/disable", async (Named body) => Respond(await api.postDisable(body
 app.MapPost("/launch", async (Launch body) => Respond(await api.postLaunch(body.mode)));
 app.MapPost("/gamepath", async (GamePath body) => Respond(await api.postGamePath(body.path)));
 app.MapPost("/refresh", async () => Respond(await api.postRefresh()));
+app.MapPost("/steam", async () => Respond(await api.postSteam()));
 app.MapGet("/pulse", async () => Respond(await api.getPulse()));
 app.MapPost("/selfupdate", async () => Respond(await api.postSelfupdate()));
 // the application managing its own installation: host business, not the mod manager's

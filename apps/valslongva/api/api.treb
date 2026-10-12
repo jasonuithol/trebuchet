@@ -76,7 +76,7 @@ record PackageDetail
         versions: Vector[String]
         packageUrl: String
 
-service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem, steam: SteamStatus, updater: Updater)
+service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem, steam: SteamStatus, updater: Updater, processes: Processes)
         private fn catalogueStamp() -> Option[Instant]
                 map(catalogue.loaded(), \c -> c.fetchedAt)
 
@@ -220,6 +220,14 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                 chosen = if length(trim(path)) == 0 then None else Some(replace(trim(path), "\\", "/"))
                 settings.save(Settings(chosen))?
                 getStatus()
+
+        // Start the Steam client when it is not running; signing in is the user's, and the pulse reports it.
+        fn postSteam() -> Result[SteamState, AppError]
+                match steam.state()
+                        NotRunning =>
+                                processes.startSteam().mapError(io)?
+                                ok(SteamState.NotRunning)
+                        other => ok(other)
 
         fn getPulse() -> Result[Pulse, AppError]
                 ok(Pulse(steam.state(), appVersion()))

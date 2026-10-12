@@ -37,6 +37,7 @@ shape Archive
 shape Processes
         fn run(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
         fn openUrl(url: String) -> Result[Unit, IoError] ! Nondet Write
+        fn startSteam() -> Result[Unit, IoError] ! Nondet Write
 
 // The running program as a thing that can be replaced: host business behind a shape.
 shape SelfInstall

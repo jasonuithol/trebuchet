@@ -43,7 +43,14 @@ fn worldFull(steamClient: FakeSteam, files: Cell[Map[String, String]], program: 
         steam = SteamStatus(steamClient, fs, locator)
         launcher = Launcher(fs, processes, platform, locator, installer, steam)
         updater = Updater(http, fs, archive, platform, program)
-        World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam, updater), fs, processes, program)
+        World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam, updater, processes), fs, processes, program)
+
+handler prop_startsSteamOnlyWhenItIsNotRunning() -> Bool
+        down = worldWith(FakeSteam(false), seededFiles())
+        up = world()
+        match (down.api.postSteam(), up.api.postSteam())
+                (Ok(NotRunning), Ok(Connected)) => down.processes.entries() == ["start steam"] and isEmpty(up.processes.entries())
+                _ => false
 
 // A published build finds the newest real release, unpacks it, swaps itself, and restarts.
 handler prop_updatesItselfWhenANewerReleaseExists() -> Bool

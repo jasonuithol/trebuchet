@@ -102,6 +102,10 @@ extern fn hostRun(program: String, workingDir: String) -> Result[Unit, IoError] 
         csharp "Valslongva.Host.Run"
         catch csharp "System.Exception" -> Failed
 
+extern fn hostStartSteam() -> Result[Unit, IoError] ! Nondet Write
+        csharp "Valslongva.Host.StartSteam"
+        catch csharp "System.Exception" -> Failed
+
 extern fn hostOpenUrl(url: String) -> Result[Unit, IoError] ! Nondet Write
         csharp "Valslongva.Host.OpenUrl"
         catch csharp "System.Exception" -> Failed

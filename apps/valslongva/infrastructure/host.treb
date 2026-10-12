@@ -97,3 +97,5 @@ service HostProcesses
 
         fn openUrl(url: String) -> Result[Unit, IoError]
                 hostOpenUrl(url)
+        fn startSteam() -> Result[Unit, IoError]
+                hostStartSteam()
