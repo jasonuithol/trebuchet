@@ -100,7 +100,7 @@ of Thunderstore's snake_case; an `Ord` instance on `Version` used with `<` and `
 tuple patterns; local functions; property tests on every domain module and scenario handlers
 that compose the whole application from fakes; composition roots for the real and the test
 world; externs with exception mapping. Strategy §7.28 lists what building it changed in the
-language and compiler.
+language and compiler; `DESIGN.md` beside this file records the application's own design decisions.
 
 ## Not in this version
 
