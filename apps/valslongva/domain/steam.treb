@@ -68,5 +68,18 @@ fn prop_lastStateLineDecides(noise: String) -> Bool ! Pure
 fn runUrl() -> String ! Pure
         "steam://rungameid/" + appId()
 
+// Steam's other run form carries arguments: steam://run/<id>//<args>/, the client adding them to
+// the game's launch options. Spaces and quotes are percent-encoded so the URL stays one token.
+fn runUrlWith(args: Vector[String]) -> String ! Pure
+        fn encode(a: String) -> String
+                replace(replace(replace(a, "%", "%25"), " ", "%20"), "\"", "%22")
+        if isEmpty(args) then
+                runUrl()
+        else
+                "steam://run/" + appId() + "//" + join(map(args, encode), "%20") + "/"
+
+fn prop_runUrlWithArgumentsIsOneToken() -> Bool ! Pure
+        runUrlWith(["-console", "-window-mode", "a b"]) == "steam://run/892970//-console%20-window-mode%20a%20b/" and runUrlWith([]) == runUrl()
+
 fn prop_everyLibraryYieldsOneCandidate(libs: Vector[String]) -> Bool ! Pure
         length(gameCandidates(libs)) == length(libs)

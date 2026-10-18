@@ -71,6 +71,7 @@ app.MapPost("/enable", async (Named body) => Respond(await api.postEnable(body.n
 app.MapPost("/disable", async (Named body) => Respond(await api.postDisable(body.name)));
 app.MapPost("/launch", async (Launch body) => Respond(await api.postLaunch(body.mode)));
 app.MapPost("/gamepath", async (GamePath body) => Respond(await api.postGamePath(body.path)));
+app.MapPost("/launchargs", async (LaunchArgs body) => Respond(await api.postLaunchArgs(body.args)));
 app.MapPost("/refresh", async () => Respond(await api.postRefresh()));
 app.MapPost("/steam", async () => Respond(await api.postSteam()));
 app.MapGet("/pulse", async () => Respond(await api.getPulse()));
@@ -128,4 +129,5 @@ public sealed record Named(string name);
 public sealed record Adopt(string entry, string name);
 public sealed record Launch(string mode);
 public sealed record GamePath(string path);
+public sealed record LaunchArgs(string args);
 public sealed record SetupRequest(string action);

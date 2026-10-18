@@ -43,6 +43,8 @@ record Status
         catalogueFetchedAt: Option[Instant]
         cataloguePackages: Int
         catalogueStale: Bool
+        // extra command-line arguments for the game, as typed in Settings
+        launchArgs: String
 
 // What changes without the user touching anything: polled every few seconds.
 record Pulse
@@ -148,14 +150,16 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                         Error(_) => emptyLibrary()
 
         fn getStatus() -> Result[Status, AppError]
+                prefs = settings.load()?
+                args = getOr(prefs.launchArgs, "")
                 match locator.gameDir()
                         Error(e) =>
-                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages(), catalogue.stale()))
+                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages(), catalogue.stale(), args))
                         Ok(dir) =>
                                 scanned = installer.scan()?
                                 lib = installer.library()?
                                 core = dir + "/BepInEx/core/BepInEx.dll"
-                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages(), catalogue.stale()))
+                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages(), catalogue.stale(), args))
 
         fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
                 cat = catalogue.current()?
@@ -218,7 +222,15 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
 
         fn postGamePath(path: String) -> Result[Status, AppError]
                 chosen = if length(trim(path)) == 0 then None else Some(replace(trim(path), "\\", "/"))
-                settings.save(Settings(chosen))?
+                current = settings.load()?
+                settings.save(Settings(chosen, current.launchArgs))?
+                getStatus()
+
+        // Extra command-line arguments for the game; kept as one line and split only at launch.
+        fn postLaunchArgs(args: String) -> Result[Status, AppError]
+                chosen = if length(trim(args)) == 0 then None else Some(trim(args))
+                current = settings.load()?
+                settings.save(Settings(current.gamePath, chosen))?
                 getStatus()
 
         // Start the Steam client when it is not running; signing in is the user's, and the pulse reports it.

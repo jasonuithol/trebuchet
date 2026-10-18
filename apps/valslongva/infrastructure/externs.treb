@@ -98,7 +98,7 @@ extern fn hostRestart() -> Result[Unit, IoError] ! Nondet Write
 extern fn hostSteamRunning() -> Bool ! Nondet
         csharp "Valslongva.Host.SteamRunning"
 
-extern fn hostRun(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
+extern fn hostRun(program: String, workingDir: String, args: Vector[String]) -> Result[Unit, IoError] ! Nondet Write
         csharp "Valslongva.Host.Run"
         catch csharp "System.Exception" -> Failed
 

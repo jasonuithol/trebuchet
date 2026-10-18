@@ -92,8 +92,8 @@ service HostSteam
                 hostSteamRunning()
 
 service HostProcesses
-        fn run(program: String, workingDir: String) -> Result[Unit, IoError]
-                hostRun(program, workingDir)
+        fn run(program: String, workingDir: String, args: Vector[String]) -> Result[Unit, IoError]
+                hostRun(program, workingDir, args)
 
         fn openUrl(url: String) -> Result[Unit, IoError]
                 hostOpenUrl(url)

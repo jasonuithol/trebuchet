@@ -134,6 +134,7 @@ function App() {
   const refreshedCatalogue = useRef(false);
   const bootVersion = useRef(null);
   const [gamePath, setGamePath] = useState("");
+  const [launchArgs, setLaunchArgs] = useState(""); // extra command-line arguments for the game, as saved
   const [showSettings, setShowSettings] = useState(false);
   const [confirming, setConfirming] = useState(null);
   const [updateNote, setUpdateNote] = useState(null); // what the last update check said, shown in Settings
@@ -145,6 +146,7 @@ function App() {
       setStatus(s);
       cache.set("status", s);
       setGamePath(s.gameDir || "");
+      setLaunchArgs(s.launchArgs || "");
       if (!s.gameDir) setShowSettings(true);
       return s;
     } catch (e) { setMsg({ kind: "err", text: e.message }); return null; }
@@ -278,6 +280,7 @@ function App() {
   }
   const launch = mode => run(`Starting Valheim (${mode})`, () => api("POST", "/launch", { mode }), () => `Valheim is starting in ${mode} mode`);
   const savePath = () => run("Saving the game folder", () => api("POST", "/gamepath", { path: gamePath }), s => s.gameDir ? `Using ${s.gameDir}` : (s.gameProblem || "No game folder"));
+  const saveLaunchArgs = () => run("Saving the launch arguments", () => api("POST", "/launchargs", { args: launchArgs }), s => s.launchArgs ? `The game will start with ${s.launchArgs}` : "No extra launch arguments");
   const setupApp = action => run(action === "install" ? "Installing valslöngva on this computer" : "Removing valslöngva from this computer", () => api("POST", "/setup", { action }), r => action === "install" ? `Installed to ${r.path}; it is in your app launcher now` : `Removed from ${r.path}; your settings and mods were left alone`);
   const refresh = () => run("Refreshing the catalogue", () => api("POST", "/refresh"), s => `Catalogue has ${s.cataloguePackages} packages`);
 
@@ -360,6 +363,11 @@ function App() {
             <input value={gamePath} onChange={e => setGamePath(e.target.value)} placeholder="leave empty to search the Steam libraries" />
             <button disabled={!!busy} onClick={savePath}>Save</button>
             {status && status.candidates && status.candidates.length > 0 && <span className="sub" style={{ flexBasis: "100%" }}>Looked in: {status.candidates.join(", ")}</span>}
+            <div style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span className="sub" title="Passed to the game on every Play, modded or vanilla. Quote an argument that contains spaces.">Launch arguments</span>
+              <input value={launchArgs} onChange={e => setLaunchArgs(e.target.value)} placeholder="e.g. -console -window-mode exclusive" spellCheck={false} />
+              <button disabled={!!busy} onClick={saveLaunchArgs}>Save</button>
+            </div>
             <div style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
               <span className="sub">Catalogue: {status && status.catalogueFetchedAt ? `${fmtCount(status.cataloguePackages)} packages, fetched ${fmtWhen(status.catalogueFetchedAt)}` : "not loaded yet"}</span>
               <button disabled={!!busy} onClick={refresh}>Refresh catalogue</button>

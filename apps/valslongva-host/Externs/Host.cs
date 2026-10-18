@@ -222,11 +222,11 @@ public static class Host
     }
 
     /// <summary>Starts a program detached. A shell script goes through sh, since a zip does not carry the executable bit.</summary>
-    public static void Run(string program, string workingDir)
+    public static void Run(string program, string workingDir, IReadOnlyList<string> args)
     {
         var info = program.EndsWith(".sh", StringComparison.Ordinal)
-            ? new ProcessStartInfo("/bin/sh", new[] { program })
-            : new ProcessStartInfo(program);
+            ? new ProcessStartInfo("/bin/sh", new[] { program }.Concat(args))
+            : new ProcessStartInfo(program, args);
         info.WorkingDirectory = workingDir;
         info.UseShellExecute = false;
         Process.Start(info)?.Dispose();

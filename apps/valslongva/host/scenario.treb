@@ -41,7 +41,7 @@ fn worldFull(steamClient: FakeSteam, files: Cell[Map[String, String]], program: 
         catalogue = CatalogueService(http, fs, platform, clock, emptyCache())
         installer = Installer(fs, http, archive, platform, clock, catalogue, locator)
         steam = SteamStatus(steamClient, fs, locator)
-        launcher = Launcher(fs, processes, platform, locator, installer, steam)
+        launcher = Launcher(fs, processes, platform, locator, installer, steam, settings)
         updater = Updater(http, fs, archive, platform, program)
         World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam, updater, processes), fs, processes, program)
 
@@ -95,6 +95,20 @@ handler prop_launchNeedsSteam() -> Bool
                 Ok(s) => s.steam == SteamState.NotRunning
                 Error(_) => false
         refused and reported and w.processes.entries() == []
+
+handler prop_extraArgumentsReachTheGame() -> Bool
+        w = world()
+        saved = match w.api.postLaunchArgs("  -console \"-window-mode exclusive\" ")
+                Ok(s) => s.launchArgs == "-console \"-window-mode exclusive\""
+                Error(_) => false
+        launched = match w.api.postLaunch("vanilla")
+                Ok(_) => w.processes.entries() == ["run " + gameDir() + "/valheim.x86_64 in " + gameDir() + " with -console -window-mode exclusive"]
+                Error(_) => false
+        // clearing the field clears the setting, and the game folder choice survives both writes
+        cleared = match (w.api.postLaunchArgs(""), w.api.getStatus())
+                (Ok(_), Ok(s)) => s.launchArgs == "" and s.gameDir == Some(gameDir())
+                _ => false
+        saved and launched and cleared
 
 handler prop_findsTheGameInTheSteamLibrary() -> Bool
         w = world()

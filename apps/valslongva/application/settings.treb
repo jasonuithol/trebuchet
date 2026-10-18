@@ -6,6 +6,8 @@ use valslongva.application.errors
 
 record Settings
         gamePath: Option[String]
+        // extra command-line arguments for the game, one line as the user typed it
+        launchArgs: Option[String]
 
 service SettingsStore(fs: FileSystem, platform: Platform)
         private fn path() -> String
@@ -17,7 +19,7 @@ service SettingsStore(fs: FileSystem, platform: Platform)
                         decoded = supervise json.decode[Settings](text)
                         decoded.mapError(crashed)
                 else
-                        ok(Settings(None))
+                        ok(Settings(None, None))
 
         fn save(s: Settings) -> Result[Unit, AppError]
                 fs.ensureDir(platform.dataDir()).mapError(io)?

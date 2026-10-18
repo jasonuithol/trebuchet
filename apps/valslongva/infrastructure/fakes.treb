@@ -117,8 +117,9 @@ service FakeSteam(isRunning: Bool)
                 isRunning
 
 service FakeProcesses(log: Cell[Vector[String]])
-        fn run(program: String, workingDir: String) -> Result[Unit, IoError]
-                log.update(\l -> append(l, "run " + program + " in " + workingDir))
+        fn run(program: String, workingDir: String, args: Vector[String]) -> Result[Unit, IoError]
+                withArgs = if isEmpty(args) then "" else " with " + join(args, " ")
+                log.update(\l -> append(l, "run " + program + " in " + workingDir + withArgs))
                 ok(unit)
 
         fn openUrl(url: String) -> Result[Unit, IoError]

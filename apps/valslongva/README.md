@@ -19,7 +19,7 @@ browser opens; Settings has "Install on this computer" for a launcher entry.
 Everything below is from `compiler/`, with `treb` meaning `dotnet run --project src/treb --`.
 
 ```
-treb test ../apps/valslongva                       # 15 domain properties and 10 end-to-end scenarios over fakes
+treb test ../apps/valslongva                       # domain properties and end-to-end scenarios over fakes, 52 in all
 treb serve ../apps/valslongva --root test --api api --port 5081     # the UI against an in-memory world
 dotnet build ../apps/valslongva-host/Externs
 treb serve ../apps/valslongva --root main --api api --port 5082 \
@@ -73,6 +73,10 @@ undoes only that. `valslongva install` and `valslongva remove` do the same from 
 - **Plays modded or vanilla.** On Windows the `doorstop_config.ini` flag decides and Steam
   launches the game; on Linux the loader's `start_game_bepinex.sh` preloads doorstop, so modded
   runs the script and vanilla runs the executable, with Steam already running.
+- **Passes extra launch arguments.** Settings has a "Launch arguments" line (`-console`,
+  `-window-mode exclusive`, and so on; double quotes group a value with spaces). It goes on the
+  command line on Linux and inside Steam's `steam://run/892970//…/` URL on Windows, where the
+  client appends it to the game's own launch options.
 
 What is installed is an append-only log, `valslongva/library.jsonl` in the game folder, one
 JSON event per line, replayed on every request. Settings and the catalogue cache live in the
@@ -100,5 +104,6 @@ language and compiler.
 
 ## Not in this version
 
-Profiles, download progress, a mod's README in the UI, the C++ target (the app is a .NET
-program by design), and Steam launch options on Linux (the script is run directly instead).
+Profiles, download progress, a mod's README in the UI, and the C++ target (the app is a .NET
+program by design). Steam's own launch options are not read on Linux, where the script is run
+directly; the Launch arguments setting is the equivalent and works on both platforms.

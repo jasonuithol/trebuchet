@@ -10,21 +10,39 @@ union Mode
         Vanilla
 
 union Command
-        Run(program: String, workingDir: String)
+        Run(program: String, workingDir: String, args: Vector[String])
         Open(url: String)
 
 record Launch
         doorstop: Option[Bool]
         command: Command
 
-fn launchFor(os: String, gameDir: String, mode: Mode) -> Launch ! Pure
+// Extra arguments go to the game however it starts: on the command line on Linux, and inside
+// Steam's run URL on Windows, where the client appends them to its own launch options.
+fn launchFor(os: String, gameDir: String, mode: Mode, extra: Vector[String]) -> Launch ! Pure
         modded = mode == Mode.Modded
         if os == "windows" then
-                Launch(Some(modded), Command.Open(runUrl()))
+                Launch(Some(modded), Command.Open(runUrlWith(extra)))
         else if modded then
-                Launch(None, Command.Run(gameDir + "/start_game_bepinex.sh", gameDir))
+                Launch(None, Command.Run(gameDir + "/start_game_bepinex.sh", gameDir, extra))
         else
-                Launch(None, Command.Run(gameDir + "/valheim.x86_64", gameDir))
+                Launch(None, Command.Run(gameDir + "/valheim.x86_64", gameDir, extra))
+
+// One line of typed arguments into words: whitespace separates, double quotes group, and an empty
+// pair of quotes is an empty argument. Nothing more; it is a settings field, not a shell.
+fn splitArgs(line: String) -> Vector[String] ! Pure
+        fn step(i: Int, word: String, quoted: Bool, started: Bool, acc: Vector[String]) -> Vector[String]
+                if i >= length(line) then
+                        if started then append(acc, word) else acc
+                else
+                        c = substring(line, i, 1)
+                        if c == "\"" then
+                                step(i + 1, word, not quoted, true, acc)
+                        else if (c == " " or c == "\t") and not quoted then
+                                step(i + 1, "", false, false, if started then append(acc, word) else acc)
+                        else
+                                step(i + 1, word + c, quoted, true, acc)
+        step(0, "", false, false, [])
 
 fn parseMode(s: String) -> Option[Mode] ! Pure
         match toLower(trim(s))
@@ -33,7 +51,24 @@ fn parseMode(s: String) -> Option[Mode] ! Pure
                 _ => None
 
 fn prop_windowsAlwaysSetsDoorstop(gameDir: String, modded: Bool) -> Bool ! Pure
-        launchFor("windows", gameDir, if modded then Mode.Modded else Mode.Vanilla).doorstop == Some(modded)
+        launchFor("windows", gameDir, if modded then Mode.Modded else Mode.Vanilla, []).doorstop == Some(modded)
 
 fn prop_linuxNeverTouchesDoorstop(gameDir: String, modded: Bool) -> Bool ! Pure
-        launchFor("linux", gameDir, if modded then Mode.Modded else Mode.Vanilla).doorstop == None
+        launchFor("linux", gameDir, if modded then Mode.Modded else Mode.Vanilla, []).doorstop == None
+
+fn prop_linuxPassesTheExtraArgumentsThrough(gameDir: String, extra: Vector[String]) -> Bool ! Pure
+        match launchFor("linux", gameDir, Mode.Vanilla, extra).command
+                Run(_, _, args) => args == extra
+                Open(_) => false
+
+fn prop_noExtraArgumentsKeepsTheSteamUrl() -> Bool ! Pure
+        launchFor("windows", "C:/Valheim", Mode.Modded, []).command == Command.Open(runUrl())
+
+fn prop_splitArgsSeparatesOnWhitespace() -> Bool ! Pure
+        splitArgs("  -console   -window-mode\texclusive ") == ["-console", "-window-mode", "exclusive"]
+
+fn prop_splitArgsKeepsQuotedGroups() -> Bool ! Pure
+        splitArgs("-a \"b c\" d\"e f\"g \"\"") == ["-a", "b c", "de fg", ""]
+
+fn prop_splitArgsOfNothingIsNothing() -> Bool ! Pure
+        splitArgs("") == [] and splitArgs("   ") == []

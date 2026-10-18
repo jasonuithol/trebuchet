@@ -35,7 +35,7 @@ shape Archive
         fn extract(zip: String, dir: String) -> Result[Unit, IoError] ! Nondet Write Suspend
 
 shape Processes
-        fn run(program: String, workingDir: String) -> Result[Unit, IoError] ! Nondet Write
+        fn run(program: String, workingDir: String, args: Vector[String]) -> Result[Unit, IoError] ! Nondet Write
         fn openUrl(url: String) -> Result[Unit, IoError] ! Nondet Write
         fn startSteam() -> Result[Unit, IoError] ! Nondet Write
 
