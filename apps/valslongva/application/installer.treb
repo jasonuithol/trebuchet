@@ -146,10 +146,20 @@ service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platfo
                         Some(m) => m.files
                         None => []
                 backup = game + "/valslongva/backup/" + name + "/" + replace(replace(toString(clock.now()), ":", "-"), ".", "-")
-                traverse(filter(recorded, \f -> not startsWith(f, "BepInEx/config/")), \f -> if fs.exists(game + "/" + f) then fs.moveTree(game + "/" + f, backup + "/" + f).mapError(io) else ok(unit))?
+                traverse(filter(recorded, \f -> not startsWith(f, "BepInEx/config/")), \f -> keep(game, name, backup, f))?
                 fs.deleteTree(game + "/" + modFolder(name)).mapError(io)?
                 fs.deleteTree(game + "/" + disabledFolder(name)).mapError(io)?
                 ok(unit)
+
+        // A recorded file is either where it was recorded or parked while disabled; both go to the backup.
+        private fn keep(game: String, pkg: String, backup: String, f: String) -> Result[Unit, AppError]
+                parked = map(disabledPlace(pkg, f), \p -> game + "/" + p)
+                if fs.exists(game + "/" + f) then
+                        fs.moveTree(game + "/" + f, backup + "/" + f).mapError(io)
+                else
+                        match parked
+                                Some(p) => if fs.exists(p) then fs.moveTree(p, backup + "/" + f).mapError(io) else ok(unit)
+                                None => ok(unit)
 
         fn uninstall(name: String) -> Result[Unit, AppError]
                 game = locator.gameDir()?
@@ -169,7 +179,23 @@ service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platfo
                                 if m.enabled == enabled then
                                         ok(unit)
                                 else
-                                        from = if enabled then disabledFolder(name) else modFolder(name)
-                                        to = if enabled then modFolder(name) else disabledFolder(name)
-                                        fs.moveTree(game + "/" + from, game + "/" + to).mapError(io)?
+                                        moved = if m.adopted then
+                                                // an adopted mod's files are wherever they were found: move each one
+                                                map(traverse(m.files, \f -> moveRecorded(game, name, f, enabled)), \done -> unit)
+                                        else
+                                                from = if enabled then disabledFolder(name) else modFolder(name)
+                                                to = if enabled then modFolder(name) else disabledFolder(name)
+                                                fs.moveTree(game + "/" + from, game + "/" + to).mapError(io)
+                                        moved?
                                         note(game, if enabled then LibraryEvent.ModEnabled(name, clock.now()) else LibraryEvent.ModDisabled(name, clock.now()))
+
+        private fn moveRecorded(game: String, pkg: String, file: String, enabling: Bool) -> Result[Unit, AppError]
+                match disabledPlace(pkg, file)
+                        None => ok(unit)
+                        Some(parked) =>
+                                from = game + "/" + (if enabling then parked else file)
+                                to = game + "/" + (if enabling then file else parked)
+                                if fs.exists(from) then
+                                        fs.moveTree(from, to).mapError(io)
+                                else
+                                        ok(unit)

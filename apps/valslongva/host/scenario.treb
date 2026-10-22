@@ -175,6 +175,31 @@ handler prop_aPluginManagedBeforeItsCompanionsCountedPicksThemUp() -> Bool
                 (Ok(s), Ok(text)) => s.installed == 1 and isEmpty(s.unmanaged) and contains(text, "Longship.pdb") and length(filter(lines(text), \l -> contains(l, "ModAdopted"))) == 2
                 _ => false
 
+handler prop_anAdoptedModDisablesByItsOwnFiles() -> Bool
+        files = seededFiles()
+        // a folder that is not Thunderstore-packaged, managed on request: its folder is not named after the package
+        folder = gameDir() + "/BepInEx/plugins/Longship"
+        files.update(\m -> m.set(folder + "/Longship.dll", "plugin:viking.longship|Longship|1.1.0").set(folder + "/Longship.pdb", "symbols"))
+        w = worldWith(FakeSteam(true), files)
+        parked = gameDir() + "/valslongva/disabled/viking-Longship/Longship/Longship.dll"
+        adopted = match (w.api.getSearch("", "name", true, 0, 5), w.api.postAdopt("Longship", "viking-Longship"))
+                (Ok(_), Ok(_)) => true
+                _ => false
+        off = match w.api.postDisable("viking-Longship")
+                Ok(_) => not contains(w.fs.snapshot(), folder + "/Longship.dll") and contains(w.fs.snapshot(), parked) and contains(w.fs.snapshot(), gameDir() + "/valslongva/disabled/viking-Longship/Longship/Longship.pdb")
+                Error(_) => false
+        on = match w.api.postEnable("viking-Longship")
+                Ok(_) => contains(w.fs.snapshot(), folder + "/Longship.dll") and contains(w.fs.snapshot(), folder + "/Longship.pdb") and not contains(w.fs.snapshot(), parked)
+                Error(_) => false
+        // uninstalling while disabled still backs the parked files up
+        kept = match (w.api.postDisable("viking-Longship"), w.api.postUninstall("viking-Longship"))
+                (Ok(_), Ok(_)) =>
+                        snap = w.fs.snapshot()
+                        backed = any(keys(snap), \k -> startsWith(k, gameDir() + "/valslongva/backup/viking-Longship/") and endsWith(k, "/BepInEx/plugins/Longship/Longship.pdb"))
+                        backed and not contains(snap, parked)
+                _ => false
+        adopted and off and on and kept
+
 handler prop_findsTheGameInTheSteamLibrary() -> Bool
         w = world()
         match w.api.getStatus()

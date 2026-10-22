@@ -13,6 +13,20 @@ fn modFolder(pkg: String) -> String ! Pure
 fn disabledFolder(pkg: String) -> String ! Pure
         "valslongva/disabled/" + pkg
 
+// Where a recorded file goes while its mod is disabled. A packaged mod's folder moves whole to
+// disabledFolder; an adopted mod's files are wherever they were found, so each one under
+// BepInEx/plugins moves on its own, keeping its path below plugins. Anything outside plugins
+// (config, say) stays where it is.
+fn disabledPlace(pkg: String, file: String) -> Option[String] ! Pure
+        prefix = "BepInEx/plugins/"
+        if startsWith(file, prefix) then
+                Some(disabledFolder(pkg) + "/" + substring(file, length(prefix), length(file)))
+        else
+                None
+
+fn prop_disabledFilesKeepTheirPathBelowPlugins(pkg: String, rest: String) -> Bool ! Pure
+        disabledPlace(pkg, "BepInEx/plugins/" + rest) == Some("valslongva/disabled/" + pkg + "/" + rest) and disabledPlace(pkg, "BepInEx/config/" + rest) == None
+
 fn placeModFile(pkg: String, path: String) -> Placement ! Pure
         fn after(prefix: String) -> String
                 substring(path, length(prefix), length(path))
