@@ -166,6 +166,15 @@ handler prop_aThunderstoreLinkInstallsThePackage() -> Bool
                 _ => false
         installed and refused
 
+handler prop_aPluginManagedBeforeItsCompanionsCountedPicksThemUp() -> Bool
+        files = seededFiles()
+        log = "{\"type\": \"ModAdopted\", \"pkg\": \"viking-Longship\", \"version\": \"1.1.0\", \"files\": [\"BepInEx/plugins/Longship.dll\"], \"at\": \"2026-09-30T09:00:00Z\"}\n"
+        files.update(\m -> m.set(gameDir() + "/valslongva/library.jsonl", log).set(gameDir() + "/BepInEx/plugins/Longship.dll", "plugin:viking.longship|Longship|1.1.0").set(gameDir() + "/BepInEx/plugins/Longship.pdb", "symbols"))
+        w = worldWith(FakeSteam(true), files)
+        match (w.api.getStatus(), w.fs.readText(gameDir() + "/valslongva/library.jsonl"))
+                (Ok(s), Ok(text)) => s.installed == 1 and isEmpty(s.unmanaged) and contains(text, "Longship.pdb") and length(filter(lines(text), \l -> contains(l, "ModAdopted"))) == 2
+                _ => false
+
 handler prop_findsTheGameInTheSteamLibrary() -> Bool
         w = world()
         match w.api.getStatus()
