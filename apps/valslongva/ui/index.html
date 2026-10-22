@@ -332,7 +332,7 @@ function App() {
   const openProfiles = () => { setShowProfiles(s => !s); if (!showProfiles) loadProfiles(); };
   const profileAction = (label, path, name, done) => run(label, async () => { const set = await api("POST", path, { name }); setProfiles(set); return set; }, done);
   const createProfile = () => { const name = newProfile.trim(); if (!name) return; setNewProfile(""); profileAction(`Adding profile ${name}`, "/profilecreate", name, () => `${name} starts as a copy of the current profile; switch to it to change what it enables`); };
-  const switchProfile = name => profileAction(`Switching to ${name}`, "/profileswitch", name, set => `Profile ${set.active} is active`);
+  const switchProfile = name => { setTab("enabled"); profileAction(`Switching to ${name}`, "/profileswitch", name, set => `Profile ${set.active} is active`); };
   const removeProfile = name => { setConfirming(null); profileAction(`Removing profile ${name}`, "/profileremove", name, set => `Removed ${name}; ${set.active} is active`); };
   const setupApp = action => run(action === "install" ? "Installing valslöngva on this computer" : "Removing valslöngva from this computer", () => api("POST", "/setup", { action }), r => action === "install" ? `Installed to ${r.path}; it is in your app launcher now` : `Removed from ${r.path}; your settings and mods were left alone`);
   const refresh = () => run("Refreshing the catalogue", () => api("POST", "/refresh"), s => `Catalogue has ${s.cataloguePackages} packages`);
