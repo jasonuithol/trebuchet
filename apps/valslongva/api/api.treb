@@ -78,6 +78,8 @@ record InstalledView
         adopted: Bool
         // what the catalogue knows about the package it came from, once the catalogue is loaded
         summary: Option[ListingSummary]
+        // the profiles in which this mod is on; a mod installed under one profile is off in the others
+        onIn: Vector[String]
 
 // What a Thunderstore "Install with Mod Manager" link led to: the package it named, the version
 // it named (the newest is what gets installed), and what was installed, dependencies included.
@@ -203,7 +205,10 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                         match listingOf(pkg)
                                 None => None
                                 Some(l) => summarise(l, lib)
-                ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt, m.adopted, summaryOf(m.pkg))))
+                set = profiles.current()?
+                fn onIn(pkg: String) -> Vector[String]
+                        map(filter(set.profiles, \p -> contains(p.mods, pkg)), \p -> p.name)
+                ok(map(installedMods(lib), \m -> InstalledView(m.pkg, m.version, m.enabled, latestOf(m.pkg), m.installedAt, m.adopted, summaryOf(m.pkg), onIn(m.pkg))))
 
         fn postInstall(name: String) -> Result[Vector[String], AppError]
                 outcome = supervise installer.install(name)

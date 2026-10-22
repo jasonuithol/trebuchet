@@ -255,7 +255,7 @@ function App() {
   const uninstall2 = name => { setConfirming(null); uninstall(name); };
   const profileCount = status ? status.profileCount || 1 : 1;
   const tips = {
-    install: "Installs the newest version and whatever it depends on, BepInEx included. It is enabled in the active profile.",
+    install: `Installs the newest version and whatever it depends on, BepInEx included. It is enabled in the active profile${profileCount > 1 ? " only; other profiles leave it off until you enable it there" : ""}.`,
     update: "Replaces the installed files with the newest version; the old files go to valslongva/backup in the game folder.",
     disable: `Turns the mod off in the active profile only (${status ? status.profile : "Default"}): its folder moves to valslongva/disabled. Other profiles keep their own choice.`,
     enable: `Turns the mod on in the active profile only (${status ? status.profile : "Default"}). Other profiles keep their own choice.`,
@@ -268,7 +268,7 @@ function App() {
     const s = m.summary || { fullName: m.pkg, name: m.pkg, owner: "", description: "not in the catalogue (yet)", packageUrl: "", latestVersion: m.latestVersion || m.version, downloads: 0, ratingScore: 0, categories: [], icon: "", isDeprecated: false, dateUpdated: "", dependencies: [], installedVersion: m.version, enabled: m.enabled };
     const replace = m.adopted && m.latestVersion;
     return (
-      <Card key={m.pkg} s={{ ...s, installedVersion: m.version, enabled: m.enabled }} extra={<>{m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>} <span className="cap">installed {fmtDate(m.installedAt)}</span></>} actions={<>
+      <Card key={m.pkg} s={{ ...s, installedVersion: m.version, enabled: m.enabled }} extra={<>{m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>} <span className="cap">installed {fmtDate(m.installedAt)}</span>{profileCount > 1 && <span className="cap" title="A mod is on only in the profiles where it was installed or enabled. Enable it here to turn it on in this profile too."> · {m.onIn && m.onIn.length ? `on in: ${m.onIn.join(", ")}` : "off in every profile"}</span>}</>} actions={<>
         {replace ? (confirming === "reinstall:" + m.pkg
             ? <span><span className="tag off">local {m.version} goes to valslongva/backup</span> <button className="primary small" disabled={!!busy} onClick={() => reinstall(m.pkg)}>Yes, replace with {m.latestVersion}</button> <button className="small" onClick={() => setConfirming(null)}>Keep mine</button></span>
             : <button className="small" disabled={!!busy} onClick={() => setConfirming("reinstall:" + m.pkg)}>Replace with Thunderstore {m.latestVersion}{m.latestVersion !== m.version ? ` (mine is ${m.version})` : ""}</button>)

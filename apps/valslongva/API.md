@@ -36,7 +36,7 @@ Failure is a JSON object `{"error": "<kind>", "message": "<text>"}` with status 
 |---|---|
 | `GET /pulse` | `{steam, version}`: `steam` is `NotRunning`, `NotConnected` or `Connected`. Cheap; poll this. |
 | `GET /status` | The whole picture (below). |
-| `GET /installed` | Array of installed mods: `{pkg, version, enabled, latestVersion, installedAt, adopted, summary}`; `summary` is the catalogue entry (as in search) or null before the catalogue is loaded. |
+| `GET /installed` | Array of installed mods: `{pkg, version, enabled, latestVersion, installedAt, adopted, summary, onIn}`; `summary` is the catalogue entry (as in search) or null before the catalogue is loaded; `onIn` names the profiles in which the mod is on. |
 | `GET /search?query=&sort=&deprecated=&offset=&limit=` | `{items, total, offset, limit}` over the catalogue. `sort` is `downloads` (default), `rating`, `updated` or `name`; `deprecated=true` includes deprecated packages; `limit` is at most 200. Each item: `{fullName, name, owner, description, latestVersion, downloads, ratingScore, categories, icon, isDeprecated, dateUpdated, dependencies, installedVersion, enabled}`. |
 | `GET /package?name=Namespace-Name` | `{summary, versions, packageUrl}`: the search item, every version number, and the Thunderstore page. |
 | `GET /profiles` | `{active, profiles: [{name, mods, launchArgs}]}`. `mods` are package names enabled in that profile. |

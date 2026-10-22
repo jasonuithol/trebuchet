@@ -132,6 +132,10 @@ handler prop_profilesChooseWhichModsAreOn() -> Bool
         narrowed = match (w.api.postProfileSwitch("Testing"), w.api.postDisable("viking-Longship"), w.api.getProfiles())
                 (Ok(_), Ok(_), Ok(set)) => set.active == "Testing" and modsOf(set, "Testing") == [] and modsOf(set, "Default") == ["viking-Longship"]
                 _ => false
+        // the card can say where a mod is on: here only in Default
+        placed = match w.api.getInstalled()
+                Ok(mods) => map(mods, \m -> m.onIn) == [["Default"]]
+                Error(_) => false
         // switching back brings the folder back, and the status names the profile
         restored = match (w.api.postProfileSwitch("default"), w.api.getStatus())
                 (Ok(set), Ok(s)) => set.active == "Default" and s.profile == "Default" and contains(w.fs.snapshot(), plugin)
@@ -140,7 +144,7 @@ handler prop_profilesChooseWhichModsAreOn() -> Bool
         removed = match (w.api.postProfileRemove("Default"), w.api.postProfileRemove("Testing"))
                 (Error(BadRequest(_)), Ok(set)) => length(set.profiles) == 1
                 _ => false
-        installed and created and narrowed and restored and removed
+        installed and created and narrowed and placed and restored and removed
 
 handler prop_launchArgumentsBelongToTheProfile() -> Bool
         w = world()

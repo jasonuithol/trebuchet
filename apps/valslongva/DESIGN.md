@@ -62,7 +62,14 @@ active profile, Installed lists what is here but off (and anything found in the 
 that is not managed yet), so a profile reads as the Enabled tab. Disable and Enable are
 profile-specific; Uninstall removes files and so reaches every profile, which is why it asks first and says how many profiles it reaches, and
 why every button on a card carries a hover tip saying which of the two it is. Mods are not pinned per profile: one installed version of a package
-serves every profile, and a profile only chooses whether it is on.
+serves every profile, and a profile only chooses whether it is on. A mod installed or adopted
+while a profile is active is on in that profile only; the others leave it off until it is
+enabled there. The alternative, a profile recording what is off so that a new install is on
+everywhere, was put to the user after the first surprise (mods adopted under a second profile
+were off in Default) and declined: a profile is a set of mods, and a lean profile should stay
+lean when the user installs things elsewhere. The surprise is answered with visibility instead:
+every installed card says "on in: A, B" or "off in every profile" when there is more than one
+profile, and the Install tip says a new mod is on in the active profile only.
 
 ## Thunderstore's install button
 
