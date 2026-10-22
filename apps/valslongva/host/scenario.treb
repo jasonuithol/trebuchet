@@ -8,6 +8,9 @@ use valslongva.application.locator
 use valslongva.application.catalogueService
 use valslongva.application.installer
 use valslongva.application.launcher
+use valslongva.application.profiles
+use valslongva.domain.profiles
+use valslongva.domain.links
 use valslongva.application.steamStatus
 use valslongva.application.updater
 use valslongva.domain.release
@@ -41,9 +44,10 @@ fn worldFull(steamClient: FakeSteam, files: Cell[Map[String, String]], program: 
         catalogue = CatalogueService(http, fs, platform, clock, emptyCache())
         installer = Installer(fs, http, archive, platform, clock, catalogue, locator)
         steam = SteamStatus(steamClient, fs, locator)
-        launcher = Launcher(fs, processes, platform, locator, installer, steam, settings)
+        profiles = Profiles(fs, locator, settings, installer)
+        launcher = Launcher(fs, processes, platform, locator, installer, steam, profiles)
         updater = Updater(http, fs, archive, platform, program)
-        World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam, updater, processes), fs, processes, program)
+        World(Api(installer, catalogue, launcher, locator, settings, platform, fs, steam, updater, processes, profiles), fs, processes, program)
 
 handler prop_startsSteamOnlyWhenItIsNotRunning() -> Bool
         down = worldWith(FakeSteam(false), seededFiles())
@@ -109,6 +113,58 @@ handler prop_extraArgumentsReachTheGame() -> Bool
                 (Ok(_), Ok(s)) => s.launchArgs == "" and s.gameDir == Some(gameDir())
                 _ => false
         saved and launched and cleared
+
+handler prop_profilesChooseWhichModsAreOn() -> Bool
+        w = world()
+        plugin = gameDir() + "/BepInEx/plugins/viking-Longship/Longship.dll"
+        fn modsOf(set: ProfileSet, name: String) -> Vector[String]
+                match findProfile(set, name)
+                        Some(p) => p.mods
+                        None => ["?"]
+        installed = match w.api.postInstall("viking-Longship")
+                Ok(_) => true
+                Error(_) => false
+        // a new profile copies the active one and does not become active by itself
+        created = match w.api.postProfileCreate(" Testing ")
+                Ok(set) => set.active == "Default" and length(set.profiles) == 2 and modsOf(set, "Testing") == ["viking-Longship"]
+                Error(_) => false
+        // switching to it, then disabling the mod, changes only that profile
+        narrowed = match (w.api.postProfileSwitch("Testing"), w.api.postDisable("viking-Longship"), w.api.getProfiles())
+                (Ok(_), Ok(_), Ok(set)) => set.active == "Testing" and modsOf(set, "Testing") == [] and modsOf(set, "Default") == ["viking-Longship"]
+                _ => false
+        // switching back brings the folder back, and the status names the profile
+        restored = match (w.api.postProfileSwitch("default"), w.api.getStatus())
+                (Ok(set), Ok(s)) => set.active == "Default" and s.profile == "Default" and contains(w.fs.snapshot(), plugin)
+                _ => false
+        // Default stays; the other goes; an uninstall drops the mod from every profile
+        removed = match (w.api.postProfileRemove("Default"), w.api.postProfileRemove("Testing"))
+                (Error(BadRequest(_)), Ok(set)) => length(set.profiles) == 1
+                _ => false
+        installed and created and narrowed and restored and removed
+
+handler prop_launchArgumentsBelongToTheProfile() -> Bool
+        w = world()
+        // arguments saved before profiles existed seed the Default profile
+        seeded = match (w.fs.writeText("/home/viking/.local/share/valslongva/settings.json", "{\"gamePath\": null, \"launchArgs\": \"-old\"}"), w.api.getStatus())
+                (Ok(_), Ok(s)) => s.launchArgs == "-old" and s.profile == "Default"
+                _ => false
+        varied = match (w.api.postProfileCreate("Loud"), w.api.postProfileSwitch("Loud"), w.api.postLaunchArgs("-console"))
+                (Ok(_), Ok(_), Ok(s)) => s.launchArgs == "-console" and s.profile == "Loud"
+                _ => false
+        launched = match (w.api.postLaunch("vanilla"), w.api.postProfileSwitch("Default"), w.api.postLaunch("vanilla"))
+                (Ok(_), Ok(_), Ok(_)) => w.processes.entries() == ["run " + gameDir() + "/valheim.x86_64 in " + gameDir() + " with -console", "run " + gameDir() + "/valheim.x86_64 in " + gameDir() + " with -old"]
+                _ => false
+        seeded and varied and launched
+
+handler prop_aThunderstoreLinkInstallsThePackage() -> Bool
+        w = world()
+        installed = match w.api.postLink("ror2mm://v1/install/thunderstore.io/viking/Longship/1.0.0/")
+                Ok(o) => o.package == "viking-Longship" and o.version == "1.0.0" and contains(o.installed, "viking-Longship-1.2.0") and contains(w.fs.snapshot(), gameDir() + "/BepInEx/plugins/viking-Longship/Longship.dll")
+                Error(_) => false
+        refused = match w.api.postLink("https://thunderstore.io/c/valheim/p/viking/Longship/")
+                Error(BadRequest(_)) => true
+                _ => false
+        installed and refused
 
 handler prop_findsTheGameInTheSteamLibrary() -> Bool
         w = world()

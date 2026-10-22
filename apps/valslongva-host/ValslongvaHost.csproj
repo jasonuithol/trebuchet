@@ -31,5 +31,6 @@
   <ItemGroup>
     <!-- The browser UI lives with the Trebuchet sources and ships next to the executable. -->
     <Content Include="../valslongva/ui/**" Link="ui/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../valslongva/API.md" Link="ui/API.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,50 @@
+module valslongva.domain.links
+
+// Thunderstore's "Install with Mod Manager" button opens a link like
+// ror2mm://v1/install/thunderstore.io/Owner/Name/1.2.3/ and leaves the rest to whichever
+// program registered the scheme. This is that link, read; the installer does the rest.
+
+record InstallLink
+        namespace: String
+        name: String
+        version: String
+
+fn linkPrefix() -> String ! Pure
+        "ror2mm://v1/install/thunderstore.io/"
+
+fn linkPackage(link: InstallLink) -> String ! Pure
+        link.namespace + "-" + link.name
+
+fn plainPart(s: String) -> Bool ! Pure
+        length(s) > 0 and not contains(s, " ") and not contains(s, "?") and not contains(s, "#")
+
+fn parseInstallLink(url: String) -> Option[InstallLink] ! Pure
+        clean = trim(url)
+        if not startsWith(toLower(clean), linkPrefix()) then
+                None
+        else
+                rest = substring(clean, length(linkPrefix()), length(clean) - length(linkPrefix()))
+                match filter(split(rest, "/"), \s -> length(s) > 0)
+                        [ns, name, version] => if plainPart(ns) and plainPart(name) and plainPart(version) then Some(InstallLink(ns, name, version)) else None
+                        _ => None
+
+fn installLinkFor(namespace: String, name: String, version: String) -> String ! Pure
+        linkPrefix() + namespace + "/" + name + "/" + version + "/"
+
+fn prop_aWellFormedLinkReadsBack(namespace: String, name: String, version: String) -> Bool ! Pure
+        fn whole(s: String) -> Bool
+                plainPart(s) and not contains(s, "/")
+        parsed = parseInstallLink(installLinkFor(namespace, name, version))
+        if whole(namespace) and whole(name) and whole(version) then
+                parsed == Some(InstallLink(namespace, name, version))
+        else
+                true
+
+fn prop_theSchemeIsNotCaseSensitive() -> Bool ! Pure
+        parseInstallLink("ROR2MM://v1/install/thunderstore.io/viking/Longship/1.0.0/") == Some(InstallLink("viking", "Longship", "1.0.0"))
+
+fn prop_otherLinksAreRefused(s: String) -> Bool ! Pure
+        parseInstallLink("https://thunderstore.io/" + s) == None and parseInstallLink(s + "ror2mm://v1/install/thunderstore.io/a/b/c/") == (if length(trim(s)) == 0 then Some(InstallLink("a", "b", "c")) else None)
+
+fn prop_aLinkMissingAPartIsRefused() -> Bool ! Pure
+        parseInstallLink("ror2mm://v1/install/thunderstore.io/viking/Longship/") == None and parseInstallLink("ror2mm://v1/install/thunderstore.io/viking/Longship/1.0.0/extra/") == None

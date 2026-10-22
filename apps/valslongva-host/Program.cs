@@ -13,12 +13,15 @@ if (args.Length > 0 && args[0] is "install" or "remove")
     return;
 }
 var port = args.Length > 0 && int.TryParse(args[0], out var p) ? p : 5173;
+// Thunderstore's "Install with Mod Manager" button hands us a ror2mm:// link; the page does the installing
+var link = args.FirstOrDefault(a => a.StartsWith("ror2mm://", StringComparison.OrdinalIgnoreCase));
+var pageUrl = $"http://localhost:{port}/ui/" + (link is null ? "" : "?link=" + Uri.EscapeDataString(link));
 Valslongva.SelfUpdate.CleanUp();
-// Already running? Then the launcher was clicked twice: show the page that is there and leave.
+// Already running? Then the launcher was clicked twice, or a link arrived: show the page that is there and leave.
 if (await AlreadyRunning(port))
 {
     Console.WriteLine($"valslöngva is already running at http://localhost:{port}/ui/");
-    if (!args.Contains("--no-browser")) OpenBrowser($"http://localhost:{port}/ui/");
+    if (!args.Contains("--no-browser") || link is not null) OpenBrowser(pageUrl);
     return;
 }
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory });
@@ -50,6 +53,9 @@ Valslongva.SelfUpdate.StopServer = () => app.Lifetime.StopApplication();
 Valslongva.SelfUpdate.RestartArgs = new[] { port.ToString(), "--no-browser" };
 
 app.MapGet("/", () => Results.Redirect("/ui/"));
+// the API described for a person or an agent: the same file as apps/valslongva/API.md, shipped beside the UI
+var apiDoc = Path.Combine(AppContext.BaseDirectory, "ui", "API.md");
+app.MapGet("/api.md", () => File.Exists(apiDoc) ? Results.Text(File.ReadAllText(apiDoc), "text/markdown; charset=utf-8") : Results.NotFound());
 var ui = Path.Combine(AppContext.BaseDirectory, "ui");
 if (Directory.Exists(ui))
 {
@@ -65,6 +71,7 @@ app.MapGet("/installed", async () => Respond(await api.getInstalled()));
 app.MapPost("/install", async (Named body) => Respond(await api.postInstall(body.name)));
 app.MapPost("/loader", async () => Respond(await api.postLoader()));
 app.MapPost("/reinstall", async (Named body) => Respond(await api.postReinstall(body.name)));
+app.MapPost("/link", async (Link body) => Respond(await api.postLink(body.url)));
 app.MapPost("/adopt", async (Adopt body) => Respond(await api.postAdopt(body.entry, body.name)));
 app.MapPost("/uninstall", async (Named body) => Respond(await api.postUninstall(body.name)));
 app.MapPost("/enable", async (Named body) => Respond(await api.postEnable(body.name)));
@@ -72,6 +79,10 @@ app.MapPost("/disable", async (Named body) => Respond(await api.postDisable(body
 app.MapPost("/launch", async (Launch body) => Respond(await api.postLaunch(body.mode)));
 app.MapPost("/gamepath", async (GamePath body) => Respond(await api.postGamePath(body.path)));
 app.MapPost("/launchargs", async (LaunchArgs body) => Respond(await api.postLaunchArgs(body.args)));
+app.MapGet("/profiles", async () => Respond(await api.getProfiles()));
+app.MapPost("/profilecreate", async (Named body) => Respond(await api.postProfileCreate(body.name)));
+app.MapPost("/profileremove", async (Named body) => Respond(await api.postProfileRemove(body.name)));
+app.MapPost("/profileswitch", async (Named body) => Respond(await api.postProfileSwitch(body.name)));
 app.MapPost("/refresh", async () => Respond(await api.postRefresh()));
 app.MapPost("/steam", async () => Respond(await api.postSteam()));
 app.MapGet("/pulse", async () => Respond(await api.getPulse()));
@@ -85,9 +96,8 @@ app.MapPost("/setup", (SetupRequest r) =>
     catch (Exception ex) { return Results.Json(new { error = "Setup", message = ex.Message }, statusCode: 500); }
 });
 
-var url = $"http://localhost:{port}/ui/";
-Console.WriteLine($"valslöngva at {url}");
-if (!args.Contains("--no-browser")) OpenBrowser(url);
+Console.WriteLine($"valslöngva at http://localhost:{port}/ui/");
+if (!args.Contains("--no-browser") || link is not null) OpenBrowser(pageUrl);
 app.Run();
 if (Valslongva.SelfUpdate.RestartRequested) Valslongva.SelfUpdate.StartReplacement();
 
@@ -130,4 +140,5 @@ public sealed record Adopt(string entry, string name);
 public sealed record Launch(string mode);
 public sealed record GamePath(string path);
 public sealed record LaunchArgs(string args);
+public sealed record Link(string url);
 public sealed record SetupRequest(string action);

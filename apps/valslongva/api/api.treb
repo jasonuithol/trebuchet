@@ -20,6 +20,9 @@ use valslongva.application.installer
 use valslongva.application.launcher
 use valslongva.application.steamStatus
 use valslongva.application.updater
+use valslongva.application.profiles
+use valslongva.domain.profiles
+use valslongva.domain.links
 
 record Status
         os: String
@@ -43,8 +46,9 @@ record Status
         catalogueFetchedAt: Option[Instant]
         cataloguePackages: Int
         catalogueStale: Bool
-        // extra command-line arguments for the game, as typed in Settings
+        // the active profile's launch arguments and name; Default is the one every game folder starts with
         launchArgs: String
+        profile: String
 
 // What changes without the user touching anything: polled every few seconds.
 record Pulse
@@ -73,12 +77,19 @@ record InstalledView
         // what the catalogue knows about the package it came from, once the catalogue is loaded
         summary: Option[ListingSummary]
 
+// What a Thunderstore "Install with Mod Manager" link led to: the package it named, the version
+// it named (the newest is what gets installed), and what was installed, dependencies included.
+record LinkOutcome
+        package: String
+        version: String
+        installed: Vector[String]
+
 record PackageDetail
         summary: ListingSummary
         versions: Vector[String]
         packageUrl: String
 
-service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem, steam: SteamStatus, updater: Updater, processes: Processes)
+service Api(installer: Installer, catalogue: CatalogueService, launcher: Launcher, locator: Locator, settings: SettingsStore, platform: Platform, fs: FileSystem, steam: SteamStatus, updater: Updater, processes: Processes, profiles: Profiles)
         private fn catalogueStamp() -> Option[Instant]
                 map(catalogue.loaded(), \c -> c.fetchedAt)
 
@@ -150,16 +161,15 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                         Error(_) => emptyLibrary()
 
         fn getStatus() -> Result[Status, AppError]
-                prefs = settings.load()?
-                args = getOr(prefs.launchArgs, "")
                 match locator.gameDir()
                         Error(e) =>
-                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages(), catalogue.stale(), args))
+                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages(), catalogue.stale(), "", defaultName()))
                         Ok(dir) =>
                                 scanned = installer.scan()?
                                 lib = installer.library()?
+                                active = activeProfile(profiles.current()?)
                                 core = dir + "/BepInEx/core/BepInEx.dll"
-                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages(), catalogue.stale(), args))
+                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages(), catalogue.stale(), active.launchArgs, active.name))
 
         fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
                 cat = catalogue.current()?
@@ -196,6 +206,16 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                 outcome = supervise installer.install(name)
                 outcome.mapError(crashed)?
 
+        // A ror2mm:// link from Thunderstore's "Install with Mod Manager" button.
+        fn postLink(url: String) -> Result[LinkOutcome, AppError]
+                link = match parseInstallLink(url)
+                        None => error(AppError.BadRequest("not a Thunderstore install link: " + trim(url)))
+                        Some(l) => ok(l)
+                parsed = link?
+                outcome = supervise installer.install(linkPackage(parsed))
+                installed = outcome.mapError(crashed)?
+                ok(LinkOutcome(linkPackage(parsed), parsed.version, installed?))
+
         fn postReinstall(name: String) -> Result[Vector[String], AppError]
                 outcome = supervise installer.reinstall(name)
                 outcome.mapError(crashed)?
@@ -226,12 +246,25 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
                 settings.save(Settings(chosen, current.launchArgs))?
                 getStatus()
 
-        // Extra command-line arguments for the game; kept as one line and split only at launch.
+        // The active profile's launch arguments; kept as one line and split only at launch.
         fn postLaunchArgs(args: String) -> Result[Status, AppError]
-                chosen = if length(trim(args)) == 0 then None else Some(trim(args))
-                current = settings.load()?
-                settings.save(Settings(current.gamePath, chosen))?
+                profiles.setLaunchArgs(args)?
                 getStatus()
+
+        // Profiles: a set of enabled mods and launch arguments each. Default is always there.
+        fn getProfiles() -> Result[ProfileSet, AppError]
+                profiles.current()
+
+        fn postProfileCreate(name: String) -> Result[ProfileSet, AppError]
+                profiles.create(name)
+
+        fn postProfileRemove(name: String) -> Result[ProfileSet, AppError]
+                profiles.remove(name)
+
+        // Switching moves mod folders, so a panic on the way is reported, not fatal.
+        fn postProfileSwitch(name: String) -> Result[ProfileSet, AppError]
+                outcome = supervise profiles.switchTo(name)
+                outcome.mapError(crashed)?
 
         // Start the Steam client when it is not running; signing in is the user's, and the pulse reports it.
         fn postSteam() -> Result[SteamState, AppError]

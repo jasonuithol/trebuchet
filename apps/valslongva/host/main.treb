@@ -6,6 +6,7 @@ use valslongva.application.locator
 use valslongva.application.catalogueService
 use valslongva.application.installer
 use valslongva.application.launcher
+use valslongva.application.profiles
 use valslongva.application.steamStatus
 use valslongva.application.updater
 use valslongva.infrastructure.host
@@ -26,6 +27,7 @@ root main
         catalogue: CatalogueService
         installer: Installer
         steam: SteamStatus
+        profiles: Profiles
         launcher: Launcher
         updater: Updater
         api: Api

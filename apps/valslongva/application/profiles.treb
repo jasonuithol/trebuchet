@@ -1,0 +1,82 @@
+module valslongva.application.profiles
+
+// Profiles live in one small document beside the library log, rewritten whole; the log stays the
+// truth of what is on disk and the document is brought in line with it on every read.
+use valslongva.domain.profiles
+use valslongva.application.ports
+use valslongva.application.errors
+use valslongva.application.locator
+use valslongva.application.settings
+use valslongva.application.installer
+use valslongva.domain.library
+
+service Profiles(fs: FileSystem, locator: Locator, settings: SettingsStore, installer: Installer)
+        private fn path(game: String) -> String
+                game + "/valslongva/profiles.json"
+
+        private fn stored(game: String) -> Result[ProfileSet, AppError]
+                if fs.exists(path(game)) then
+                        text = fs.readText(path(game)).mapError(io)?
+                        decoded = supervise json.decode[ProfileSet](text)
+                        decoded.mapError(crashed)
+                else
+                        // the first look: Default is whatever is enabled now, with the arguments saved before profiles existed
+                        prefs = settings.load()?
+                        lib = installer.library()?
+                        ok(initialProfiles(enabledOf(lib.mods), getOr(prefs.launchArgs, "")))
+
+        private fn enabledOf(mods: Map[String, InstalledMod]) -> Vector[String]
+                map(filter(values(mods), \m -> m.enabled), \m -> m.pkg)
+
+        private fn save(game: String, set: ProfileSet) -> Result[Unit, AppError]
+                fs.ensureDir(game + "/valslongva").mapError(io)?
+                fs.writeText(path(game), json.encode(set)).mapError(io)
+
+        // The saved set, reconciled with the library and written back when that changed anything.
+        fn current() -> Result[ProfileSet, AppError]
+                game = locator.gameDir()?
+                before = stored(game)?
+                lib = installer.library()?
+                after = reconcile(before, keys(lib.mods), enabledOf(lib.mods))
+                if after != before or not fs.exists(path(game)) then
+                        save(game, after)?
+                        ok(after)
+                else
+                        ok(after)
+
+        fn launchArgs() -> Result[String, AppError]
+                set = current()?
+                ok(activeProfile(set).launchArgs)
+
+        fn setLaunchArgs(args: String) -> Result[ProfileSet, AppError]
+                game = locator.gameDir()?
+                set = withLaunchArgs(current()?, trim(args))
+                save(game, set)?
+                ok(set)
+
+        fn create(name: String) -> Result[ProfileSet, AppError]
+                game = locator.gameDir()?
+                added = addProfile(current()?, name).mapError(\m -> AppError.BadRequest(m))?
+                save(game, added)?
+                ok(added)
+
+        fn remove(name: String) -> Result[ProfileSet, AppError]
+                game = locator.gameDir()?
+                remaining = removeProfile(current()?, name).mapError(\m -> AppError.BadRequest(m))?
+                save(game, remaining)?
+                ok(remaining)
+
+        // Switching moves folders: off for what the target does not want, on for what it does.
+        fn switchTo(name: String) -> Result[ProfileSet, AppError]
+                game = locator.gameDir()?
+                set = current()?
+                target = match findProfile(set, name)
+                        None => error(AppError.NotFound("no profile named " + trim(name)))
+                        Some(p) => ok(p)
+                wanted = target?
+                t = transition(activeProfile(set).mods, wanted.mods)
+                traverse(t.disable, \m -> installer.setEnabled(m, false))?
+                traverse(t.enable, \m -> installer.setEnabled(m, true))?
+                switched = switchProfile(set, name).mapError(\m -> AppError.NotFound(m))?
+                save(game, switched)?
+                ok(switched)

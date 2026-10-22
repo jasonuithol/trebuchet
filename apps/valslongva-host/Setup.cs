@@ -40,7 +40,7 @@ public static class Setup
         CopyTree(Path.Combine(sourceDir, "ui"), Path.Combine(AppDir, "ui"));
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(InstalledExe, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
         Directory.CreateDirectory(Path.GetDirectoryName(LauncherPath)!);
-        if (OperatingSystem.IsWindows()) WriteWindowsShortcut();
+        if (OperatingSystem.IsWindows()) { WriteWindowsShortcut(); RegisterScheme(); }
         else WriteDesktopEntry();
         return AppDir;
     }
@@ -48,6 +48,7 @@ public static class Setup
     public static string Remove()
     {
         if (File.Exists(LauncherPath)) File.Delete(LauncherPath);
+        if (OperatingSystem.IsWindows()) UnregisterScheme();
         if (Directory.Exists(AppDir) && !RunningInstalled) Directory.Delete(AppDir, recursive: true);
         return AppDir;
     }
@@ -59,15 +60,39 @@ public static class Setup
             Type=Application
             Name=valslöngva
             Comment=A Valheim mod manager
-            Exec={InstalledExe}
+            Exec={InstalledExe} %u
             Icon={IconPath}
             Terminal=false
             Categories=Game;Utility;
             Keywords=Valheim;mods;BepInEx;Thunderstore;
+            MimeType=x-scheme-handler/ror2mm;
             """;
         File.WriteAllText(LauncherPath, text + "\n");
         try { Process.Start(new ProcessStartInfo("update-desktop-database", new[] { Path.GetDirectoryName(LauncherPath)! }) { UseShellExecute = false })?.WaitForExit(5000); }
         catch (Exception) { /* optional: launchers pick the file up regardless */ }
+        // Thunderstore's "Install with Mod Manager" button opens ror2mm:// links; be the program that answers them
+        try { Process.Start(new ProcessStartInfo("xdg-mime", new[] { "default", Path.GetFileName(LauncherPath), "x-scheme-handler/ror2mm" }) { UseShellExecute = false })?.WaitForExit(5000); }
+        catch (Exception) { /* optional: the MimeType line above is enough for most desktops */ }
+    }
+
+    /// <summary>Windows learns a URL scheme from the registry: a per-user key, no administrator needed.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static void RegisterScheme()
+    {
+        using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Classes\ror2mm");
+        key.SetValue("", "URL:Thunderstore mod install");
+        key.SetValue("URL Protocol", "");
+        using var icon = key.CreateSubKey("DefaultIcon");
+        icon.SetValue("", $"\"{InstalledExe}\",0");
+        using var command = key.CreateSubKey(@"shell\open\command");
+        command.SetValue("", $"\"{InstalledExe}\" \"%1\"");
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static void UnregisterScheme()
+    {
+        try { Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\ror2mm", throwOnMissingSubKey: false); }
+        catch (Exception) { /* nothing to undo */ }
     }
 
     private static void WriteWindowsShortcut()

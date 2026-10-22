@@ -41,6 +41,48 @@ Three things change behind the page. The browser keeps the last list, status, an
 
 A one-line setting, "Launch arguments", goes to the game on every Play. It is stored as the user typed it and split only at launch by a pure `splitArgs` (whitespace separates, double quotes group), so the settings file stays readable and the splitting has properties. On Linux the words are appended to the script or the executable; on Windows Steam does the launching, and its `steam://run/<id>//<args>/` form carries them percent-encoded, the client adding them to the game's own launch options. The `Processes.run` port takes an arguments vector rather than a joined string, so the host never re-parses a command line.
 
+## Profiles
+
+A profile is a named set of enabled mods and the game's launch arguments. The library log stays
+the truth of what is on disk; a profile says what the disk should look like while it is active,
+so switching is the difference between two sets (`transition`, with a property that applying it
+reaches the wanted set and touches nothing both sets share) carried out as ordinary enables and
+disables, which append to the log as always. Profiles live in `<game>/valslongva/profiles.json`,
+a small document rewritten whole rather than a second log, and every read reconciles it with the
+library: the active profile takes exactly what is enabled, and every profile forgets a mod that
+is no longer installed. That one rule means install, enable, disable, adopt and uninstall need
+no profile code at all. The first read makes the Default profile from whatever is enabled and the
+launch arguments saved before profiles existed, so an existing game folder gains profiles without
+noticing. A new profile is a copy of the active one ("add" means "vary from here") and does not
+become active by itself; Default cannot be removed; removing the active profile activates
+Default. Default is deliberately invisible on the main screen so a novice never meets the idea;
+only a non-Default active profile shows a chip beside the Play buttons, and the Profiles panel is
+behind a button in Settings. Mods are not pinned per profile: one installed version of a package
+serves every profile, and a profile only chooses whether it is on.
+
+## Thunderstore's install button
+
+Thunderstore's "Install with Mod Manager" button opens `ror2mm://v1/install/thunderstore.io/Owner/Name/Version/`
+and leaves the rest to whichever program registered the scheme. Installing the program registers
+it: the `.desktop` entry takes `%u` and `MimeType=x-scheme-handler/ror2mm` with `xdg-mime` making
+it the default on Linux, and a per-user `HKCU\Software\Classes\ror2mm` key on Windows; removing the
+program undoes both. The link is parsed by a pure function with properties and installed through
+the same path as a click on the Browse tab. The host does nothing with the link but open the page
+with it as a query parameter: if the program is already running, the second process opens the
+existing page that way and exits; if not, it starts and opens the page the same way. The page
+posts the link to `/link` and shows the result like any other install. The newest version is
+installed whatever the link names, because the installer has one notion of "install", and a
+link usually names the newest anyway; installing an older named version is listed as not done.
+
+## An API for agents
+
+Every page action is a plain HTTP route on localhost, which was true from the first day because the
+API service's method names are the routes. `API.md` describes them for a person or an AI coding
+agent: how to find the running program, the rules (launch starts the game, selfupdate restarts the
+process, what moves files), every route's body and reply, and a typical session in `curl`. The
+program serves the same file at `/api.md`, so an agent on the user's machine can read it from the
+running instance rather than from a checkout.
+
 ## Shipping it
 
 `dotnet publish` makes one self-contained executable per platform (about 40 MB compressed, the UI folder beside it), and that file is the installer: it runs from wherever it was downloaded, and "Install on this computer" in its settings copies it to the user's programs folder and adds a Start menu entry on Windows or a `.desktop` launcher on Linux, with no administrator rights and a "Remove" that undoes only that. Installing the program is host business, so it is C# in the host project, not Trebuchet; the mod manager never knows where it lives. `publish.sh` builds both platforms from Linux; a release is a GitHub release tagged `valslongva-vX.Y.Z` with the two archives attached, and `appVersion()` in the domain and `<Version>` in the host project move together. A second launch finds the running instance on its port and opens that instead of failing.

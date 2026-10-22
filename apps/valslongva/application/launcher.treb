@@ -8,9 +8,9 @@ use valslongva.application.errors
 use valslongva.application.locator
 use valslongva.application.installer
 use valslongva.application.steamStatus
-use valslongva.application.settings
+use valslongva.application.profiles
 
-service Launcher(fs: FileSystem, processes: Processes, platform: Platform, locator: Locator, installer: Installer, steam: SteamStatus, settings: SettingsStore)
+service Launcher(fs: FileSystem, processes: Processes, platform: Platform, locator: Locator, installer: Installer, steam: SteamStatus, profiles: Profiles)
         fn launch(modeName: String) -> Result[String, AppError]
                 mode = match parseMode(modeName)
                         Some(m) => ok(m)
@@ -26,8 +26,8 @@ service Launcher(fs: FileSystem, processes: Processes, platform: Platform, locat
                 if chosen == Mode.Modded and not fs.exists(game + "/BepInEx/core/BepInEx.dll") then
                         error(AppError.Conflict("BepInEx is not installed; install the loader first"))
                 else
-                        extra = settings.load()?
-                        l = launchFor(platform.os(), game, chosen, splitArgs(getOr(extra.launchArgs, "")))
+                        extra = profiles.launchArgs()?
+                        l = launchFor(platform.os(), game, chosen, splitArgs(extra))
                         configured = match l.doorstop
                                 Some(enabled) => setDoorstop(game, enabled)
                                 None => ok(unit)

@@ -19,7 +19,7 @@ browser opens; Settings has "Install on this computer" for a launcher entry.
 Everything below is from `compiler/`, with `treb` meaning `dotnet run --project src/treb --`.
 
 ```
-treb test ../apps/valslongva                       # domain properties and end-to-end scenarios over fakes, 52 in all
+treb test ../apps/valslongva                       # domain properties and end-to-end scenarios over fakes, 65 in all
 treb serve ../apps/valslongva --root test --api api --port 5081     # the UI against an in-memory world
 dotnet build ../apps/valslongva-host/Externs
 treb serve ../apps/valslongva --root main --api api --port 5082 \
@@ -73,6 +73,15 @@ undoes only that. `valslongva install` and `valslongva remove` do the same from 
 - **Plays modded or vanilla.** On Windows the `doorstop_config.ini` flag decides and Steam
   launches the game; on Linux the loader's `start_game_bepinex.sh` preloads doorstop, so modded
   runs the script and vanilla runs the executable, with Steam already running.
+- **Keeps profiles.** A profile is a set of enabled mods and launch arguments. Every game
+  folder starts with one, Default, which stays out of the way; Settings → Profiles lists them,
+  adds one as a copy of the current profile, switches (which moves mod folders to match), and
+  removes. What you install, enable, or disable changes the active profile.
+- **Answers Thunderstore's "Install with Mod Manager" button.** Installing the program
+  registers it for `ror2mm://` links on both platforms; the button opens valslöngva's page,
+  which installs the package and its dependencies.
+- **Has an API for scripts and agents.** Every page action is a plain HTTP route on localhost;
+  `API.md` (also served at `/api.md`) describes them for a person or an AI coding agent.
 - **Passes extra launch arguments.** Settings has a "Launch arguments" line (`-console`,
   `-window-mode exclusive`, and so on; double quotes group a value with spaces). It goes on the
   command line on Linux and inside Steam's `steam://run/892970//…/` URL on Windows, where the
@@ -87,7 +96,7 @@ platform's local data folder (`~/.local/share/valslongva`, `%LOCALAPPDATA%\valsl
 | Folder | Layer |
 |---|---|
 | `domain/` | Pure: versions and dependency strings, the Thunderstore listing, the library fold, the install plan, the file placement convention, doorstop and Steam text, launch commands. Every module has properties. |
-| `application/` | Ports as shapes (`FileSystem`, `Http`, `Archive`, `Processes`, `SteamClient`, `Platform`, `Clock`), one error type, and the services: settings, locator, catalogue, search, installer, Steam status, launcher. |
+| `application/` | Ports as shapes (`FileSystem`, `Http`, `Archive`, `Processes`, `SteamClient`, `Platform`, `Clock`), one error type, and the services: settings, locator, catalogue, search, installer, Steam status, launcher, profiles. |
 | `infrastructure/` | Externs to `Valslongva.Host`, the adapters over them, and in-memory fakes. |
 | `api/` | The `Api` service: routes by method name. |
 | `host/` | Roots `main` and `test`, the fixture world, and scenario handlers. |
@@ -104,6 +113,6 @@ language and compiler; `DESIGN.md` beside this file records the application's ow
 
 ## Not in this version
 
-Profiles, download progress, a mod's README in the UI, and the C++ target (the app is a .NET
-program by design). Steam's own launch options are not read on Linux, where the script is run
+Download progress, a mod's README in the UI, installing a version other than the newest, and the
+C++ target (the app is a .NET program by design). Steam's own launch options are not read on Linux, where the script is run
 directly; the Launch arguments setting is the equivalent and works on both platforms.

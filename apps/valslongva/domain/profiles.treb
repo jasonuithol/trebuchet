@@ -1,0 +1,132 @@
+module valslongva.domain.profiles
+
+// A profile is a named set of enabled mods and the game's launch arguments. The library log
+// stays the truth of what is on disk; a profile says what the disk should look like while it is
+// active, so switching is the difference between two sets and nothing more. Mods are package
+// names, kept sorted and unique in a vector so the saved file reads plainly.
+
+record Profile
+        name: String
+        mods: Vector[String]
+        launchArgs: String
+
+record ProfileSet
+        active: String
+        profiles: Vector[Profile]
+
+// What to move when the enabled set changes: off for what is on and not wanted, on for what is
+// wanted and off.
+record Transition
+        disable: Vector[String]
+        enable: Vector[String]
+
+fn defaultName() -> String ! Pure
+        "Default"
+
+fn sameName(a: String, b: String) -> Bool ! Pure
+        toLower(trim(a)) == toLower(trim(b))
+
+// The first set: one Default profile made from whatever is enabled and the arguments so far.
+fn initialProfiles(enabled: Vector[String], launchArgs: String) -> ProfileSet ! Pure
+        ProfileSet(defaultName(), [Profile(defaultName(), sort(enabled), launchArgs)])
+
+fn findProfile(ps: ProfileSet, name: String) -> Option[Profile] ! Pure
+        find(ps.profiles, \p -> sameName(p.name, name))
+
+fn hasProfile(ps: ProfileSet, name: String) -> Bool ! Pure
+        any(ps.profiles, \p -> sameName(p.name, name))
+
+// The active profile; a set whose active name is gone falls back to the first one listed.
+fn activeProfile(ps: ProfileSet) -> Profile ! Pure
+        match findProfile(ps, ps.active)
+                Some(p) => p
+                None =>
+                        match first(ps.profiles)
+                                Some(p) => p
+                                None => Profile(defaultName(), [], "")
+
+// A new profile starts as a copy of the active one, so "add" means "vary from here".
+fn addProfile(ps: ProfileSet, name: String) -> Result[ProfileSet, String] ! Pure
+        clean = trim(name)
+        current = activeProfile(ps)
+        if length(clean) == 0 then
+                error("a profile needs a name")
+        else if hasProfile(ps, clean) then
+                error("there is already a profile named " + clean)
+        else
+                ok(ProfileSet(ps.active, append(ps.profiles, Profile(clean, current.mods, current.launchArgs))))
+
+// Default cannot go; removing the active profile makes Default active.
+fn removeProfile(ps: ProfileSet, name: String) -> Result[ProfileSet, String] ! Pure
+        if sameName(name, defaultName()) then
+                error("the Default profile cannot be removed")
+        else if not hasProfile(ps, name) then
+                error("no profile named " + trim(name))
+        else
+                remaining = filter(ps.profiles, \p -> not sameName(p.name, name))
+                ok(ProfileSet(if sameName(ps.active, name) then defaultName() else ps.active, remaining))
+
+fn switchProfile(ps: ProfileSet, name: String) -> Result[ProfileSet, String] ! Pure
+        match findProfile(ps, name)
+                None => error("no profile named " + trim(name))
+                Some(p) => ok(ProfileSet(p.name, ps.profiles))
+
+fn withLaunchArgs(ps: ProfileSet, args: String) -> ProfileSet ! Pure
+        ProfileSet(ps.active, map(ps.profiles, \p -> if sameName(p.name, ps.active) then Profile(p.name, p.mods, args) else p))
+
+fn transition(enabledNow: Vector[String], wanted: Vector[String]) -> Transition ! Pure
+        Transition(filter(enabledNow, \m -> not contains(wanted, m)), filter(wanted, \m -> not contains(enabledNow, m)))
+
+// The library is the truth: the active profile takes exactly what is enabled, and every other
+// profile forgets a mod that is no longer installed.
+fn reconcile(ps: ProfileSet, installed: Vector[String], enabled: Vector[String]) -> ProfileSet ! Pure
+        fn settle(p: Profile) -> Profile
+                if sameName(p.name, ps.active) then
+                        Profile(p.name, sort(enabled), p.launchArgs)
+                else
+                        Profile(p.name, filter(p.mods, \m -> contains(installed, m)), p.launchArgs)
+        ProfileSet(ps.active, map(ps.profiles, settle))
+
+fn prop_transitionReachesTheWantedSet(now: Vector[String], wanted: Vector[String]) -> Bool ! Pure
+        t = transition(now, wanted)
+        after = concat(filter(now, \m -> not contains(t.disable, m)), t.enable)
+        toSet(after) == toSet(wanted)
+
+fn prop_transitionLeavesTheUnchangedAlone(now: Vector[String], wanted: Vector[String]) -> Bool ! Pure
+        t = transition(now, wanted)
+        both = filter(now, \m -> contains(wanted, m))
+        all(both, \m -> not contains(t.disable, m) and not contains(t.enable, m))
+
+fn prop_defaultCannotBeRemoved(enabled: Vector[String]) -> Bool ! Pure
+        match removeProfile(initialProfiles(enabled, ""), "default")
+                Error(_) => true
+                Ok(_) => false
+
+fn prop_addCopiesTheActiveProfileAndSwitchActivatesIt(name: String, enabled: Vector[String], args: String) -> Bool ! Pure
+        start = initialProfiles(enabled, args)
+        match addProfile(start, name)
+                Error(_) => length(trim(name)) == 0 or sameName(name, defaultName())
+                Ok(added) =>
+                        match (findProfile(added, name), switchProfile(added, name))
+                                (Some(p), Ok(switched)) => p.mods == sort(enabled) and p.launchArgs == args and added.active == defaultName() and sameName(switched.active, name)
+                                _ => false
+
+fn prop_removingTheActiveProfileFallsBackToDefault(name: String) -> Bool ! Pure
+        start = initialProfiles([], "")
+        match addProfile(start, name)
+                Error(_) => true
+                Ok(added) =>
+                        match switchProfile(added, name)
+                                Error(_) => false
+                                Ok(switched) =>
+                                        match removeProfile(switched, name)
+                                                Ok(after) => after.active == defaultName() and length(after.profiles) == 1
+                                                Error(_) => false
+
+fn prop_reconcileFollowsTheLibrary(installed: Vector[String], enabled: Vector[String], other: Vector[String]) -> Bool ! Pure
+        start = ProfileSet(defaultName(), [Profile(defaultName(), [], ""), Profile("Other", other, "")])
+        after = reconcile(start, installed, enabled)
+        activeProfile(after).mods == sort(enabled) and all(ps(after), \p -> sameName(p.name, defaultName()) or all(p.mods, \m -> contains(installed, m)))
+
+fn ps(set: ProfileSet) -> Vector[Profile] ! Pure
+        set.profiles
