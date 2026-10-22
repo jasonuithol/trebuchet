@@ -57,8 +57,10 @@ noticing. A new profile is a copy of the active one ("add" means "vary from here
 become active by itself; Default cannot be removed; removing the active profile activates
 Default. Default is deliberately invisible on the main screen so a novice never meets the idea;
 only a non-Default active profile shows a chip beside the Play buttons, and the Profiles panel is
-behind a button in Settings. Disable and Enable are profile-specific; Uninstall removes files and
-so reaches every profile, which is why it asks first and says how many profiles it reaches, and
+behind a button in Settings. The page's first two tabs follow the same split: Enabled lists what is on in the
+active profile, Installed lists what is here but off (and anything found in the plugins folder
+that is not managed yet), so a profile reads as the Enabled tab. Disable and Enable are
+profile-specific; Uninstall removes files and so reaches every profile, which is why it asks first and says how many profiles it reaches, and
 why every button on a card carries a hover tip saying which of the two it is. Mods are not pinned per profile: one installed version of a package
 serves every profile, and a profile only chooses whether it is on.
 

@@ -75,6 +75,8 @@ undoes only that. `valslongva install` and `valslongva remove` do the same from 
 - **Plays modded or vanilla.** On Windows the `doorstop_config.ini` flag decides and Steam
   launches the game; on Linux the loader's `start_game_bepinex.sh` preloads doorstop, so modded
   runs the script and vanilla runs the executable, with Steam already running.
+- **Shows what is on.** The Enabled tab is the active profile: mods that are on. The Installed
+  tab is what is here but off, plus anything found in the plugins folder that is not managed yet.
 - **Keeps profiles.** A profile is a set of enabled mods and launch arguments. Every game
   folder starts with one, Default, which stays out of the way; Settings → Profiles lists them,
   adds one as a copy of the current profile, switches (which moves mod folders to match), and

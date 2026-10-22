@@ -123,7 +123,7 @@ const fmtWhen = s => s ? new Date(s).toLocaleString([], { dateStyle: "medium", t
 
 function App() {
   const [status, setStatus] = useState(() => cache.get("status"));
-  const [tab, setTab] = useState("installed");
+  const [tab, setTab] = useState("enabled"); // Enabled: on in the active profile; Installed: here but off; Browse: Thunderstore
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(null);
   const [query, setQuery] = useState("");
@@ -261,6 +261,23 @@ function App() {
     enable: `Turns the mod on in the active profile only (${status ? status.profile : "Default"}). Other profiles keep their own choice.`,
     uninstall: `Removes the mod's files from the game folder, which reaches every profile${profileCount > 1 ? ` (all ${profileCount})` : ""}. The files go to valslongva/backup; config files stay.`,
   };
+  const enabledMods = installed.filter(m => m.enabled);
+  const disabledMods = installed.filter(m => !m.enabled);
+  // One installed mod as a card, on the Enabled or the Installed tab alike.
+  function modCard(m) {
+    const s = m.summary || { fullName: m.pkg, name: m.pkg, owner: "", description: "not in the catalogue (yet)", packageUrl: "", latestVersion: m.latestVersion || m.version, downloads: 0, ratingScore: 0, categories: [], icon: "", isDeprecated: false, dateUpdated: "", dependencies: [], installedVersion: m.version, enabled: m.enabled };
+    const replace = m.adopted && m.latestVersion;
+    return (
+      <Card key={m.pkg} s={{ ...s, installedVersion: m.version, enabled: m.enabled }} extra={<>{m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>} <span className="cap">installed {fmtDate(m.installedAt)}</span></>} actions={<>
+        {replace ? (confirming === "reinstall:" + m.pkg
+            ? <span><span className="tag off">local {m.version} goes to valslongva/backup</span> <button className="primary small" disabled={!!busy} onClick={() => reinstall(m.pkg)}>Yes, replace with {m.latestVersion}</button> <button className="small" onClick={() => setConfirming(null)}>Keep mine</button></span>
+            : <button className="small" disabled={!!busy} onClick={() => setConfirming("reinstall:" + m.pkg)}>Replace with Thunderstore {m.latestVersion}{m.latestVersion !== m.version ? ` (mine is ${m.version})` : ""}</button>)
+          : m.latestVersion && m.latestVersion !== m.version && <button className="primary small" disabled={!!busy} title={tips.update} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button>}
+        <button className="small" disabled={!!busy} title={m.enabled ? tips.disable : tips.enable} onClick={() => enable(m.pkg, !m.enabled)}>{m.enabled ? "Disable" : "Enable"}</button>
+        <UninstallButton name={m.pkg} />
+      </>} />
+    );
+  }
   // Uninstall reaches every profile, so it asks first and says so.
   function UninstallButton({ name }) {
     if (confirming !== "uninstall:" + name) return <button className="small danger" disabled={!!busy} title={tips.uninstall} onClick={() => setConfirming("uninstall:" + name)}>Uninstall</button>;
@@ -452,7 +469,8 @@ function App() {
       {msg && !busy && <div className={`msg ${msg.kind}`}>{msg.text}</div>}
 
       <div className="tabs">
-        <button className={tab === "installed" ? "on" : ""} onClick={() => setTab("installed")}>Installed ({installed.length + (status && status.unmanaged ? status.unmanaged.length : 0)})</button>
+        <button className={tab === "enabled" ? "on" : ""} title="Mods that are on in the active profile" onClick={() => setTab("enabled")}>Enabled ({enabledMods.length})</button>
+        <button className={tab === "installed" ? "on" : ""} title="Mods that are installed but off in the active profile, and anything found in the plugins folder that is not managed yet" onClick={() => setTab("installed")}>Installed ({disabledMods.length + (status && status.unmanaged ? status.unmanaged.length : 0)})</button>
         <button className={tab === "browse" ? "on" : ""} onClick={() => setTab("browse")}>Browse{available !== null ? ` (${available.toLocaleString()})` : ""}</button>
       </div>
 
@@ -490,33 +508,26 @@ function App() {
         </>
       )}
 
+      {tab === "enabled" && (
+        enabledMods.length === 0 ? (
+          <div className="empty" style={{ textAlign: "center", padding: "36px 14px" }}>
+            <div style={{ marginBottom: 14 }}>{!ready ? "Set the game folder in Settings first." : installed.length === 0 ? "No mods installed yet." : `Nothing is enabled in the ${status ? status.profile : "Default"} profile.`}</div>
+            {installed.length === 0
+              ? <button className="primary" style={{ fontSize: 18, padding: "12px 28px" }} onClick={() => setTab("browse")}>Add Mods</button>
+              : <button className="primary" style={{ fontSize: 18, padding: "12px 28px" }} onClick={() => setTab("installed")}>Enable some</button>}
+          </div>
+        ) : <div className="list">{enabledMods.map(modCard)}</div>
+      )}
       {tab === "installed" && status && status.adopted && status.adopted.length > 0 && (
         <div className="msg ok">Found and adopted from the game folder: {status.adopted.join(", ")}</div>
       )}
       {tab === "installed" && (
-        installed.length === 0 ? (
-          <div className="empty" style={{ textAlign: "center", padding: "36px 14px" }}>
-            <div style={{ marginBottom: 14 }}>{ready ? "No mods installed yet." : "Set the game folder in Settings first."}</div>
-            <button className="primary" style={{ fontSize: 18, padding: "12px 28px" }} onClick={() => setTab("browse")}>Add Mods</button>
+        disabledMods.length === 0 ? (
+          <div className="empty" style={{ textAlign: "center", padding: "24px 14px" }}>
+            <div style={{ marginBottom: 14 }}>{installed.length === 0 ? "No mods installed yet." : `Every installed mod is enabled in the ${status ? status.profile : "Default"} profile.`}</div>
+            {installed.length === 0 && <button className="primary" style={{ fontSize: 18, padding: "12px 28px" }} onClick={() => setTab("browse")}>Add Mods</button>}
           </div>
-        ) : (
-          <div className="list">
-            {installed.map(m => {
-              const s = m.summary || { fullName: m.pkg, name: m.pkg, owner: "", description: "not in the catalogue (yet)", packageUrl: "", latestVersion: m.latestVersion || m.version, downloads: 0, ratingScore: 0, categories: [], icon: "", isDeprecated: false, dateUpdated: "", dependencies: [], installedVersion: m.version, enabled: m.enabled };
-              const replace = m.adopted && m.latestVersion;
-              return (
-                <Card key={m.pkg} s={{ ...s, installedVersion: m.version, enabled: m.enabled }} extra={<>{m.adopted && <span className="tag off" title="found in the game folder; its files are not the Thunderstore package's">adopted</span>} <span className="cap">installed {fmtDate(m.installedAt)}</span></>} actions={<>
-                  {replace ? (confirming === "reinstall:" + m.pkg
-                      ? <span><span className="tag off">local {m.version} goes to valslongva/backup</span> <button className="primary small" disabled={!!busy} onClick={() => reinstall(m.pkg)}>Yes, replace with {m.latestVersion}</button> <button className="small" onClick={() => setConfirming(null)}>Keep mine</button></span>
-                      : <button className="small" disabled={!!busy} onClick={() => setConfirming("reinstall:" + m.pkg)}>Replace with Thunderstore {m.latestVersion}{m.latestVersion !== m.version ? ` (mine is ${m.version})` : ""}</button>)
-                    : m.latestVersion && m.latestVersion !== m.version && <button className="primary small" disabled={!!busy} title={tips.update} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button>}
-                  <button className="small" disabled={!!busy} title={m.enabled ? tips.disable : tips.enable} onClick={() => enable(m.pkg, !m.enabled)}>{m.enabled ? "Disable" : "Enable"}</button>
-                  <UninstallButton name={m.pkg} />
-                </>} />
-              );
-            })}
-          </div>
-        )
+        ) : <div className="list">{disabledMods.map(modCard)}</div>
       )}
       {tab === "installed" && <Unmanaged items={status && status.unmanaged} busy={busy} onAdopt={adopt} />}
     </>
@@ -528,7 +539,7 @@ function Card({ s, actions, extra }) {
     <div className="card">
       {s.icon ? <a className="iconlink" href={s.packageUrl || undefined} target="_blank" rel="noopener"><img src={s.icon} alt="" loading="lazy" /></a> : <div />}
       <div>
-        <div className="name">{s.packageUrl ? <a className="name" href={s.packageUrl} target="_blank" rel="noopener" title="open on Thunderstore">{s.name}</a> : s.name} {s.owner && <span className="owner">by {s.owner}</span>} {s.isDeprecated && <span className="tag dep">deprecated</span>} {s.installedVersion && <span className={`tag ${s.enabled ? "on" : "off"}`}>{s.enabled ? "installed" : "disabled"} {s.installedVersion}</span>} {extra}</div>
+        <div className="name">{s.packageUrl ? <a className="name" href={s.packageUrl} target="_blank" rel="noopener" title="open on Thunderstore">{s.name}</a> : s.name} {s.owner && <span className="owner">by {s.owner}</span>} {s.isDeprecated && <span className="tag dep">deprecated</span>} {s.installedVersion && <span className={`tag ${s.enabled ? "on" : "off"}`} title={s.enabled ? "on in the active profile" : "installed, but off in the active profile"}>{s.enabled ? "enabled" : "installed"} {s.installedVersion}</span>} {extra}</div>
         <div className="desc">{s.description}</div>
         <div className="meta">
           <span>v{s.latestVersion}</span>{s.downloads > 0 && <span>{fmtCount(s.downloads)} downloads</span>}{s.ratingScore > 0 && <span>{s.ratingScore} ★</span>}{s.dateUpdated && <span>{fmtDate(s.dateUpdated)}</span>}
