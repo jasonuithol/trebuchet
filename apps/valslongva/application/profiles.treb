@@ -60,9 +60,16 @@ service Profiles(fs: FileSystem, locator: Locator, settings: SettingsStore, inst
                 save(game, added)?
                 ok(added)
 
+        // Removing the active profile first switches to Default, so Default's mods come back on
+        // before the profile that had them off is forgotten.
         fn remove(name: String) -> Result[ProfileSet, AppError]
                 game = locator.gameDir()?
-                remaining = removeProfile(current()?, name).mapError(\m -> AppError.BadRequest(m))?
+                set = current()?
+                settled = if sameName(set.active, name) and not sameName(name, defaultName()) then
+                        switchTo(defaultName())
+                else
+                        ok(set)
+                remaining = removeProfile(settled?, name).mapError(\m -> AppError.BadRequest(m))?
                 save(game, remaining)?
                 ok(remaining)
 

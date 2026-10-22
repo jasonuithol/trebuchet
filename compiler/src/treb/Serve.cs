@@ -119,7 +119,7 @@ public static class Serve
                 FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uiDir),
                 RequestPath = "/ui",
             });
-            app.MapGet("/ui", () => Results.Redirect("/ui/index.html"));
+            app.MapGet("/ui", (HttpRequest r) => Results.Redirect("/ui/index.html" + r.QueryString));
         }
 
         Console.WriteLine($"Trebuchet dev server: root '{rootName}', api {api.Type.Name}, listening on http://localhost:{port}");

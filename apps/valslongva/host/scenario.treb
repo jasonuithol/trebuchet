@@ -140,9 +140,9 @@ handler prop_profilesChooseWhichModsAreOn() -> Bool
         restored = match (w.api.postProfileSwitch("default"), w.api.getStatus())
                 (Ok(set), Ok(s)) => set.active == "Default" and s.profile == "Default" and contains(w.fs.snapshot(), plugin)
                 _ => false
-        // Default stays; the other goes; an uninstall drops the mod from every profile
-        removed = match (w.api.postProfileRemove("Default"), w.api.postProfileRemove("Testing"))
-                (Error(BadRequest(_)), Ok(set)) => length(set.profiles) == 1
+        // Default stays; removing the active profile puts Default's mods back on before it goes
+        removed = match (w.api.postProfileRemove("Default"), w.api.postProfileSwitch("Testing"), w.api.postProfileRemove("Testing"))
+                (Error(BadRequest(_)), Ok(_), Ok(set)) => length(set.profiles) == 1 and set.active == "Default" and modsOf(set, "Default") == ["viking-Longship"] and contains(w.fs.snapshot(), plugin)
                 _ => false
         installed and created and narrowed and placed and restored and removed
 

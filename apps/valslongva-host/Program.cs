@@ -15,7 +15,7 @@ if (args.Length > 0 && args[0] is "install" or "remove")
 var port = args.Length > 0 && int.TryParse(args[0], out var p) ? p : 5173;
 // Thunderstore's "Install with Mod Manager" button hands us a ror2mm:// link; the page does the installing
 var link = args.FirstOrDefault(a => a.StartsWith("ror2mm://", StringComparison.OrdinalIgnoreCase));
-var pageUrl = $"http://localhost:{port}/ui/" + (link is null ? "" : "?link=" + Uri.EscapeDataString(link));
+var pageUrl = $"http://localhost:{port}/ui/index.html" + (link is null ? "" : "?link=" + Uri.EscapeDataString(link));
 Valslongva.SelfUpdate.CleanUp();
 // Already running? Then the launcher was clicked twice, or a link arrived: show the page that is there and leave.
 if (await AlreadyRunning(port))
@@ -60,7 +60,7 @@ var ui = Path.Combine(AppContext.BaseDirectory, "ui");
 if (Directory.Exists(ui))
 {
     app.UseStaticFiles(new StaticFileOptions { FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(ui), RequestPath = "/ui" });
-    app.MapGet("/ui", () => Results.Redirect("/ui/index.html")); // also matches /ui/
+    app.MapGet("/ui", (HttpRequest r) => Results.Redirect("/ui/index.html" + r.QueryString)); // also matches /ui/; the query (a ror2mm link) rides along
 }
 
 app.MapGet("/status", async () => Respond(await api.getStatus()));
