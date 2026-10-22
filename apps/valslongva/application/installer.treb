@@ -47,15 +47,9 @@ service Installer(fs: FileSystem, http: Http, archive: Archive, platform: Platfo
                 dir = game + "/BepInEx/plugins"
                 listed = if fs.exists(dir) then fs.listFiles(dir).mapError(io) else ok([])
                 all = listed?
-                fn top(f: String) -> String
-                        match indexOf(f, "/")
-                                Some(i) => substring(f, 0, i)
-                                None => f
-                names = sort(items(toSet(map(all, top))))
-                traverse(names, \n -> entryFor(dir, n, all))
+                traverse(groupEntries(all), \g -> entryFor(dir, g.name, g.files))
 
-        private fn entryFor(dir: String, name: String, all: Vector[String]) -> Result[PluginEntry, AppError]
-                own = filter(all, \f -> f == name or startsWith(f, name + "/"))
+        private fn entryFor(dir: String, name: String, own: Vector[String]) -> Result[PluginEntry, AppError]
                 isFolder = any(own, \f -> startsWith(f, name + "/"))
                 manifest = if isFolder and contains(own, name + "/manifest.json") then readManifest(dir + "/" + name + "/manifest.json") else None
                 info = match find(own, \f -> endsWith(toLower(f), ".dll"))

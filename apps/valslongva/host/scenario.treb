@@ -254,7 +254,8 @@ handler prop_adoptsAPackagedFolderFoundInThePluginsFolder() -> Bool
 // A loose dll is reported with what its attribute says, suggested when the catalogue has its name, and adopted only on request.
 handler prop_reportsALooseDllAndAdoptsItOnRequest() -> Bool
         files = seededFiles()
-        files.update(\m -> m.set(gameDir() + "/BepInEx/plugins/Longship.dll", "plugin:viking.longship|Longship|1.1.0").set(gameDir() + "/BepInEx/plugins/DayNight.dll", "plugin:tarbaby.daynight|DayNight|2.0.0"))
+        // a loose plugin often comes with symbols and documentation beside it; they are part of it
+        files.update(\m -> m.set(gameDir() + "/BepInEx/plugins/Longship.dll", "plugin:viking.longship|Longship|1.1.0").set(gameDir() + "/BepInEx/plugins/Longship.pdb", "symbols").set(gameDir() + "/BepInEx/plugins/Longship.dll.mdb", "mono symbols").set(gameDir() + "/BepInEx/plugins/Longship.xml", "<doc/>").set(gameDir() + "/BepInEx/plugins/DayNight.dll", "plugin:tarbaby.daynight|DayNight|2.0.0"))
         w = worldWith(FakeSteam(true), files)
         loaded = match w.api.getSearch("", "name", true, 0, 5)
                 Ok(_) => true
@@ -271,8 +272,9 @@ handler prop_reportsALooseDllAndAdoptsItOnRequest() -> Bool
         replaced = match (w.api.postReinstall("viking-Longship"), w.api.getInstalled())
                 (Ok(done), Ok(mods)) =>
                         snap = w.fs.snapshot()
-                        backedUp = any(keys(snap), \k -> startsWith(k, gameDir() + "/valslongva/backup/viking-Longship/") and endsWith(k, "/BepInEx/plugins/Longship.dll"))
-                        done == ["denikson-BepInExPack_Valheim-5.4.2202", "viking-Longship-1.2.0"] and not contains(snap, gameDir() + "/BepInEx/plugins/Longship.dll") and backedUp and map(mods, \m -> m.adopted) == [false]
+                        backedUp = all(["Longship.dll", "Longship.pdb", "Longship.dll.mdb", "Longship.xml"], \f -> any(keys(snap), \k -> startsWith(k, gameDir() + "/valslongva/backup/viking-Longship/") and endsWith(k, "/BepInEx/plugins/" + f)))
+                        cleared = not any(["Longship.dll", "Longship.pdb", "Longship.dll.mdb", "Longship.xml"], \f -> contains(snap, gameDir() + "/BepInEx/plugins/" + f))
+                        done == ["denikson-BepInExPack_Valheim-5.4.2202", "viking-Longship-1.2.0"] and cleared and backedUp and map(mods, \m -> m.adopted) == [false]
                 _ => false
         loaded and reported and adopted and flagged and replaced
 

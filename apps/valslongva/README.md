@@ -57,7 +57,9 @@ undoes only that. `valslongva install` and `valslongva remove` do the same from 
 - **Finds what was already there.** Every look at the game folder adopts Thunderstore-packaged
   folders it did not install (folder name and manifest agree), lists loose dlls and other
   folders as unmanaged with what their `BepInPlugin` attribute says, offers "manage as" when a
-  catalogue package has exactly that name, and notices managed mods removed by hand.
+  catalogue package has exactly that name, and notices managed mods removed by hand. A loose
+  dll's companions (`.pdb`, `.dll.mdb`, `.xml` and anything else sharing its stem) count as part
+  of it, so managing it takes them along.
 - **Updates, disables, enables, and uninstalls.** Disabling moves the package folder to
   `valslongva/disabled/`; uninstalling keeps the config files. Before an update, reinstall, or
   uninstall, the package's recorded files move to a dated folder under `valslongva/backup/`,

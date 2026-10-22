@@ -46,6 +46,48 @@ fn packageOf(entry: PluginEntry) -> Option[String] ! Pure
                         else
                                 None
 
+// A top-level entry of the plugins folder and the files that are its own: a folder with its
+// contents, a loose dll with its companions, or a lone file.
+record Grouping
+        name: String
+        files: Vector[String]
+
+fn stemOf(dll: String) -> String ! Pure
+        substring(dll, 0, length(dll) - 4)
+
+// A loose file travels with the loose dll whose stem it starts with: Jotunn.pdb, Jotunn.xml and
+// Jotunn.dll.mdb all belong to Jotunn.dll. With several dlls in the running, the longest stem is
+// the closest name, so Jotunn.Extras.pdb goes with Jotunn.Extras.dll and not Jotunn.dll.
+fn companionDll(file: String, dlls: Vector[String]) -> Option[String] ! Pure
+        fn closer(best: Option[String], d: String) -> Option[String]
+                match best
+                        None => Some(d)
+                        Some(b) => if length(stemOf(d)) > length(stemOf(b)) then Some(d) else best
+        fold(filter(dlls, \d -> startsWith(toLower(file), toLower(stemOf(d)) + ".")), None, closer)
+
+fn isDll(name: String) -> Bool ! Pure
+        endsWith(toLower(name), ".dll")
+
+fn topOf(path: String) -> String ! Pure
+        match indexOf(path, "/")
+                Some(i) => substring(path, 0, i)
+                None => path
+
+// The plugins folder's relative paths sorted into entries, every path in exactly one of them.
+fn groupEntries(all: Vector[String]) -> Vector[Grouping] ! Pure
+        tops = sort(items(toSet(map(all, topOf))))
+        folders = filter(tops, \t -> any(all, \f -> startsWith(f, t + "/")))
+        dlls = filter(tops, \t -> not contains(folders, t) and isDll(t))
+        fn homeOf(t: String) -> String
+                if contains(folders, t) or contains(dlls, t) then
+                        t
+                else
+                        match companionDll(t, dlls)
+                                Some(d) => d
+                                None => t
+        names = sort(items(toSet(map(tops, homeOf))))
+        map(names, \n -> Grouping(n, filter(all, \f -> homeOf(topOf(f)) == n)))
+
 fn managedFiles(lib: Library) -> Set[String] ! Pure
         fold(installedMods(lib), toSet([]), \acc, m -> merge(acc, toSet(m.files)))
 
@@ -69,6 +111,24 @@ fn scanPlugins(lib: Library, entries: Vector[PluginEntry], now: Instant) -> Scan
         present = fold(entries, toSet([]), \acc, e -> merge(acc, toSet(e.files)))
         gone = filter(installedMods(lib), \m -> m.enabled and length(m.files) > 0 and not any(m.files, \f -> contains(present, f)))
         scanned with { events: concat(scanned.events, map(gone, \m -> LibraryEvent.ModRemoved(m.pkg, now))) }
+
+fn prop_companionsFollowTheirDll(stem: String) -> Bool ! Pure
+        plain = length(trim(stem)) > 0 and not contains(stem, "/") and not contains(stem, ".")
+        files = [stem + ".dll", stem + ".pdb", stem + ".xml", stem + ".dll.mdb"]
+        if plain then
+                groupEntries(files) == [Grouping(stem + ".dll", files)]
+        else
+                true
+
+fn prop_theLongestStemWins() -> Bool ! Pure
+        grouped = groupEntries(["Jotunn.dll", "Jotunn.Extras.dll", "Jotunn.Extras.pdb", "Jotunn.xml", "Other.pdb", "Pack-Mod/Mod.dll", "Pack-Mod/Mod.pdb"])
+        grouped == [Grouping("Jotunn.Extras.dll", ["Jotunn.Extras.dll", "Jotunn.Extras.pdb"]), Grouping("Jotunn.dll", ["Jotunn.dll", "Jotunn.xml"]), Grouping("Other.pdb", ["Other.pdb"]), Grouping("Pack-Mod", ["Pack-Mod/Mod.dll", "Pack-Mod/Mod.pdb"])]
+
+fn prop_everyPathLandsInExactlyOneEntry(paths: Vector[String]) -> Bool ! Pure
+        unique = items(toSet(paths))
+        grouped = groupEntries(unique)
+        placed = fold(grouped, [], \acc, g -> concat(acc, g.files))
+        toSet(placed) == toSet(unique) and length(placed) == length(unique) and all(grouped, \g -> length(g.files) > 0)
 
 fn prop_managedEntriesAreNeverAdoptedNorReported(pkg: String, version: String, files: Vector[String], at: Instant) -> Bool ! Pure
         clean = replace(pkg, "/", "")
