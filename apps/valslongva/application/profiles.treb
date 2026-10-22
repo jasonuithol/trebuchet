@@ -32,17 +32,14 @@ service Profiles(fs: FileSystem, locator: Locator, settings: SettingsStore, inst
                 fs.ensureDir(game + "/valslongva").mapError(io)?
                 fs.writeText(path(game), json.encode(set)).mapError(io)
 
-        // The saved set, reconciled with the library and written back when that changed anything.
+        // The saved set, reconciled with the library. A read never writes: the page asks for the
+        // status and the installed list at the same time, and two writers of one small file
+        // would leave a reader an empty one. The reconciled set is saved by whatever changes it.
         fn current() -> Result[ProfileSet, AppError]
                 game = locator.gameDir()?
                 before = stored(game)?
                 lib = installer.library()?
-                after = reconcile(before, keys(lib.mods), enabledOf(lib.mods))
-                if after != before or not fs.exists(path(game)) then
-                        save(game, after)?
-                        ok(after)
-                else
-                        ok(after)
+                ok(reconcile(before, keys(lib.mods), enabledOf(lib.mods)))
 
         fn launchArgs() -> Result[String, AppError]
                 set = current()?

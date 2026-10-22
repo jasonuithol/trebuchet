@@ -51,7 +51,11 @@ disables, which append to the log as always. Profiles live in `<game>/valslongva
 a small document rewritten whole rather than a second log, and every read reconciles it with the
 library: the active profile takes exactly what is enabled, and every profile forgets a mod that
 is no longer installed. That one rule means install, enable, disable, adopt and uninstall need
-no profile code at all. The first read makes the Default profile from whatever is enabled and the
+no profile code at all. A read never writes the document: the page asks for the status and the
+installed list at the same time, and the first version wrote the reconciled set back from both,
+so one request truncated the file while the other read it and found no JSON. The reconciled set
+is saved by whatever changes it, and the host writes small files to a temporary name and renames,
+so a reader never sees a half-written one. The first read makes the Default profile from whatever is enabled and the
 launch arguments saved before profiles existed, so an existing game folder gains profiles without
 noticing. A new profile is a copy of the active one ("add" means "vary from here") and does not
 become active by itself; Default cannot be removed; removing the active profile activates

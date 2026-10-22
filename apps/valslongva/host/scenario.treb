@@ -124,9 +124,11 @@ handler prop_profilesChooseWhichModsAreOn() -> Bool
         installed = match w.api.postInstall("viking-Longship")
                 Ok(_) => true
                 Error(_) => false
+        // reads never write the profiles document; the first profile operation does
+        unwritten = not contains(w.fs.snapshot(), gameDir() + "/valslongva/profiles.json")
         // a new profile copies the active one and does not become active by itself
         created = match w.api.postProfileCreate(" Testing ")
-                Ok(set) => set.active == "Default" and length(set.profiles) == 2 and modsOf(set, "Testing") == ["viking-Longship"]
+                Ok(set) => set.active == "Default" and length(set.profiles) == 2 and modsOf(set, "Testing") == ["viking-Longship"] and contains(w.fs.snapshot(), gameDir() + "/valslongva/profiles.json")
                 Error(_) => false
         // switching to it, then disabling the mod, changes only that profile
         narrowed = match (w.api.postProfileSwitch("Testing"), w.api.postDisable("viking-Longship"), w.api.getProfiles())
@@ -144,7 +146,7 @@ handler prop_profilesChooseWhichModsAreOn() -> Bool
         removed = match (w.api.postProfileRemove("Default"), w.api.postProfileSwitch("Testing"), w.api.postProfileRemove("Testing"))
                 (Error(BadRequest(_)), Ok(_), Ok(set)) => length(set.profiles) == 1 and set.active == "Default" and modsOf(set, "Default") == ["viking-Longship"] and contains(w.fs.snapshot(), plugin)
                 _ => false
-        installed and created and narrowed and placed and restored and removed
+        installed and unwritten and created and narrowed and placed and restored and removed
 
 handler prop_launchArgumentsBelongToTheProfile() -> Bool
         w = world()

@@ -39,10 +39,13 @@ public static class Host
         while ((n = reader.Read(block, 0, block.Length)) > 0) yield return new string(block, 0, n);
     }
 
+    /// <summary>Writes to a temporary name beside the target and renames over it, so a concurrent reader sees the old text or the new, never an empty file.</summary>
     public static async Task WriteText(string path, string text)
     {
         Parent(path);
-        await File.WriteAllTextAsync(path, text);
+        var temp = path + ".writing-" + Guid.NewGuid().ToString("N")[..8];
+        await File.WriteAllTextAsync(temp, text);
+        File.Move(temp, path, overwrite: true);
     }
 
     public static async Task AppendText(string path, string text)
