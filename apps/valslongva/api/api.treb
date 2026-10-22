@@ -49,6 +49,8 @@ record Status
         // the active profile's launch arguments and name; Default is the one every game folder starts with
         launchArgs: String
         profile: String
+        // how many profiles there are: an uninstall reaches all of them, and the page says so
+        profileCount: Int
 
 // What changes without the user touching anything: polled every few seconds.
 record Pulse
@@ -163,13 +165,14 @@ service Api(installer: Installer, catalogue: CatalogueService, launcher: Launche
         fn getStatus() -> Result[Status, AppError]
                 match locator.gameDir()
                         Error(e) =>
-                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages(), catalogue.stale(), "", defaultName()))
+                                ok(Status(platform.os(), appVersion(), None, Some(messageOf(e)), locator.candidates(), None, false, None, loaderLatest(), loaderIcon(), steam.state(), 0, [], [], catalogueStamp(), cataloguePackages(), catalogue.stale(), "", defaultName(), 1))
                         Ok(dir) =>
                                 scanned = installer.scan()?
                                 lib = installer.library()?
-                                active = activeProfile(profiles.current()?)
+                                set = profiles.current()?
+                                active = activeProfile(set)
                                 core = dir + "/BepInEx/core/BepInEx.dll"
-                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages(), catalogue.stale(), active.launchArgs, active.name))
+                                ok(Status(platform.os(), appVersion(), Some(dir), None, locator.candidates(), lib.loader, fs.exists(core), fs.fileVersion(core), loaderLatest(), loaderIcon(), steam.state(), length(lib.mods), scanned.adopted, map(scanned.unmanaged, \u -> view(u)), catalogueStamp(), cataloguePackages(), catalogue.stale(), active.launchArgs, active.name, length(set.profiles)))
 
         fn getSearch(query: String, sort: String, deprecated: Bool, offset: Int, limit: Int) -> Result[Page[ListingSummary], AppError]
                 cat = catalogue.current()?

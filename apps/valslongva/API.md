@@ -57,7 +57,7 @@ Failure is a JSON object `{"error": "<kind>", "message": "<text>"}` with status 
 | `adopted` | Packaged folders found in `BepInEx/plugins` on this request and taken under management. |
 | `unmanaged` | Entries in `BepInEx/plugins` that are not managed: `{entry, isFolder, pluginName, pluginVersion, guid, suggestion, onThunderstore, suggestedVersion}`. `suggestion` is a package the entry could be managed as; `onThunderstore` says whether its version is one Thunderstore has (false means a local build). |
 | `catalogueFetchedAt`, `cataloguePackages`, `catalogueStale` | The Thunderstore catalogue on disk and whether it is older than six hours. |
-| `launchArgs`, `profile` | The active profile's launch arguments and its name. `Default` is the profile every game folder starts with. |
+| `launchArgs`, `profile`, `profileCount` | The active profile's launch arguments, its name, and how many profiles there are. `Default` is the profile every game folder starts with. |
 
 ## Changing things
 

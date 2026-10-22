@@ -253,6 +253,19 @@ function App() {
   const adopt = (entry, name) => run(`Managing ${entry} as ${name}`, () => api("POST", "/adopt", { entry, name }), () => `${name} is now managed; "Replace with Thunderstore" on the Installed tab swaps ${entry} for the package`);
   const reinstall = name => { setConfirming(null); run(`Replacing ${name} with the Thunderstore package`, () => api("POST", "/reinstall", { name }), r => `Installed ${r.join(", ")}; the previous files are under valslongva/backup in the game folder`); };
   const uninstall2 = name => { setConfirming(null); uninstall(name); };
+  const profileCount = status ? status.profileCount || 1 : 1;
+  const tips = {
+    install: "Installs the newest version and whatever it depends on, BepInEx included. It is enabled in the active profile.",
+    update: "Replaces the installed files with the newest version; the old files go to valslongva/backup in the game folder.",
+    disable: `Turns the mod off in the active profile only (${status ? status.profile : "Default"}): its folder moves to valslongva/disabled. Other profiles keep their own choice.`,
+    enable: `Turns the mod on in the active profile only (${status ? status.profile : "Default"}). Other profiles keep their own choice.`,
+    uninstall: `Removes the mod's files from the game folder, which reaches every profile${profileCount > 1 ? ` (all ${profileCount})` : ""}. The files go to valslongva/backup; config files stay.`,
+  };
+  // Uninstall reaches every profile, so it asks first and says so.
+  function UninstallButton({ name }) {
+    if (confirming !== "uninstall:" + name) return <button className="small danger" disabled={!!busy} title={tips.uninstall} onClick={() => setConfirming("uninstall:" + name)}>Uninstall</button>;
+    return <span><span className="tag off" title={tips.uninstall}>{profileCount > 1 ? `removed from all ${profileCount} profiles` : "removed from the game folder"}; files go to valslongva/backup</span> <button className="small danger" disabled={!!busy} onClick={() => uninstall2(name)}>Yes, uninstall</button> <button className="small" onClick={() => setConfirming(null)}>Keep it</button></span>;
+  }
   const loader = () => run("Installing BepInEx", () => api("POST", "/loader"), r => r.length ? `Installed ${r.join(", ")}` : "BepInEx is already up to date");
 
   // BepInEx is not a mod: it is the thing mods need, so it gets its own line and its own verbs.
@@ -376,8 +389,8 @@ function App() {
         </div>
         <div className="play">
           {status && <div key={nudge} className={`steam ${status.steam}${nudge > 0 && !steamOk ? " nudge" : ""}`} title={steamText}><span className="glyph"></span><span>{pending ? "Waiting for Steam…" : steamText}</span></div>}
-          <button className="primary" disabled={!ready || !!busy || !(status && status.loaderPresent)} onClick={() => play("modded")}>Play modded</button>
-          <button disabled={!ready || !!busy} onClick={() => play("vanilla")}>Play vanilla</button>
+          <button className="primary" disabled={!ready || !!busy || !(status && status.loaderPresent)} title="Starts Valheim with BepInEx and the active profile's enabled mods and launch arguments. Needs Steam signed in." onClick={() => play("modded")}>Play modded</button>
+          <button disabled={!ready || !!busy} title="Starts Valheim without the mod loader, with the active profile's launch arguments. Needs Steam signed in." onClick={() => play("vanilla")}>Play vanilla</button>
         </div>
         <LoaderLine s={status} />
         {showSettings && (
@@ -394,7 +407,7 @@ function App() {
             </div>
             <div style={{ flexBasis: "100%", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
               <span className="sub">Profile: <b style={{ color: "var(--ink)" }}>{status ? status.profile : "…"}</b></span>
-              <button disabled={!!busy || !ready} onClick={openProfiles}>{showProfiles ? "Hide profiles" : "Profiles"}</button>
+              <button disabled={!!busy || !ready} title="A profile is a set of enabled mods and launch arguments. Disable and Enable change the active profile; Uninstall reaches all of them." onClick={openProfiles}>{showProfiles ? "Hide profiles" : "Profiles"}</button>
             </div>
             {showProfiles && (
               <div className="profiles" style={{ flexBasis: "100%" }}>
@@ -403,15 +416,15 @@ function App() {
                 {profiles && profiles.profiles.map(p => (
                   <div key={p.name} className={`profile${p.name === profiles.active ? " active" : ""}`}>
                     <div className="what"><b>{p.name}</b>{p.name === profiles.active && <span className="tag on" style={{ marginLeft: 8 }}>active</span>}<small>{p.mods.length === 1 ? "1 mod" : `${p.mods.length} mods`}{p.launchArgs ? ` · ${p.launchArgs}` : ""}</small></div>
-                    {p.name !== profiles.active && <button disabled={!!busy} onClick={() => switchProfile(p.name)}>Switch to</button>}
+                    {p.name !== profiles.active && <button disabled={!!busy} title={`Makes ${p.name} the active profile: mods it has on are enabled, the rest disabled, and Play uses its launch arguments.`} onClick={() => switchProfile(p.name)}>Switch to</button>}
                     {p.name !== "Default" && (confirming === "profile:" + p.name
                       ? <button className="danger" disabled={!!busy} onClick={() => removeProfile(p.name)}>Really remove</button>
-                      : <button disabled={!!busy} onClick={() => setConfirming("profile:" + p.name)}>Remove</button>)}
+                      : <button disabled={!!busy} title="Forgets this profile's choices. No mod files are touched; if it is active, Default becomes active." onClick={() => setConfirming("profile:" + p.name)}>Remove</button>)}
                   </div>
                 ))}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
                   <input value={newProfile} onChange={e => setNewProfile(e.target.value)} onKeyDown={e => { if (e.key === "Enter") createProfile(); }} placeholder="new profile name" />
-                  <button disabled={!!busy || !newProfile.trim()} onClick={createProfile}>Add profile</button>
+                  <button disabled={!!busy || !newProfile.trim()} title="Adds a profile that starts as a copy of the active one. Switch to it, then enable and disable to taste." onClick={createProfile}>Add profile</button>
                 </div>
               </div>
             )}
@@ -459,9 +472,9 @@ function App() {
             <div className="list">
               {page.items.map(s => (
                 <Card key={s.fullName} s={s} actions={<>
-                  {!s.installedVersion && <button className="primary small" disabled={!ready || !!busy} onClick={() => install(s.fullName)}>Install</button>}
-                  {s.installedVersion && s.installedVersion !== s.latestVersion && <button className="primary small" disabled={!!busy} onClick={() => install(s.fullName)}>Update to {s.latestVersion}</button>}
-                  {s.installedVersion && <button className="small danger" disabled={!!busy} onClick={() => uninstall(s.fullName)}>Uninstall</button>}
+                  {!s.installedVersion && <button className="primary small" disabled={!ready || !!busy} title={tips.install} onClick={() => install(s.fullName)}>Install</button>}
+                  {s.installedVersion && s.installedVersion !== s.latestVersion && <button className="primary small" disabled={!!busy} title={tips.update} onClick={() => install(s.fullName)}>Update to {s.latestVersion}</button>}
+                  {s.installedVersion && <UninstallButton name={s.fullName} />}
                 </>} />
               ))}
             </div>
@@ -496,9 +509,9 @@ function App() {
                   {replace ? (confirming === "reinstall:" + m.pkg
                       ? <span><span className="tag off">local {m.version} goes to valslongva/backup</span> <button className="primary small" disabled={!!busy} onClick={() => reinstall(m.pkg)}>Yes, replace with {m.latestVersion}</button> <button className="small" onClick={() => setConfirming(null)}>Keep mine</button></span>
                       : <button className="small" disabled={!!busy} onClick={() => setConfirming("reinstall:" + m.pkg)}>Replace with Thunderstore {m.latestVersion}{m.latestVersion !== m.version ? ` (mine is ${m.version})` : ""}</button>)
-                    : m.latestVersion && m.latestVersion !== m.version && <button className="primary small" disabled={!!busy} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button>}
-                  <button className="small" disabled={!!busy} onClick={() => enable(m.pkg, !m.enabled)}>{m.enabled ? "Disable" : "Enable"}</button>
-                  <button className="small danger" disabled={!!busy} onClick={() => uninstall(m.pkg)}>Uninstall</button>
+                    : m.latestVersion && m.latestVersion !== m.version && <button className="primary small" disabled={!!busy} title={tips.update} onClick={() => install(m.pkg)}>Update to {m.latestVersion}</button>}
+                  <button className="small" disabled={!!busy} title={m.enabled ? tips.disable : tips.enable} onClick={() => enable(m.pkg, !m.enabled)}>{m.enabled ? "Disable" : "Enable"}</button>
+                  <UninstallButton name={m.pkg} />
                 </>} />
               );
             })}
